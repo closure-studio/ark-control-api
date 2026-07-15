@@ -5,8 +5,7 @@ compatibility_date = "2026-07-14"
 [[d1_databases]]
 binding = "DB"
 database_name = "ark_control"
-# Replace this placeholder after running: wrangler d1 create ark_control
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "d082d24c-4677-415f-bb1c-bda9d1e62937"
 
 [[services]]
 binding = "ARK_SSH"
