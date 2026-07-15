@@ -1,6 +1,7 @@
 name = "ark-control-api"
 main = "src/index.ts"
 compatibility_date = "2026-07-14"
+workers_dev = true
 
 [[d1_databases]]
 binding = "DB"
