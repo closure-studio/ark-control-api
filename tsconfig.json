@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "lib": ["ES2023", "WebWorker"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "strict": true,
+    "types": ["@cloudflare/workers-types", "node"],
+    "skipLibCheck": true
+  },
+  "include": ["src", "tests"]
+}
