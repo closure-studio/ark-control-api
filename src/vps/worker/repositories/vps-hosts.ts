@@ -1,3 +1,8 @@
+import { asc, eq, sql } from "drizzle-orm";
+import type { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
+
+import { createDatabase, type Database } from "../../../db/client";
+import { vpsHosts, type VpsHostRow } from "../../../db/schema";
 import type {
   AdminVpsHost,
   CreateVpsHostRequest,
@@ -5,17 +10,7 @@ import type {
   ServiceVpsHost
 } from "../../shared/types/vps-hosts";
 
-export interface VpsHostRecord {
-  id: number;
-  name: string;
-  address: string;
-  port: number;
-  username: string;
-  password_ciphertext: string;
-  enabled: number;
-  created_at: string;
-  updated_at: string;
-}
+export type VpsHostRecord = VpsHostRow;
 
 export function sanitizeAdminHost(record: VpsHostRecord): AdminVpsHost {
   return {
@@ -24,7 +19,7 @@ export function sanitizeAdminHost(record: VpsHostRecord): AdminVpsHost {
     address: record.address,
     port: record.port,
     username: record.username,
-    enabled: record.enabled === 1,
+    enabled: record.enabled,
     created_at: record.created_at,
     updated_at: record.updated_at
   };
@@ -38,69 +33,64 @@ export function sanitizeServiceHost(record: VpsHostRecord): ServiceVpsHost {
 }
 
 export class VpsHostRepository {
-  constructor(private readonly db: D1Database) {}
+  private readonly db: Database;
+
+  constructor(db: D1Database) {
+    this.db = createDatabase(db);
+  }
 
   async listAll(): Promise<VpsHostRecord[]> {
-    const result = await this.db.prepare("SELECT * FROM vps_hosts ORDER BY id ASC").all<VpsHostRecord>();
-    return result.results;
+    return this.db.select().from(vpsHosts).orderBy(asc(vpsHosts.id)).all();
   }
 
   async listEnabled(): Promise<VpsHostRecord[]> {
-    const result = await this.db
-      .prepare("SELECT * FROM vps_hosts WHERE enabled = 1 ORDER BY id ASC")
-      .all<VpsHostRecord>();
-    return result.results;
+    return this.db
+      .select()
+      .from(vpsHosts)
+      .where(eq(vpsHosts.enabled, true))
+      .orderBy(asc(vpsHosts.id))
+      .all();
   }
 
   async findById(id: number): Promise<VpsHostRecord | null> {
-    return this.db.prepare("SELECT * FROM vps_hosts WHERE id = ?").bind(id).first<VpsHostRecord>();
+    return (await this.db.select().from(vpsHosts).where(eq(vpsHosts.id, id)).get()) ?? null;
   }
 
   async create(
     input: Required<CreateVpsHostRequest>,
     passwordCiphertext: string
   ): Promise<VpsHostRecord | null> {
-    const result = await this.db
-      .prepare(
-        `INSERT INTO vps_hosts (
-          name, address, port, username, password_ciphertext
-        ) VALUES (?, ?, ?, ?, ?)`
-      )
-      .bind(
-        input.name,
-        input.address,
-        input.port,
-        input.username,
-        passwordCiphertext
-      )
-      .run();
-    return this.findById(Number(result.meta.last_row_id));
+    const inserted = await this.db
+      .insert(vpsHosts)
+      .values({
+        name: input.name,
+        address: input.address,
+        port: input.port,
+        username: input.username,
+        password_ciphertext: passwordCiphertext
+      })
+      .returning({ id: vpsHosts.id })
+      .get();
+    return this.findById(inserted.id);
   }
 
   async patch(id: number, input: PatchVpsHostRequest, passwordCiphertext?: string): Promise<VpsHostRecord | null> {
-    const assignments: string[] = [];
-    const bindings: unknown[] = [];
-    add(assignments, bindings, "name", input.name);
-    add(assignments, bindings, "address", input.address);
-    add(assignments, bindings, "port", input.port);
-    add(assignments, bindings, "username", input.username);
-    add(assignments, bindings, "enabled", input.enabled === undefined ? undefined : input.enabled ? 1 : 0);
-    add(assignments, bindings, "password_ciphertext", passwordCiphertext);
+    const values: SQLiteUpdateSetSource<typeof vpsHosts> = {
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.address !== undefined ? { address: input.address } : {}),
+      ...(input.port !== undefined ? { port: input.port } : {}),
+      ...(input.username !== undefined ? { username: input.username } : {}),
+      ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
+      ...(passwordCiphertext !== undefined ? { password_ciphertext: passwordCiphertext } : {})
+    };
 
-    if (assignments.length === 0) return this.findById(id);
-    assignments.push("updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')");
-    bindings.push(id);
-    await this.db.prepare(`UPDATE vps_hosts SET ${assignments.join(", ")} WHERE id = ?`).bind(...bindings).run();
+    if (Object.keys(values).length === 0) return this.findById(id);
+    values.updated_at = sql`strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
+    await this.db.update(vpsHosts).set(values).where(eq(vpsHosts.id, id)).run();
     return this.findById(id);
   }
 
   async delete(id: number): Promise<void> {
-    await this.db.prepare("DELETE FROM vps_hosts WHERE id = ?").bind(id).run();
+    await this.db.delete(vpsHosts).where(eq(vpsHosts.id, id)).run();
   }
-}
-
-function add(assignments: string[], bindings: unknown[], column: string, value: unknown): void {
-  if (value === undefined) return;
-  assignments.push(`${column} = ?`);
-  bindings.push(value);
 }

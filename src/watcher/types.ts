@@ -1,17 +1,8 @@
-import type { AiReviewStatus, HostRunStatus } from "./constants/status";
+import type { VpsHostRow, WatcherDeploymentRow } from "../db/schema";
+import type { AiReviewStatus } from "./constants/status";
 export type { Env } from "../env";
 
-export interface ServiceVpsHost {
-  id: number;
-  name: string;
-  address: string;
-  port: number;
-  username: string;
-  password_ciphertext: string;
-  enabled: number;
-  created_at: string;
-  updated_at: string;
-}
+export type ServiceVpsHost = VpsHostRow;
 
 export interface ExecuteHostCommandResult {
   connected: boolean;
@@ -34,23 +25,4 @@ export interface AiReviewResult {
   rawResponse: string;
 }
 
-export interface HostRunRow {
-  id: number;
-  release_id: number;
-  host_id: number | null;
-  host_name_snapshot: string;
-  host_address_snapshot: string;
-  status: HostRunStatus;
-  failure_stage: "start" | "ssh" | "ai" | "deadline" | null;
-  started_at: string | null;
-  next_check_at: string | null;
-  deadline_at: string | null;
-  last_checked_at: string | null;
-  finished_at: string | null;
-  last_log_tail: string | null;
-  last_ai_status: AiReviewStatus | null;
-  last_ai_reason: string | null;
-  error_message: string | null;
-  created_at: string;
-  updated_at: string;
-}
+export type HostRunRow = WatcherDeploymentRow;

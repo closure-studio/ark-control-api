@@ -14,7 +14,7 @@ function toPublicHost(host: ServiceVpsHost): PublicHost {
     address: host.address,
     port: host.port,
     username: host.username,
-    enabled: host.enabled === 1,
+    enabled: host.enabled,
     created_at: host.created_at,
     updated_at: host.updated_at
   };

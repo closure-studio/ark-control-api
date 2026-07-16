@@ -1,3 +1,7 @@
+import { and, asc, count, eq, inArray, isNotNull, lte } from "drizzle-orm";
+
+import { createDatabase } from "../../db/client";
+import { watcherDeployments } from "../../db/schema";
 import {
   NON_TERMINAL_HOST_RUN_STATUSES,
   isTerminalHostRunStatus,
@@ -6,17 +10,23 @@ import {
 } from "../constants/status";
 import type { HostRunRow, ServiceVpsHost } from "../types";
 
-const nonTerminalPlaceholders = NON_TERMINAL_HOST_RUN_STATUSES.map(() => "?").join(", ");
-
 export async function getHostRunForReleaseHost(
   db: D1Database,
   releaseId: number,
   hostId: number
 ): Promise<HostRunRow | null> {
-  return await db
-    .prepare("SELECT * FROM watcher_deployments WHERE release_id = ? AND host_id = ?")
-    .bind(releaseId, hostId)
-    .first<HostRunRow>();
+  return (
+    (await createDatabase(db)
+      .select()
+      .from(watcherDeployments)
+      .where(
+        and(
+          eq(watcherDeployments.release_id, releaseId),
+          eq(watcherDeployments.host_id, hostId)
+        )
+      )
+      .get()) ?? null
+  );
 }
 
 export async function getOrCreateHostRun(
@@ -25,12 +35,20 @@ export async function getOrCreateHostRun(
   host: ServiceVpsHost,
   now: string
 ): Promise<HostRunRow> {
-  await db
-    .prepare(`INSERT OR IGNORE INTO watcher_deployments (
-      release_id, host_id, host_name_snapshot, host_address_snapshot,
-      status, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, 'pending', ?, ?)`)
-    .bind(releaseId, host.id, host.name, host.address, now, now)
+  await createDatabase(db)
+    .insert(watcherDeployments)
+    .values({
+      release_id: releaseId,
+      host_id: host.id,
+      host_name_snapshot: host.name,
+      host_address_snapshot: host.address,
+      status: "pending",
+      created_at: now,
+      updated_at: now
+    })
+    .onConflictDoNothing({
+      target: [watcherDeployments.release_id, watcherDeployments.host_id]
+    })
     .run();
 
   const row = await getHostRunForReleaseHost(db, releaseId, host.id);
@@ -39,19 +57,22 @@ export async function getOrCreateHostRun(
 }
 
 export async function hasNonTerminalHostRuns(db: D1Database): Promise<boolean> {
-  const row = await db
-    .prepare(`SELECT id FROM watcher_deployments WHERE status IN (${nonTerminalPlaceholders}) LIMIT 1`)
-    .bind(...NON_TERMINAL_HOST_RUN_STATUSES)
-    .first<{ id: number }>();
+  const row = await createDatabase(db)
+    .select({ id: watcherDeployments.id })
+    .from(watcherDeployments)
+    .where(inArray(watcherDeployments.status, [...NON_TERMINAL_HOST_RUN_STATUSES]))
+    .limit(1)
+    .get();
   return Boolean(row);
 }
 
 export async function countNonTerminalHostRuns(db: D1Database): Promise<number> {
-  const row = await db
-    .prepare(`SELECT COUNT(*) AS count FROM watcher_deployments WHERE status IN (${nonTerminalPlaceholders})`)
-    .bind(...NON_TERMINAL_HOST_RUN_STATUSES)
-    .first<{ count: number }>();
-  return row?.count ?? 0;
+  const row = await createDatabase(db)
+    .select({ value: count() })
+    .from(watcherDeployments)
+    .where(inArray(watcherDeployments.status, [...NON_TERMINAL_HOST_RUN_STATUSES]))
+    .get();
+  return row?.value ?? 0;
 }
 
 export async function countRunsByReleaseIds(
@@ -59,35 +80,49 @@ export async function countRunsByReleaseIds(
   releaseIds: number[]
 ): Promise<Record<number, Record<string, number>>> {
   if (releaseIds.length === 0) return {};
-  const placeholders = releaseIds.map(() => "?").join(", ");
-  const result = await db
-    .prepare(`SELECT release_id, status, COUNT(*) AS count
-      FROM watcher_deployments
-      WHERE release_id IN (${placeholders})
-      GROUP BY release_id, status`)
-    .bind(...releaseIds)
-    .all<{ release_id: number; status: string; count: number }>();
+  const rows = await createDatabase(db)
+    .select({
+      release_id: watcherDeployments.release_id,
+      status: watcherDeployments.status,
+      count: count()
+    })
+    .from(watcherDeployments)
+    .where(inArray(watcherDeployments.release_id, releaseIds))
+    .groupBy(watcherDeployments.release_id, watcherDeployments.status)
+    .all();
 
-  return (result.results ?? []).reduce<Record<number, Record<string, number>>>((acc, row) => {
+  return rows.reduce<Record<number, Record<string, number>>>((acc, row) => {
     acc[row.release_id] ??= {};
     acc[row.release_id][row.status] = row.count;
     return acc;
   }, {});
 }
 
-export async function listDueRunningHostRuns(db: D1Database, now: string): Promise<HostRunRow[]> {
-  const result = await db
-    .prepare("SELECT * FROM watcher_deployments WHERE status = 'running' AND next_check_at IS NOT NULL AND next_check_at <= ? ORDER BY next_check_at ASC")
-    .bind(now)
-    .all<HostRunRow>();
-  return result.results ?? [];
+export async function listDueRunningHostRuns(
+  db: D1Database,
+  now: string
+): Promise<HostRunRow[]> {
+  return createDatabase(db)
+    .select()
+    .from(watcherDeployments)
+    .where(
+      and(
+        eq(watcherDeployments.status, "running"),
+        isNotNull(watcherDeployments.next_check_at),
+        lte(watcherDeployments.next_check_at, now)
+      )
+    )
+    .orderBy(asc(watcherDeployments.next_check_at))
+    .all();
 }
 
 export async function listPendingStartHostRuns(db: D1Database): Promise<HostRunRow[]> {
-  const result = await db
-    .prepare("SELECT * FROM watcher_deployments WHERE status = 'pending' ORDER BY created_at ASC, id ASC")
-    .all<HostRunRow>();
-  return result.results ?? [];
+  return createDatabase(db)
+    .select()
+    .from(watcherDeployments)
+    .where(eq(watcherDeployments.status, "pending"))
+    .orderBy(asc(watcherDeployments.created_at), asc(watcherDeployments.id))
+    .all();
 }
 
 export async function markHostRunStarted(
@@ -97,13 +132,18 @@ export async function markHostRunStarted(
   nextCheckAt: string,
   deadlineAt: string
 ): Promise<void> {
-  await db
-    .prepare(`UPDATE watcher_deployments
-      SET status = 'running', failure_stage = NULL, started_at = ?,
-          next_check_at = ?, deadline_at = ?, error_message = NULL,
-          updated_at = ?
-      WHERE id = ?`)
-    .bind(startedAt, nextCheckAt, deadlineAt, startedAt, id)
+  await createDatabase(db)
+    .update(watcherDeployments)
+    .set({
+      status: "running",
+      failure_stage: null,
+      started_at: startedAt,
+      next_check_at: nextCheckAt,
+      deadline_at: deadlineAt,
+      error_message: null,
+      updated_at: startedAt
+    })
+    .where(eq(watcherDeployments.id, id))
     .run();
 }
 
@@ -117,12 +157,17 @@ export async function updateHostRunStatus(
   failureStage: HostRunRow["failure_stage"] = null
 ): Promise<void> {
   const finishedAt = isTerminalHostRunStatus(status) ? now : null;
-  await db
-    .prepare(`UPDATE watcher_deployments
-      SET status = ?, failure_stage = ?, error_message = ?, next_check_at = ?,
-          finished_at = ?, updated_at = ?
-      WHERE id = ?`)
-    .bind(status, failureStage, errorMessage, nextCheckAt, finishedAt, now, id)
+  await createDatabase(db)
+    .update(watcherDeployments)
+    .set({
+      status,
+      failure_stage: failureStage,
+      error_message: errorMessage,
+      next_check_at: nextCheckAt,
+      finished_at: finishedAt,
+      updated_at: now
+    })
+    .where(eq(watcherDeployments.id, id))
     .run();
 }
 
@@ -139,23 +184,19 @@ export async function updateHostRunExecution(
   }
 ): Promise<void> {
   const finishedAt = isTerminalHostRunStatus(input.status) ? input.now : null;
-  await db
-    .prepare(`UPDATE watcher_deployments
-      SET status = ?, failure_stage = ?, last_checked_at = ?, last_log_tail = ?,
-          next_check_at = ?, error_message = ?,
-          finished_at = ?, updated_at = ?
-      WHERE id = ?`)
-    .bind(
-      input.status,
-      input.failureStage ?? null,
-      input.now,
-      input.logTail,
-      input.nextCheckAt,
-      input.errorMessage,
-      finishedAt,
-      input.now,
-      id
-    )
+  await createDatabase(db)
+    .update(watcherDeployments)
+    .set({
+      status: input.status,
+      failure_stage: input.failureStage ?? null,
+      last_checked_at: input.now,
+      last_log_tail: input.logTail,
+      next_check_at: input.nextCheckAt,
+      error_message: input.errorMessage,
+      finished_at: finishedAt,
+      updated_at: input.now
+    })
+    .where(eq(watcherDeployments.id, id))
     .run();
 }
 
@@ -173,36 +214,42 @@ export async function updateHostRunReview(
   }
 ): Promise<void> {
   const finishedAt = isTerminalHostRunStatus(input.status) ? input.now : null;
-  await db
-    .prepare(`UPDATE watcher_deployments
-      SET status = ?, failure_stage = ?, last_checked_at = ?, last_log_tail = ?,
-          last_ai_status = ?, last_ai_reason = ?,
-          next_check_at = ?, error_message = ?, finished_at = ?, updated_at = ?
-      WHERE id = ?`)
-    .bind(
-      input.status,
-      input.status === "failed" ? "ai" : null,
-      input.now,
-      input.logTail,
-      input.aiStatus,
-      input.aiReason,
-      input.nextCheckAt,
-      input.errorMessage,
-      finishedAt,
-      input.now,
-      id
-    )
+  await createDatabase(db)
+    .update(watcherDeployments)
+    .set({
+      status: input.status,
+      failure_stage: input.status === "failed" ? "ai" : null,
+      last_checked_at: input.now,
+      last_log_tail: input.logTail,
+      last_ai_status: input.aiStatus,
+      last_ai_reason: input.aiReason,
+      next_check_at: input.nextCheckAt,
+      error_message: input.errorMessage,
+      finished_at: finishedAt,
+      updated_at: input.now
+    })
+    .where(eq(watcherDeployments.id, id))
     .run();
 }
 
-export async function listRunsForRelease(db: D1Database, releaseId: number): Promise<HostRunRow[]> {
-  const result = await db
-    .prepare("SELECT * FROM watcher_deployments WHERE release_id = ? ORDER BY host_id ASC, id ASC")
-    .bind(releaseId)
-    .all<HostRunRow>();
-  return result.results ?? [];
+export async function listRunsForRelease(
+  db: D1Database,
+  releaseId: number
+): Promise<HostRunRow[]> {
+  return createDatabase(db)
+    .select()
+    .from(watcherDeployments)
+    .where(eq(watcherDeployments.release_id, releaseId))
+    .orderBy(asc(watcherDeployments.host_id), asc(watcherDeployments.id))
+    .all();
 }
 
 export async function getHostRun(db: D1Database, id: number): Promise<HostRunRow | null> {
-  return await db.prepare("SELECT * FROM watcher_deployments WHERE id = ?").bind(id).first<HostRunRow>();
+  return (
+    (await createDatabase(db)
+      .select()
+      .from(watcherDeployments)
+      .where(eq(watcherDeployments.id, id))
+      .get()) ?? null
+  );
 }

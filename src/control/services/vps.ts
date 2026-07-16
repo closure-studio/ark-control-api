@@ -37,7 +37,7 @@ function toResource(host: VpsHostRecord): VpsResource {
     address: host.address,
     port: host.port,
     username: host.username,
-    watcherEnabled: host.enabled === 1,
+    watcherEnabled: host.enabled,
     createdAt: host.created_at,
     updatedAt: host.updated_at
   };

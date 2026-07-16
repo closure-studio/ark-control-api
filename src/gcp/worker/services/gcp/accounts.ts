@@ -1,11 +1,12 @@
+import { asc, desc, eq, sql } from "drizzle-orm";
+
+import { createDatabase } from "../../../../db/client";
+import { gcpAccounts } from "../../../../db/schema";
 import type { GcpAccount } from "../../../shared/api";
 import type { GcpAccountRow } from "../../model/schema/gcp";
 import { toGcpAccount } from "../../model/schema/gcp";
 import type { Env } from "../../model/schema/worker";
 import { GcpError } from "./errors";
-
-const ACCOUNT_COLUMNS =
-  "id, name, project_id, service_account_email, workload_identity_provider, default_zone, enabled, created_at, updated_at";
 
 export type CreateGcpAccountInput = {
   name: string;
@@ -25,10 +26,7 @@ export type UpsertGcpAccountResult = {
 };
 
 export async function listAccountRows(env: Env): Promise<GcpAccountRow[]> {
-  const result = await env.DB.prepare(
-    `SELECT ${ACCOUNT_COLUMNS} FROM gcp_accounts ORDER BY id DESC`
-  ).all<GcpAccountRow>();
-  return result.results;
+  return createDatabase(env.DB).select().from(gcpAccounts).orderBy(desc(gcpAccounts.id)).all();
 }
 
 export async function listAccounts(env: Env): Promise<GcpAccount[]> {
@@ -62,19 +60,19 @@ export async function createAccount(
     throw new GcpError("Default zone is required.");
   }
 
-  const result = await env.DB.prepare(
-    "INSERT INTO gcp_accounts (name, project_id, service_account_email, workload_identity_provider, default_zone) VALUES (?, ?, ?, ?, ?)"
-  )
-    .bind(
+  const inserted = await createDatabase(env.DB)
+    .insert(gcpAccounts)
+    .values({
       name,
-      projectId,
-      serviceAccountEmail,
-      workloadIdentityProvider,
-      defaultZone
-    )
-    .run();
+      project_id: projectId,
+      service_account_email: serviceAccountEmail,
+      workload_identity_provider: workloadIdentityProvider,
+      default_zone: defaultZone
+    })
+    .returning({ id: gcpAccounts.id })
+    .get();
 
-  return loadAccount(env, Number(result.meta.last_row_id));
+  return loadAccount(env, inserted.id);
 }
 
 export async function upsertAccountByProjectId(
@@ -86,11 +84,13 @@ export async function upsertAccountByProjectId(
     throw new GcpError("Project id is required.");
   }
 
-  const existing = await env.DB.prepare(
-    `SELECT ${ACCOUNT_COLUMNS} FROM gcp_accounts WHERE project_id = ? ORDER BY id ASC LIMIT 1`
-  )
-    .bind(projectId)
-    .first<GcpAccountRow>();
+  const existing = await createDatabase(env.DB)
+    .select()
+    .from(gcpAccounts)
+    .where(eq(gcpAccounts.project_id, projectId))
+    .orderBy(asc(gcpAccounts.id))
+    .limit(1)
+    .get();
 
   if (!existing) {
     return { account: await createAccount(env, input), created: true };
@@ -108,9 +108,11 @@ export async function loadAccount(env: Env, accountId: number): Promise<GcpAccou
 }
 
 export async function loadAccountRow(env: Env, accountId: number): Promise<GcpAccountRow> {
-  const row = await env.DB.prepare(`SELECT ${ACCOUNT_COLUMNS} FROM gcp_accounts WHERE id = ?`)
-    .bind(accountId)
-    .first<GcpAccountRow>();
+  const row = await createDatabase(env.DB)
+    .select()
+    .from(gcpAccounts)
+    .where(eq(gcpAccounts.id, accountId))
+    .get();
   if (!row) {
     throw new GcpError("GCP account was not found.", 404);
   }
@@ -152,31 +154,33 @@ export async function updateAccount(
     throw new GcpError("Default zone is required.");
   }
 
-  const enabled = input.enabled === undefined ? current.enabled : input.enabled ? 1 : 0;
-  await env.DB.prepare(
-    "UPDATE gcp_accounts SET name = ?, project_id = ?, service_account_email = ?, workload_identity_provider = ?, default_zone = ?, enabled = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?"
-  )
-    .bind(
+  const enabled = input.enabled ?? current.enabled;
+  await createDatabase(env.DB)
+    .update(gcpAccounts)
+    .set({
       name,
-      projectId,
-      serviceAccountEmail,
-      workloadIdentityProvider,
-      defaultZone,
+      project_id: projectId,
+      service_account_email: serviceAccountEmail,
+      workload_identity_provider: workloadIdentityProvider,
+      default_zone: defaultZone,
       enabled,
-      accountId
-    )
+      updated_at: sql`strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`
+    })
+    .where(eq(gcpAccounts.id, accountId))
     .run();
   return loadAccount(env, accountId);
 }
 
 export async function deleteAccount(env: Env, accountId: number): Promise<void> {
   await loadAccountRow(env, accountId);
-  await env.DB.prepare("DELETE FROM gcp_accounts WHERE id = ?").bind(accountId).run();
+  await createDatabase(env.DB).delete(gcpAccounts).where(eq(gcpAccounts.id, accountId)).run();
 }
 
 export async function listEnabledAccountRows(env: Env): Promise<GcpAccountRow[]> {
-  const result = await env.DB.prepare(
-    `SELECT ${ACCOUNT_COLUMNS} FROM gcp_accounts WHERE enabled = 1 ORDER BY id DESC`
-  ).all<GcpAccountRow>();
-  return result.results;
+  return createDatabase(env.DB)
+    .select()
+    .from(gcpAccounts)
+    .where(eq(gcpAccounts.enabled, true))
+    .orderBy(desc(gcpAccounts.id))
+    .all();
 }

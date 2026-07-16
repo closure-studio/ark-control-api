@@ -1,10 +1,13 @@
+import { desc } from "drizzle-orm";
+
+import { createDatabase } from "../../../../db/client";
+import { gcpInstanceOperations } from "../../../../db/schema";
 import type {
   GcpInstanceLifecycleTarget,
   GcpInstanceLifecycleAction,
   GcpOperationResult
 } from "../../../shared/api";
 import type { Env } from "../../model/schema/worker";
-import type { GcpVmOperationRow } from "../../model/schema/gcp";
 import { createPyHelperDownloadUrl } from "../pyhelper/download-url";
 import { loadAccountRow } from "./accounts";
 import { fetchGoogleAccessToken } from "./auth";
@@ -24,38 +27,33 @@ export async function recordOperation(
   context: { batchId: string; accountId: number | null; accountName?: string }
 ): Promise<void> {
   const createdAt = new Date().toISOString();
-  await env.DB.prepare(
-    "INSERT INTO gcp_instance_operations (batch_id, account_id, account_name_snapshot, project_id, zone, instance_name, action, status, google_operation_name, message, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-  )
-    .bind(
-      context.batchId,
-      context.accountId,
-      context.accountName ?? null,
-      result.projectId,
-      result.zone,
-      result.instanceName,
-      result.action,
-      result.status,
-      result.googleOperationName ?? null,
-      result.message ?? null,
-      createdAt
-    )
+  await createDatabase(env.DB)
+    .insert(gcpInstanceOperations)
+    .values({
+      batch_id: context.batchId,
+      account_id: context.accountId,
+      account_name_snapshot: context.accountName ?? null,
+      project_id: result.projectId,
+      zone: result.zone,
+      instance_name: result.instanceName,
+      action: result.action,
+      status: result.status,
+      google_operation_name: result.googleOperationName ?? null,
+      message: result.message ?? null,
+      created_at: createdAt
+    })
     .run();
 }
 
 export async function listRecentOperations(env: Env, limit = 10) {
   const safeLimit = Math.max(1, Math.min(50, Math.trunc(limit)));
-  const result = await env.DB.prepare(
-    `SELECT id, batch_id, account_id, account_name_snapshot, project_id, zone,
-            instance_name, action, status, message, google_operation_name,
-            created_at
-     FROM gcp_instance_operations
-     ORDER BY created_at DESC, id DESC
-     LIMIT ?`
-  )
-    .bind(safeLimit)
-    .all<GcpVmOperationRow>();
-  return result.results.map((row) => ({
+  const rows = await createDatabase(env.DB)
+    .select()
+    .from(gcpInstanceOperations)
+    .orderBy(desc(gcpInstanceOperations.created_at), desc(gcpInstanceOperations.id))
+    .limit(safeLimit)
+    .all();
+  return rows.map((row) => ({
     id: row.id,
     batchId: row.batch_id,
     accountId: row.account_id,

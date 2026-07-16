@@ -11,10 +11,21 @@ npm install
 npx wrangler d1 create ark_control
 ```
 
-Copy the returned database ID into `wrangler.toml`, then apply the clean
+Copy the returned database ID into `wrangler.toml`, then apply the single
 baseline migration:
 
 ```sh
+npx wrangler d1 migrations apply ark_control --local
+npx wrangler d1 migrations apply ark_control --remote
+```
+
+The D1 schema is defined in `src/db/schema.ts`. Generate future SQL migrations
+with Drizzle Kit, review the generated SQL, then apply it with Wrangler:
+
+```sh
+npm run db:generate -- --name=<migration_name>
+npm run db:check
+npm run db:verify
 npx wrangler d1 migrations apply ark_control --local
 npx wrangler d1 migrations apply ark_control --remote
 ```
@@ -38,6 +49,9 @@ binding targets the `ArkSshRpc` entrypoint exported by `ark-ssh`.
 ## Commands
 
 ```sh
+npm run db:check
+npm run db:generate -- --name=<migration_name>
+npm run db:verify
 npm run dev
 npm test
 npm run typecheck
@@ -50,11 +64,8 @@ Deploy `ark-ssh` before the first deployment of this Worker. Update
 OIDC domain.
 
 The authenticated control surface is exposed under `/api/dashboard`,
-`/api/vps`, `/api/accounts`, `/api/releases`, and `/api/runs`. Apply all D1
-migrations before deploying a version that uses the simplified VPS inventory.
-
-Migration `0004_lean_schema.sql` preserves existing account, operation, and
-deployment rows while removing unused columns and write-only AI review history.
+`/api/vps`, `/api/accounts`, `/api/releases`, and `/api/runs`. The baseline
+migration creates the current six-table schema directly.
 
 GCP provisioning registers the new instance as a standalone SSH host. VPS rows
 do not retain GCP ownership or instance identity, so deleting a VPS or account

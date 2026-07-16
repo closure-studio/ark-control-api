@@ -6,7 +6,8 @@ workers_dev = true
 [[d1_databases]]
 binding = "DB"
 database_name = "ark_control"
-database_id = "d082d24c-4677-415f-bb1c-bda9d1e62937"
+database_id = "6b72aad7-97ef-4c00-baeb-91d1bcae2d90"
+migrations_dir = "migrations"
 
 [[services]]
 binding = "ARK_SSH"
