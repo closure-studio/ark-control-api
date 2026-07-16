@@ -7,7 +7,7 @@ import {
   postGcpAccount,
   postGcpAccountInstance,
   postGcpInstanceActions,
-  postPublicGcpAccount
+  postMachineGcpAccount
 } from "../controller/gcp";
 import { getPyHelperAsset } from "../controller/pyhelper";
 import { requireAdmin } from "../middleware/admin";
@@ -21,8 +21,8 @@ export function createWorkerRouter() {
   app.onError(handleUnexpectedError);
 
   app.get("/api/pyhelper/assets/:assetName", getPyHelperAsset);
-  app.post("/api/gcp/public/accounts", postPublicGcpAccount);
   app.use("/api/gcp/*", requireAdmin);
+  app.post("/api/gcp/public/accounts", postMachineGcpAccount);
   app.get("/api/gcp/accounts", getGcpAccounts);
   app.post("/api/gcp/accounts", postGcpAccount);
   app.patch("/api/gcp/accounts/:id", patchGcpAccount);

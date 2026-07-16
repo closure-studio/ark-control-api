@@ -45,6 +45,8 @@ QQBOT_TOKEN
 
 `VPS_PASSWORD_KEY` is a base64-encoded 32-byte AES key. The `ARK_SSH` service
 binding targets the `ArkSshRpc` entrypoint exported by `ark-ssh`.
+The machine account registration endpoint also requires `ADMIN_TOKEN`; the
+Cloud Shell setup script prompts for it without storing it in the script.
 
 ## Commands
 

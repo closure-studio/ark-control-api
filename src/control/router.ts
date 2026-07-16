@@ -1,7 +1,7 @@
 import { Hono, type Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { deleteAccount, createAccount, listAccounts, updateAccount } from "../gcp/worker/services/gcp/accounts";
-import { postPublicGcpAccount } from "../gcp/worker/controller/gcp";
+import { postMachineGcpAccount } from "../gcp/worker/controller/gcp";
 import { getPyHelperAsset } from "../gcp/worker/controller/pyhelper";
 import type { Env } from "../env";
 import { listReleaseRuns, listReleaseSummaries } from "../watcher/controllers/releaseController";
@@ -71,7 +71,7 @@ export function createControlRouter() {
 
   app.use("/api/*", async (c, next) => {
     const path = new URL(c.req.url).pathname;
-    if (path === "/api/public/accounts" || path.startsWith("/api/pyhelper/assets/")) {
+    if (path.startsWith("/api/pyhelper/assets/")) {
       await next();
       return;
     }
@@ -81,7 +81,7 @@ export function createControlRouter() {
     await next();
   });
 
-  app.post("/api/public/accounts", postPublicGcpAccount);
+  app.post("/api/public/accounts", postMachineGcpAccount);
   app.get("/api/pyhelper/assets/:assetName", getPyHelperAsset);
 
   app.get("/api/dashboard", async (c) => c.json(await getDashboardData(c.env)));

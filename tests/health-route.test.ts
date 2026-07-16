@@ -18,4 +18,31 @@ describe("control API health", () => {
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({ error: "unauthorized", message: "Unauthorized" });
   });
+
+  it("protects machine account registration with the admin token", async () => {
+    const response = await api.request(
+      "https://control.example.com/api/public/accounts",
+      { method: "POST", body: "{}", headers: { "content-type": "application/json" } },
+      { ADMIN_TOKEN: "secret" } as Env
+    );
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ error: "unauthorized", message: "Unauthorized" });
+  });
+
+  it("allows authenticated machine registration requests to reach validation", async () => {
+    const response = await api.request(
+      "https://control.example.com/api/public/accounts",
+      {
+        method: "POST",
+        body: "{}",
+        headers: {
+          authorization: "Bearer secret",
+          "content-type": "application/json"
+        }
+      },
+      { ADMIN_TOKEN: "secret" } as Env
+    );
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Project id is required." });
+  });
 });

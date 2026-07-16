@@ -50,7 +50,7 @@ export async function postGcpAccount(c: Context<WorkerHonoEnv>) {
   }
 }
 
-export async function postPublicGcpAccount(c: Context<WorkerHonoEnv>) {
+export async function postMachineGcpAccount(c: Context<WorkerHonoEnv>) {
   try {
     const body = await readJsonObject(c.req.raw);
     const projectId = typeof body?.projectId === "string" ? body.projectId : "";
