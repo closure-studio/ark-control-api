@@ -37,7 +37,6 @@ export interface DashboardResponse {
   recentOperations: Array<{
     id: number;
     batchId: string;
-    hostId: number | null;
     accountId: number | null;
     accountName: string | null;
     projectId: string;
@@ -48,6 +47,5 @@ export interface DashboardResponse {
     message: string | null;
     googleOperationName: string | null;
     createdAt: string;
-    completedAt: string | null;
   }>;
 }

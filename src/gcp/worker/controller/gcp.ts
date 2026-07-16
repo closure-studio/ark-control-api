@@ -38,7 +38,6 @@ export async function postGcpAccount(c: Context<WorkerHonoEnv>) {
     const account = await createAccount(c.env, {
       name: typeof body?.name === "string" ? body.name : "",
       projectId: typeof body?.projectId === "string" ? body.projectId : "",
-      projectNumber: typeof body?.projectNumber === "string" ? body.projectNumber : "",
       serviceAccountEmail:
         typeof body?.serviceAccountEmail === "string" ? body.serviceAccountEmail : "",
       workloadIdentityProvider:
@@ -64,7 +63,6 @@ export async function postPublicGcpAccount(c: Context<WorkerHonoEnv>) {
     const result = await upsertAccountByProjectId(c.env, {
       name,
       projectId,
-      projectNumber: typeof body?.projectNumber === "string" ? body.projectNumber : "",
       serviceAccountEmail:
         typeof body?.serviceAccountEmail === "string" ? body.serviceAccountEmail : "",
       workloadIdentityProvider:
@@ -87,7 +85,6 @@ export async function patchGcpAccount(c: Context<WorkerHonoEnv>) {
     const account = await updateAccount(c.env, id, {
       name: typeof body?.name === "string" ? body.name : undefined,
       projectId: typeof body?.projectId === "string" ? body.projectId : undefined,
-      projectNumber: typeof body?.projectNumber === "string" ? body.projectNumber : undefined,
       serviceAccountEmail:
         typeof body?.serviceAccountEmail === "string" ? body.serviceAccountEmail : undefined,
       workloadIdentityProvider:

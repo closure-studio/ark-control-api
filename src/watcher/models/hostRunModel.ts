@@ -28,9 +28,9 @@ export async function getOrCreateHostRun(
   await db
     .prepare(`INSERT OR IGNORE INTO watcher_deployments (
       release_id, host_id, host_name_snapshot, host_address_snapshot,
-      host_port_snapshot, host_username_snapshot, status, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)`)
-    .bind(releaseId, host.id, host.name, host.address, host.port, host.username, now, now)
+      status, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, 'pending', ?, ?)`)
+    .bind(releaseId, host.id, host.name, host.address, now, now)
     .run();
 
   const row = await getHostRunForReleaseHost(db, releaseId, host.id);
@@ -99,8 +99,8 @@ export async function markHostRunStarted(
 ): Promise<void> {
   await db
     .prepare(`UPDATE watcher_deployments
-      SET status = 'running', failure_stage = NULL, attempt_count = attempt_count + 1,
-          started_at = ?, next_check_at = ?, deadline_at = ?, error_message = NULL,
+      SET status = 'running', failure_stage = NULL, started_at = ?,
+          next_check_at = ?, deadline_at = ?, error_message = NULL,
           updated_at = ?
       WHERE id = ?`)
     .bind(startedAt, nextCheckAt, deadlineAt, startedAt, id)
@@ -141,8 +141,8 @@ export async function updateHostRunExecution(
   const finishedAt = isTerminalHostRunStatus(input.status) ? input.now : null;
   await db
     .prepare(`UPDATE watcher_deployments
-      SET status = ?, failure_stage = ?, attempt_count = attempt_count + 1,
-          last_checked_at = ?, last_log_tail = ?, next_check_at = ?, error_message = ?,
+      SET status = ?, failure_stage = ?, last_checked_at = ?, last_log_tail = ?,
+          next_check_at = ?, error_message = ?,
           finished_at = ?, updated_at = ?
       WHERE id = ?`)
     .bind(
@@ -175,8 +175,8 @@ export async function updateHostRunReview(
   const finishedAt = isTerminalHostRunStatus(input.status) ? input.now : null;
   await db
     .prepare(`UPDATE watcher_deployments
-      SET status = ?, failure_stage = ?, attempt_count = attempt_count + 1,
-          last_checked_at = ?, last_log_tail = ?, last_ai_status = ?, last_ai_reason = ?,
+      SET status = ?, failure_stage = ?, last_checked_at = ?, last_log_tail = ?,
+          last_ai_status = ?, last_ai_reason = ?,
           next_check_at = ?, error_message = ?, finished_at = ?, updated_at = ?
       WHERE id = ?`)
     .bind(

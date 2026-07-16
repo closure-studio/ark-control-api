@@ -4,7 +4,6 @@ export interface GcpAccountRow {
   id: number;
   name: string;
   project_id: string;
-  project_number: string;
   service_account_email: string;
   workload_identity_provider: string;
   default_zone: string;
@@ -26,7 +25,6 @@ export interface GcpVmOperationRow {
   message: string | null;
   google_operation_name: string | null;
   created_at: string;
-  completed_at: string | null;
 }
 
 export function toGcpAccount(row: GcpAccountRow): GcpAccount {
@@ -34,7 +32,6 @@ export function toGcpAccount(row: GcpAccountRow): GcpAccount {
     id: row.id,
     name: row.name,
     projectId: row.project_id,
-    projectNumber: row.project_number,
     serviceAccountEmail: row.service_account_email,
     workloadIdentityProvider: row.workload_identity_provider,
     defaultZone: row.default_zone,

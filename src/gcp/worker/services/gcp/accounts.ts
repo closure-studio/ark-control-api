@@ -5,12 +5,11 @@ import type { Env } from "../../model/schema/worker";
 import { GcpError } from "./errors";
 
 const ACCOUNT_COLUMNS =
-  "id, name, project_id, project_number, service_account_email, workload_identity_provider, default_zone, enabled, created_at, updated_at";
+  "id, name, project_id, service_account_email, workload_identity_provider, default_zone, enabled, created_at, updated_at";
 
 export type CreateGcpAccountInput = {
   name: string;
   projectId: string;
-  projectNumber: string;
   serviceAccountEmail: string;
   workloadIdentityProvider: string;
   defaultZone: string;
@@ -46,16 +45,12 @@ export async function createAccount(
   }
 
   const projectId = input.projectId.trim();
-  const projectNumber = input.projectNumber.trim();
   const serviceAccountEmail = input.serviceAccountEmail.trim();
   const workloadIdentityProvider = input.workloadIdentityProvider.trim();
   const defaultZone = input.defaultZone.trim();
 
   if (!projectId) {
     throw new GcpError("Project id is required.");
-  }
-  if (!projectNumber) {
-    throw new GcpError("Project number is required.");
   }
   if (!serviceAccountEmail) {
     throw new GcpError("Service account email is required.");
@@ -68,12 +63,11 @@ export async function createAccount(
   }
 
   const result = await env.DB.prepare(
-    "INSERT INTO gcp_accounts (name, project_id, project_number, service_account_email, workload_identity_provider, default_zone) VALUES (?, ?, ?, ?, ?, ?)"
+    "INSERT INTO gcp_accounts (name, project_id, service_account_email, workload_identity_provider, default_zone) VALUES (?, ?, ?, ?, ?)"
   )
     .bind(
       name,
       projectId,
-      projectNumber,
       serviceAccountEmail,
       workloadIdentityProvider,
       defaultZone
@@ -134,8 +128,6 @@ export async function updateAccount(
     throw new GcpError("Account name is required.");
   }
   const projectId = input.projectId === undefined ? current.project_id : input.projectId.trim();
-  const projectNumber =
-    input.projectNumber === undefined ? current.project_number : input.projectNumber.trim();
   const serviceAccountEmail =
     input.serviceAccountEmail === undefined
       ? current.service_account_email
@@ -150,9 +142,6 @@ export async function updateAccount(
   if (!projectId) {
     throw new GcpError("Project id is required.");
   }
-  if (!projectNumber) {
-    throw new GcpError("Project number is required.");
-  }
   if (!serviceAccountEmail) {
     throw new GcpError("Service account email is required.");
   }
@@ -165,12 +154,11 @@ export async function updateAccount(
 
   const enabled = input.enabled === undefined ? current.enabled : input.enabled ? 1 : 0;
   await env.DB.prepare(
-    "UPDATE gcp_accounts SET name = ?, project_id = ?, project_number = ?, service_account_email = ?, workload_identity_provider = ?, default_zone = ?, enabled = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?"
+    "UPDATE gcp_accounts SET name = ?, project_id = ?, service_account_email = ?, workload_identity_provider = ?, default_zone = ?, enabled = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?"
   )
     .bind(
       name,
       projectId,
-      projectNumber,
       serviceAccountEmail,
       workloadIdentityProvider,
       defaultZone,

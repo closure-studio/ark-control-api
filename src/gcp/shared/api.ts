@@ -26,7 +26,6 @@ export interface GcpAccount {
   id: number;
   name: string;
   projectId: string;
-  projectNumber: string;
   serviceAccountEmail: string;
   workloadIdentityProvider: string;
   defaultZone: string;

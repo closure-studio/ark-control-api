@@ -21,12 +21,11 @@ export function shouldSkipAction(action: GcpInstanceLifecycleAction, status?: st
 export async function recordOperation(
   env: Env,
   result: GcpOperationResult,
-  context: { batchId: string; accountId: number | null; accountName?: string; hostId?: number | null }
+  context: { batchId: string; accountId: number | null; accountName?: string }
 ): Promise<void> {
   const createdAt = new Date().toISOString();
-  const completedAt = result.status === "submitted" ? null : createdAt;
   await env.DB.prepare(
-    "INSERT INTO gcp_instance_operations (batch_id, account_id, account_name_snapshot, project_id, zone, instance_name, action, status, google_operation_name, message, created_at, completed_at, host_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    "INSERT INTO gcp_instance_operations (batch_id, account_id, account_name_snapshot, project_id, zone, instance_name, action, status, google_operation_name, message, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   )
     .bind(
       context.batchId,
@@ -39,9 +38,7 @@ export async function recordOperation(
       result.status,
       result.googleOperationName ?? null,
       result.message ?? null,
-      createdAt,
-      completedAt,
-      context.hostId ?? null
+      createdAt
     )
     .run();
 }
@@ -51,17 +48,16 @@ export async function listRecentOperations(env: Env, limit = 10) {
   const result = await env.DB.prepare(
     `SELECT id, batch_id, account_id, account_name_snapshot, project_id, zone,
             instance_name, action, status, message, google_operation_name,
-            created_at, completed_at, host_id
+            created_at
      FROM gcp_instance_operations
      ORDER BY created_at DESC, id DESC
      LIMIT ?`
   )
     .bind(safeLimit)
-    .all<GcpVmOperationRow & { host_id: number | null }>();
+    .all<GcpVmOperationRow>();
   return result.results.map((row) => ({
     id: row.id,
     batchId: row.batch_id,
-    hostId: row.host_id,
     accountId: row.account_id,
     accountName: row.account_name_snapshot,
     projectId: row.project_id,
@@ -71,8 +67,7 @@ export async function listRecentOperations(env: Env, limit = 10) {
     status: row.status,
     message: row.message,
     googleOperationName: row.google_operation_name,
-    createdAt: row.created_at,
-    completedAt: row.completed_at
+    createdAt: row.created_at
   }));
 }
 
@@ -265,7 +260,6 @@ export async function createDefaultVps(
       fetcher,
       accessToken,
       projectId: account.project_id,
-      projectNumber: account.project_number,
       zone: account.default_zone,
       instanceName,
       startupScript

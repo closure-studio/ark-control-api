@@ -41,7 +41,6 @@ export type CreateDefaultInstanceInput = {
   fetcher: typeof fetch;
   accessToken: string;
   projectId: string;
-  projectNumber: string;
   zone: string;
   instanceName: string;
   startupScript?: string;
@@ -106,7 +105,6 @@ function regionFromZone(zone: string): string {
 }
 
 export function buildDefaultInstanceInsertRequest(input: {
-  projectNumber: string;
   zone: string;
   instanceName: string;
   startupScript?: string;
@@ -311,7 +309,6 @@ export async function createDefaultInstance(input: CreateDefaultInstanceInput): 
       method: "POST",
       body: JSON.stringify(
         buildDefaultInstanceInsertRequest({
-          projectNumber: input.projectNumber,
           zone: input.zone,
           instanceName: input.instanceName,
           startupScript: input.startupScript

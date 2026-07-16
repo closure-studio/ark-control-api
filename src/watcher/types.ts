@@ -40,11 +40,8 @@ export interface HostRunRow {
   host_id: number | null;
   host_name_snapshot: string;
   host_address_snapshot: string;
-  host_port_snapshot: number;
-  host_username_snapshot: string;
   status: HostRunStatus;
   failure_stage: "start" | "ssh" | "ai" | "deadline" | null;
-  attempt_count: number;
   started_at: string | null;
   next_check_at: string | null;
   deadline_at: string | null;

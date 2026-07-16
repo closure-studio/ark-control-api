@@ -1,6 +1,5 @@
 import { CRON_INTERVAL_MS, FIRST_CHECK_DELAY_MS, HOST_RUN_DEADLINE_MS } from "../constants/config";
 import { acquireAppStateLock, releaseAppStateLock } from "../models/appStateModel";
-import { recordAiReview } from "../models/aiReviewModel";
 import {
   getOrCreateHostRun,
   hasNonTerminalHostRuns,
@@ -8,6 +7,7 @@ import {
   listPendingStartHostRuns,
   markHostRunStarted,
   updateHostRunExecution,
+  updateHostRunReview,
   updateHostRunStatus,
 } from "../models/hostRunModel";
 import { getLatestReleaseApkFilename, getOrCreateRelease, getReleaseApkFilename } from "../models/releaseModel";
@@ -52,18 +52,15 @@ export interface PipelineDependencies {
   }) => Promise<void>;
   getReleaseApkFilename: (releaseId: number) => Promise<string>;
   reviewLogTail: (logTail: string) => Promise<ReviewResultLike>;
-  recordAiReview: (input: {
+  updateHostRunReview: (input: {
     id: number;
-    deploymentStatus: HostRunStatus;
+    status: HostRunStatus;
     now: string;
     logTail: string;
     aiStatus: AiReviewStatus;
     aiReason: string;
     nextCheckAt: string | null;
     errorMessage: string | null;
-    model: string | null;
-    rawResponse: string;
-    responseValid: boolean;
   }) => Promise<void>;
   notifyPipelineStarted: (input: { apkFilename: string }) => Promise<void>;
   notifyHelperDeployTerminal: (input: {
@@ -78,13 +75,11 @@ export interface PipelineDependencies {
 type ReviewResultLike = {
   status: AiReviewStatus;
   reason: string;
-  rawResponse: string;
-  model?: string | null;
   protocolError?: boolean;
 };
 
-function normalizeReviewResult(review: ReviewResultLike): ReviewResultLike & { model: string | null; protocolError: boolean } {
-  return { ...review, model: review.model ?? null, protocolError: review.protocolError ?? false };
+function normalizeReviewResult(review: ReviewResultLike): ReviewResultLike & { protocolError: boolean } {
+  return { ...review, protocolError: review.protocolError ?? false };
 }
 
 const PIPELINE_LOCK_KEY = "pipeline_lock";
@@ -147,20 +142,15 @@ export function createPipelineDependencies(env: Env): PipelineDependencies {
       updateHostRunExecution(env.DB, id, { status, now, logTail, nextCheckAt, errorMessage }),
     getReleaseApkFilename: (releaseId) => getReleaseApkFilename(env.DB, releaseId),
     reviewLogTail: (logTail) => reviewLogWithAi(env, logTail),
-    recordAiReview: ({ id, deploymentStatus, now, logTail, aiStatus, aiReason, nextCheckAt, errorMessage, model, rawResponse, responseValid }) =>
-      recordAiReview(env.DB, {
-        hostRunId: id,
-        deploymentStatus,
+    updateHostRunReview: ({ id, status, now, logTail, aiStatus, aiReason, nextCheckAt, errorMessage }) =>
+      updateHostRunReview(env.DB, id, {
+        status,
+        now,
         logTail,
+        aiStatus,
+        aiReason,
         nextCheckAt,
-        errorMessage,
-        model: model ?? "unknown-model",
-        promptVersion: "v1",
-        status: aiStatus,
-        responseValid,
-        reason: aiReason,
-        rawResponse,
-        createdAt: now
+        errorMessage
       }),
     notifyPipelineStarted: (input) => notifyPipelineStarted(env, input),
     notifyHelperDeployTerminal: (input) => notifyHelperDeployTerminal(env, input),
@@ -287,18 +277,15 @@ async function advanceDueRuns(deps: PipelineDependencies, nowDate: Date): Promis
             : "failed";
         const nextCheckAt = shouldRetry ? retryAt : null;
 
-        await deps.recordAiReview({
+        await deps.updateHostRunReview({
           id: run.id,
-          deploymentStatus: hostStatus,
+          status: hostStatus,
           now,
           logTail: snapshot.logTail,
           aiStatus: review.status,
           aiReason: review.reason,
           nextCheckAt,
-          errorMessage: review.protocolError ? review.reason : null,
-          model: review.model,
-          rawResponse: review.rawResponse,
-          responseValid: !review.protocolError,
+          errorMessage: review.protocolError ? review.reason : null
         });
 
         if (hostStatus === "succeeded" || hostStatus === "failed") {
