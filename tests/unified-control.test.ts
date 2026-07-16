@@ -1,15 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { waitForZoneOperation } from "../src/gcp/worker/services/gcp/compute";
-import { isProjectIdentityChange } from "../src/control/services/vps";
 
 describe("unified control services", () => {
-  it("protects linked accounts from project identity changes", () => {
-    const current = { project_id: "project-a", project_number: "100" };
-    expect(isProjectIdentityChange(current, { projectId: "project-a" })).toBe(false);
-    expect(isProjectIdentityChange(current, { projectId: "project-b" })).toBe(true);
-    expect(isProjectIdentityChange(current, { projectNumber: "200" })).toBe(true);
-  });
-
   it("waits for a completed Google operation", async () => {
     const fetcher = vi
       .fn<typeof fetch>()

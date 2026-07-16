@@ -51,4 +51,8 @@ OIDC domain.
 
 The authenticated control surface is exposed under `/api/dashboard`,
 `/api/vps`, `/api/accounts`, `/api/releases`, and `/api/runs`. Apply all D1
-migrations before deploying a version that uses the unified VPS inventory.
+migrations before deploying a version that uses the simplified VPS inventory.
+
+GCP provisioning registers the new instance as a standalone SSH host. VPS rows
+do not retain GCP ownership or instance identity, so deleting a VPS or account
+configuration does not delete the corresponding cloud resource.

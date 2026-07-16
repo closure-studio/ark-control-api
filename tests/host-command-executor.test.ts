@@ -12,9 +12,7 @@ describe("managed host command execution", () => {
         port: 2222,
         username: "operator",
         password_ciphertext: "encrypted",
-        verify_command: "uptime",
         enabled: 1,
-        password_updated_at: "2026-07-14T00:00:00.000Z",
         created_at: "2026-07-14T00:00:00.000Z",
         updated_at: "2026-07-14T00:00:00.000Z"
       })
@@ -39,7 +37,7 @@ describe("managed host command execution", () => {
       port: 2222,
       username: "operator",
       password: "plaintext-password",
-      command: "uptime",
+      command: "echo ok",
       timeoutMs: 60_000
     });
   });

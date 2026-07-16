@@ -8,9 +8,7 @@ export interface ServiceVpsHost {
   port: number;
   username: string;
   password_ciphertext: string;
-  verify_command: string | null;
   enabled: number;
-  password_updated_at: string;
   created_at: string;
   updated_at: string;
 }

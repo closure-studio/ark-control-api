@@ -4,7 +4,7 @@ import { jsonResponse } from "../utils/http";
 
 type PublicHost = Pick<
   ServiceVpsHost,
-  "id" | "name" | "address" | "port" | "username" | "verify_command" | "created_at" | "updated_at"
+  "id" | "name" | "address" | "port" | "username" | "created_at" | "updated_at"
 > & { enabled: boolean };
 
 function toPublicHost(host: ServiceVpsHost): PublicHost {
@@ -14,7 +14,6 @@ function toPublicHost(host: ServiceVpsHost): PublicHost {
     address: host.address,
     port: host.port,
     username: host.username,
-    verify_command: host.verify_command,
     enabled: host.enabled === 1,
     created_at: host.created_at,
     updated_at: host.updated_at

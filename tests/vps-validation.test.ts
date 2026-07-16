@@ -17,8 +17,7 @@ describe("VPS host validation", () => {
         address: "vps.example.com",
         port: 22,
         username: "root",
-        password: "secret",
-        verify_command: null
+        password: "secret"
       }
     });
   });

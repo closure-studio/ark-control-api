@@ -6,9 +6,13 @@ const unifiedVpsMigration = readFileSync(
   new URL("../migrations/0002_unified_vps.sql", import.meta.url),
   "utf8"
 );
+const simplifiedMigration = readFileSync(
+  new URL("../migrations/0003_simplify_vps_and_watcher.sql", import.meta.url),
+  "utf8"
+);
 
 describe("control database baseline", () => {
-  it("defines only the eight control tables", () => {
+  it("keeps the historical eight-table baseline", () => {
     const tables = [...migration.matchAll(/CREATE TABLE\s+([a-z_]+)/g)].map((match) => match[1]);
     expect(tables).toEqual([
       "gcp_accounts",
@@ -36,12 +40,23 @@ describe("control database baseline", () => {
     expect(migration).toContain("UNIQUE (release_id, host_id)");
   });
 
-  it("adds stable cloud identity without changing host ownership", () => {
-    expect(unifiedVpsMigration).toContain("gcp_account_id INTEGER REFERENCES gcp_accounts(id) ON DELETE RESTRICT");
-    expect(unifiedVpsMigration).toContain("gcp_project_id TEXT");
-    expect(unifiedVpsMigration).toContain("gcp_zone TEXT");
-    expect(unifiedVpsMigration).toContain("gcp_instance_name TEXT");
-    expect(unifiedVpsMigration).toContain("CREATE UNIQUE INDEX idx_vps_hosts_gcp_identity");
+  it("keeps operation-to-host history in the unified migration", () => {
     expect(unifiedVpsMigration).toContain("host_id INTEGER REFERENCES vps_hosts(id) ON DELETE SET NULL");
+  });
+
+  it("reduces the final schema to seven tables and a focused VPS record", () => {
+    expect(simplifiedMigration).toContain("DROP TABLE watcher_release_checks");
+    expect(simplifiedMigration).toContain("DROP INDEX IF EXISTS idx_vps_hosts_gcp_account");
+    expect(simplifiedMigration).toContain("DROP INDEX IF EXISTS idx_vps_hosts_gcp_identity");
+    for (const column of [
+      "verify_command",
+      "password_updated_at",
+      "gcp_account_id",
+      "gcp_project_id",
+      "gcp_zone",
+      "gcp_instance_name"
+    ]) {
+      expect(simplifiedMigration).toContain(`ALTER TABLE vps_hosts DROP COLUMN ${column}`);
+    }
   });
 });

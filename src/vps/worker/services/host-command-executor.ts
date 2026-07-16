@@ -1,6 +1,6 @@
 import type { ExecuteHostCommandRequest, ExecuteHostCommandResult } from "../../shared/types/ssh-commands";
 import type { Env } from "../env";
-import { VpsHostRepository, type VpsHostRecord } from "../repositories/vps-hosts";
+import { VpsHostRepository } from "../repositories/vps-hosts";
 import { validateExecuteHostCommandRequest, type NormalizedExecuteHostCommandRequest } from "../validation/ssh-commands";
 import { PasswordCrypto } from "./password-crypto";
 
@@ -35,7 +35,7 @@ export function createHostCommandExecutor(dependencies: HostCommandDependencies)
 
     const crypto = dependencies.crypto ?? new PasswordCrypto(env.VPS_PASSWORD_KEY);
     const password = await crypto.decrypt(host.password_ciphertext);
-    const command = selectCommand(validation.value, host);
+    const command = selectCommand(validation.value);
 
     return dependencies.executeSshCommand({
       hostname: host.address,
@@ -54,8 +54,6 @@ export async function executeHostCommand(env: Env, request: ExecuteHostCommandRe
   })(env, request);
 }
 
-function selectCommand(request: NormalizedExecuteHostCommandRequest, host: VpsHostRecord): string {
-  if (request.command) return request.command;
-  const verifyCommand = host.verify_command?.trim();
-  return verifyCommand && verifyCommand.length > 0 ? verifyCommand : "echo ok";
+function selectCommand(request: NormalizedExecuteHostCommandRequest): string {
+  return request.command ?? "echo ok";
 }

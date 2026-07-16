@@ -10,7 +10,6 @@ import {
   updateHostRunExecution,
   updateHostRunStatus,
 } from "../models/hostRunModel";
-import { insertReleaseCheck } from "../models/releaseCheckModel";
 import { getLatestReleaseApkFilename, getOrCreateRelease, getReleaseApkFilename } from "../models/releaseModel";
 import type { AiReviewStatus, HostRunStatus, TerminalHostRunStatus } from "../constants/status";
 import type { ApkMetadata, Env, ExecuteHostCommandResult, HostRunRow, ServiceVpsHost } from "../types";
@@ -30,14 +29,6 @@ export interface PipelineDependencies {
   listPendingStartHostRuns: () => Promise<HostRunRow[]>;
   fetchApk: () => Promise<ApkMetadata>;
   getLastProcessedApkFilename: () => Promise<string | null>;
-  insertReleaseCheck: (input: {
-    checkedAt: string;
-    finalUrl: string | null;
-    apkFilename: string | null;
-    outcome: "unchanged" | "release_created" | "failed";
-    releaseId?: number | null;
-    errorMessage: string | null;
-  }) => Promise<void>;
   listVpsHosts: () => Promise<ServiceVpsHost[]>;
   getOrCreateRelease: (input: { apkFilename: string; finalUrl: string; now: string }) => Promise<{ id: number }>;
   getOrCreateHostRun: (input: { releaseId: number; host: ServiceVpsHost; now: string }) => Promise<HostRunRow>;
@@ -144,7 +135,6 @@ export function createPipelineDependencies(env: Env): PipelineDependencies {
     listPendingStartHostRuns: () => listPendingStartHostRuns(env.DB),
     fetchApk: () => fetchLatestApkMetadata(),
     getLastProcessedApkFilename: () => getLatestReleaseApkFilename(env.DB),
-    insertReleaseCheck: (input) => insertReleaseCheck(env.DB, input),
     listVpsHosts: () => listVpsHosts(env),
     getOrCreateRelease: ({ apkFilename, finalUrl, now }) => getOrCreateRelease(env.DB, apkFilename, finalUrl, now),
     getOrCreateHostRun: ({ releaseId, host, now }) => getOrCreateHostRun(env.DB, releaseId, host, now),
@@ -409,26 +399,13 @@ async function processNewApk(deps: PipelineDependencies, nowDate: Date): Promise
     metadata = await deps.fetchApk();
   } catch (error) {
     const message = error instanceof Error ? error.message : "APK check failed";
-    await deps.insertReleaseCheck({
-      checkedAt: now,
-      finalUrl: null,
-      apkFilename: null,
-      outcome: "failed",
-      errorMessage: message,
-    });
+    console.error("watcher APK check failed", { error: message });
     return;
   }
 
   const lastProcessedApkFilename = await deps.getLastProcessedApkFilename();
 
   if (lastProcessedApkFilename === metadata.apkFilename) {
-    await deps.insertReleaseCheck({
-      checkedAt: now,
-      finalUrl: metadata.finalUrl,
-      apkFilename: metadata.apkFilename,
-      outcome: "unchanged",
-      errorMessage: null,
-    });
     return;
   }
 
@@ -437,13 +414,7 @@ async function processNewApk(deps: PipelineDependencies, nowDate: Date): Promise
     hosts = await deps.listVpsHosts();
   } catch (error) {
     const message = error instanceof Error ? error.message : "failed to list VPS hosts";
-    await deps.insertReleaseCheck({
-      checkedAt: now,
-      finalUrl: metadata.finalUrl,
-      apkFilename: metadata.apkFilename,
-      outcome: "failed",
-      errorMessage: message,
-    });
+    console.error("watcher VPS listing failed", { apkFilename: metadata.apkFilename, error: message });
     return;
   }
 
@@ -467,29 +438,15 @@ async function processNewApk(deps: PipelineDependencies, nowDate: Date): Promise
   );
 
   if (hostRunCreationErrors.length > 0) {
-    const errorMessage = hostRunCreationErrors.join("; ");
-    await deps.insertReleaseCheck({
-      checkedAt: now,
-      finalUrl: metadata.finalUrl,
+    console.error("watcher deployment creation failed", {
       apkFilename: metadata.apkFilename,
-      outcome: "failed",
       releaseId: release.id,
-      errorMessage,
+      errors: hostRunCreationErrors
     });
     return;
   }
 
   await startPendingHostRuns(deps, runs, metadata.apkFilename, nowDate);
-
-  const releaseErrorMessage = hostRunCreationErrors.length > 0 ? hostRunCreationErrors.join("; ") : null;
-  await deps.insertReleaseCheck({
-    checkedAt: now,
-    finalUrl: metadata.finalUrl,
-    apkFilename: metadata.apkFilename,
-    outcome: "release_created",
-    releaseId: release.id,
-    errorMessage: releaseErrorMessage,
-  });
   await runNotification("pipeline_started", () =>
     deps.notifyPipelineStarted({
       apkFilename: metadata.apkFilename,

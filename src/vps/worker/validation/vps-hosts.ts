@@ -16,8 +16,6 @@ export function validateCreateVpsHost(input: unknown): ValidationResult<Required
   if (!password.ok) return password;
   const port = normalizePort(input.port ?? VPS_HOST_FIELD_LIMITS.defaultPort);
   if (!port.ok) return port;
-  const verifyCommand = normalizeOptionalString(input.verify_command, "verify_command");
-  if (!verifyCommand.ok) return verifyCommand;
 
   return {
     ok: true,
@@ -26,8 +24,7 @@ export function validateCreateVpsHost(input: unknown): ValidationResult<Required
       address: address.value,
       port: port.value,
       username: username.value,
-      password: password.value,
-      verify_command: verifyCommand.value
+      password: password.value
     }
   };
 }
@@ -55,11 +52,6 @@ export function validatePatchVpsHost(input: unknown): ValidationResult<PatchVpsH
     const port = normalizePort(input.port);
     if (!port.ok) return port;
     value.port = port.value;
-  }
-  if ("verify_command" in input) {
-    const verifyCommand = normalizeOptionalString(input.verify_command, "verify_command");
-    if (!verifyCommand.ok) return verifyCommand;
-    value.verify_command = verifyCommand.value;
   }
   if ("password" in input) {
     if (input.password === "") return { ok: true, value };
@@ -90,13 +82,6 @@ function requiredPassword(value: unknown): ValidationResult<string> {
     return { ok: false, message: "password is required" };
   }
   return { ok: true, value };
-}
-
-function normalizeOptionalString(value: unknown, field: string): ValidationResult<string | null> {
-  if (value === undefined || value === null) return { ok: true, value: null };
-  if (typeof value !== "string") return { ok: false, message: `${field} must be a string or null` };
-  const trimmed = value.trim();
-  return { ok: true, value: trimmed.length > 0 ? trimmed : null };
 }
 
 function normalizePort(value: unknown): ValidationResult<number> {

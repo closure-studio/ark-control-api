@@ -1,6 +1,6 @@
 import { Hono, type Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
-import { deleteAccount, createAccount, listAccounts, loadAccountRow, updateAccount } from "../gcp/worker/services/gcp/accounts";
+import { deleteAccount, createAccount, listAccounts, updateAccount } from "../gcp/worker/services/gcp/accounts";
 import { postPublicGcpAccount } from "../gcp/worker/controller/gcp";
 import { getPyHelperAsset } from "../gcp/worker/controller/pyhelper";
 import type { Env } from "../env";
@@ -8,20 +8,14 @@ import { listReleaseRuns, listReleaseSummaries } from "../watcher/controllers/re
 import { getRunLog } from "../watcher/controllers/runController";
 import { executeHostCommand } from "../vps/worker/services/host-command-executor";
 import { validateCreateVpsHost, validatePatchVpsHost } from "../vps/worker/validation/vps-hosts";
-import { VpsHostRepository } from "../vps/worker/repositories/vps-hosts";
 import { ControlApiError } from "./errors";
 import { getDashboardData } from "./services/dashboard";
 import {
-  cascadeDeleteAccountVps,
   createManualVps,
   deleteVps,
   getVpsResource,
-  isProjectIdentityChange,
   listVpsResources,
   provisionGcpVps,
-  reconcileVpsCloudLinks,
-  runBatchVpsAction,
-  runVpsAction,
   updateVps
 } from "./services/vps";
 
@@ -103,35 +97,13 @@ export function createControlRouter() {
     const id = parseId(c.req.param("id"));
     if (!id) throw new ControlApiError("bad_request", "Invalid account id.", 400);
     const body = accountPatch(await readBody(c));
-    const current = await loadAccountRow(c.env, id);
-    if (isProjectIdentityChange(current, body)) {
-      const linked = await new VpsHostRepository(c.env.DB).listByGcpAccountId(id);
-      if (linked.length > 0) {
-        throw new ControlApiError(
-          "account_has_vps",
-          "Project identity cannot change while the account has linked VPS records.",
-          409,
-          { vpsCount: linked.length }
-        );
-      }
-    }
     return c.json({ account: await updateAccount(c.env, id, body) });
   });
   app.delete("/api/accounts/:id", async (c) => {
     const id = parseId(c.req.param("id"));
     if (!id) throw new ControlApiError("bad_request", "Invalid account id.", 400);
-    await loadAccountRow(c.env, id);
-    const result = await cascadeDeleteAccountVps(c.env, id);
-    if (result.failed.length > 0) {
-      throw new ControlApiError(
-        "cascade_incomplete",
-        "Some VPS records could not be deleted. The account was retained.",
-        409,
-        result
-      );
-    }
     await deleteAccount(c.env, id);
-    return c.json({ deleted: true, vps: result.deleted });
+    return c.json({ deleted: true });
   });
   app.post("/api/accounts/:id/vps", async (c) => {
     const id = parseId(c.req.param("id"));
@@ -151,8 +123,7 @@ export function createControlRouter() {
       address: body.address,
       port: body.port,
       username: body.username,
-      password: body.password,
-      verify_command: body.verifyCommand
+      password: body.password
     });
     if (!validation.ok) throw new ControlApiError("bad_request", validation.message, 400);
     let vps = await createManualVps(c.env, validation.value);
@@ -176,7 +147,6 @@ export function createControlRouter() {
       ...(body.port !== undefined ? { port: body.port } : {}),
       ...(body.username !== undefined ? { username: body.username } : {}),
       ...(body.password !== undefined ? { password: body.password } : {}),
-      ...(body.verifyCommand !== undefined ? { verify_command: body.verifyCommand } : {}),
       ...(body.watcherEnabled !== undefined ? { enabled: body.watcherEnabled } : {})
     });
     if (!validation.ok) throw new ControlApiError("bad_request", validation.message, 400);
@@ -192,27 +162,6 @@ export function createControlRouter() {
     if (!id) throw new ControlApiError("bad_request", "Invalid VPS id.", 400);
     return c.json({ result: await executeHostCommand(c.env, { hostId: id }) });
   });
-  app.post("/api/vps/:id/actions", async (c) => {
-    const id = parseId(c.req.param("id"));
-    if (!id) throw new ControlApiError("bad_request", "Invalid VPS id.", 400);
-    const { action } = await readBody(c);
-    if (action !== "start" && action !== "stop") {
-      throw new ControlApiError("bad_request", "Action must be start or stop.", 400);
-    }
-    return c.json({ result: await runVpsAction(c.env, id, action) });
-  });
-  app.post("/api/vps/actions", async (c) => {
-    const { action, ids } = await readBody(c);
-    if (action !== "start" && action !== "stop" && action !== "delete") {
-      throw new ControlApiError("bad_request", "Action must be start, stop, or delete.", 400);
-    }
-    if (!Array.isArray(ids) || !ids.every((id) => Number.isInteger(id) && Number(id) > 0)) {
-      throw new ControlApiError("bad_request", "ids must be an array of positive integers.", 400);
-    }
-    return c.json(await runBatchVpsAction(c.env, ids as number[], action));
-  });
-  app.post("/api/vps/reconcile", async (c) => c.json(await reconcileVpsCloudLinks(c.env)));
-
   app.get("/api/releases", (c) => listReleaseSummaries(c.req.raw, c.env));
   app.get("/api/releases/:id/runs", (c) => {
     const id = parseId(c.req.param("id"));
