@@ -1,14 +1,26 @@
 import type {
-  ApiResponse,
   FreqStatistic,
   QueueKind,
   TaskPatch,
   TaskPayload,
-  TaskStatistic,
+  TaskStatisticRecord,
   TaskStatisticsByDay,
   TaskStatisticsDay,
   TaskStatus
 } from "../../types/gcp/task";
+import * as v from "valibot";
+import {
+  ApiEnvelopeSchema,
+  FreqStatisticsSchema,
+  NullSchema,
+  NullableTaskStatisticRecordSchema,
+  NumberSchema,
+  StringArraySchema,
+  StringSchema,
+  TaskPayloadJsonSchema,
+  TaskStatisticsByDaySchema,
+  TaskStatusSchema
+} from "../../schemas/task-server/responses";
 import {
   TASK_SERVER_AUTHORIZATION_BINDING,
   TASK_SERVER_BASE_URL_BINDING
@@ -53,13 +65,13 @@ export type TaskServerClient = {
   listTasks(options: ListTasksOptions): Promise<TaskPayload[]>;
   getStatus(): Promise<TaskStatus>;
   getTaskStatistics(): Promise<TaskStatisticsByDay>;
-  getTaskStatisticsByDay(day: TaskStatisticsDay): Promise<Record<string, TaskStatistic> | null>;
+  getTaskStatisticsByDay(day: TaskStatisticsDay): Promise<TaskStatisticRecord | null>;
   getFreqStatistics(): Promise<Record<string, FreqStatistic>>;
 };
 
 export class TaskServerError extends Error {
-  readonly status?: number;
-  readonly errCode?: number;
+  readonly status: number | undefined;
+  readonly errCode: number | undefined;
 
   constructor(message: string, options: { status?: number; errCode?: number } = {}) {
     super(message);
@@ -72,7 +84,7 @@ export class TaskServerError extends Error {
 type RequestOptions = {
   method?: string;
   query?: Record<string, string | undefined>;
-  body?: unknown;
+  body?: TaskPayload | TaskPatch;
 };
 
 export function createTaskServerClient(
@@ -83,7 +95,11 @@ export function createTaskServerClient(
   const authorization = env[TASK_SERVER_AUTHORIZATION_BINDING]?.trim();
   const fetcher = options.fetch ?? fetch;
 
-  async function request<T>(path: string, requestOptions: RequestOptions = {}): Promise<T> {
+  async function request<TSchema extends v.GenericSchema>(
+    path: string,
+    dataSchema: TSchema,
+    requestOptions: RequestOptions = {}
+  ): Promise<v.InferOutput<TSchema>> {
     if (!baseUrl) {
       throw new TaskServerError(`Missing Cloudflare secret: ${TASK_SERVER_BASE_URL_BINDING}.`);
     }
@@ -108,22 +124,22 @@ export function createTaskServerClient(
     const response = await fetcher(url.toString(), {
       method: requestOptions.method ?? "GET",
       headers,
-      body
+      ...(body !== undefined ? { body } : {})
     });
-    let envelope: unknown;
-    try {
-      envelope = await response.json();
-    } catch {
+    const json = await response.json().catch(() => undefined);
+    if (json === undefined) {
       throw new TaskServerError("Task server returned invalid JSON.", {
         status: response.status
       });
     }
 
-    if (!isApiResponse<T>(envelope)) {
+    const envelopeResult = v.safeParse(ApiEnvelopeSchema, json);
+    if (!envelopeResult.success) {
       throw new TaskServerError("Task server returned an invalid response envelope.", {
         status: response.status
       });
     }
+    const envelope = envelopeResult.output;
 
     if (!response.ok || envelope.errCode !== 0) {
       throw new TaskServerError(envelope.msg || "Task server request failed.", {
@@ -132,13 +148,19 @@ export function createTaskServerClient(
       });
     }
 
-    if (!("data" in envelope)) {
+    if (envelope.data === undefined) {
       throw new TaskServerError("Task server returned an invalid response envelope.", {
         status: response.status
       });
     }
 
-    return envelope.data;
+    const dataResult = v.safeParse(dataSchema, envelope.data);
+    if (!dataResult.success) {
+      throw new TaskServerError("Task server returned an invalid response envelope.", {
+        status: response.status
+      });
+    }
+    return dataResult.output;
   }
 
   function needScreenshotValue(queue: QueueKind): string {
@@ -146,25 +168,19 @@ export function createTaskServerClient(
   }
 
   function parseTask(value: string): TaskPayload {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(value);
-    } catch {
+    const result = v.safeParse(TaskPayloadJsonSchema, value);
+    if (!result.success) {
       throw new TaskServerError("Task server returned invalid task JSON.");
     }
-
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      throw new TaskServerError("Task server returned invalid task JSON.");
-    }
-    return parsed as TaskPayload;
+    return result.output;
   }
 
   return {
     createTask(payload) {
-      return request<string>("/task", { method: "POST", body: payload });
+      return request("/task", StringSchema, { method: "POST", body: payload });
     },
     async getTask(options) {
-      const data = await request<string>("/task", {
+      const data = await request("/task", StringSchema, {
         query: {
           task_id: options.taskId,
           need_screenshot:
@@ -175,20 +191,20 @@ export function createTaskServerClient(
       return parseTask(data);
     },
     patchTask(taskId, patch) {
-      return request<null>("/task", {
+      return request("/task", NullSchema, {
         method: "PATCH",
         query: { task_id: taskId },
         body: patch
       });
     },
     deleteTask(taskId) {
-      return request<null>("/task", {
+      return request("/task", NullSchema, {
         method: "DELETE",
         query: { task_id: taskId }
       });
     },
     getIndex(options) {
-      return request<number>("/index", {
+      return request("/index", NumberSchema, {
         query: {
           task_id: options.taskId,
           need_screenshot: needScreenshotValue(options.queue)
@@ -196,7 +212,7 @@ export function createTaskServerClient(
       });
     },
     patchIndex(options) {
-      return request<number>("/index", {
+      return request("/index", NumberSchema, {
         method: "PATCH",
         query: {
           task_id: options.taskId,
@@ -206,32 +222,22 @@ export function createTaskServerClient(
       });
     },
     async listTasks(options) {
-      const data = await request<string[]>("/list/id", {
+      const data = await request("/list/id", StringArraySchema, {
         query: { need_screenshot: needScreenshotValue(options.queue) }
       });
       return data.map(parseTask);
     },
     getStatus() {
-      return request<TaskStatus>("/status");
+      return request("/status", TaskStatusSchema);
     },
     getTaskStatistics() {
-      return request<TaskStatisticsByDay>("/statistics/task");
+      return request("/statistics/task", TaskStatisticsByDaySchema);
     },
     getTaskStatisticsByDay(day) {
-      return request<Record<string, TaskStatistic> | null>(`/statistics/task/${day}`);
+      return request(`/statistics/task/${day}`, NullableTaskStatisticRecordSchema);
     },
     getFreqStatistics() {
-      return request<Record<string, FreqStatistic>>("/statistics/freq");
+      return request("/statistics/freq", FreqStatisticsSchema);
     }
   };
-}
-
-function isApiResponse<T>(value: unknown): value is ApiResponse<T> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value) &&
-    typeof (value as { errCode?: unknown }).errCode === "number" &&
-    typeof (value as { msg?: unknown }).msg === "string"
-  );
 }

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import * as ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const sourceRoot = fileURLToPath(new URL("../src/", import.meta.url));
@@ -12,10 +13,10 @@ const sourceLayers = [
   "errors",
   "repositories",
   "router",
+  "schemas",
   "services",
   "types",
-  "utils",
-  "validation"
+  "utils"
 ];
 const legacySourceLocations = [
   "controller/shared",
@@ -112,7 +113,9 @@ describe("router to controller architecture", () => {
       "utils/http",
       "utils/oidc",
       "utils/watcher",
-      "validation/vps"
+      "schemas/gcp",
+      "schemas/task-server",
+      "schemas/vps"
     ];
     for (const path of expectedLocations) {
       expect(existsSync(join(sourceRoot, path))).toBe(true);
@@ -126,6 +129,39 @@ describe("router to controller architecture", () => {
       expect(source, path).not.toMatch(/export\s+(?:async\s+)?function\s/);
       expect(source, path).not.toMatch(/export\s+const\s/);
     }
+  });
+
+  it("does not use explicit any or unchecked type assertions", () => {
+    const violations: string[] = [];
+
+    for (const path of typescriptFiles(sourceRoot)) {
+      const source = readFileSync(path, "utf8");
+      const sourceFile = ts.createSourceFile(
+        path,
+        source,
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.TS
+      );
+
+      function visit(node: ts.Node): void {
+        const position = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+        if (node.kind === ts.SyntaxKind.AnyKeyword) {
+          violations.push(`${path}:${position.line + 1}: explicit any`);
+        }
+        if (
+          ts.isTypeAssertionExpression(node) ||
+          (ts.isAsExpression(node) && node.type.getText(sourceFile) !== "const")
+        ) {
+          violations.push(`${path}:${position.line + 1}: unchecked type assertion`);
+        }
+        ts.forEachChild(node, visit);
+      }
+
+      visit(sourceFile);
+    }
+
+    expect(violations).toEqual([]);
   });
 
   it("keeps repositories independent of HTTP and service layers", () => {

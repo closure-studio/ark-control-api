@@ -16,7 +16,7 @@ export class GcpConfigurationError extends GcpError {
 }
 
 export class GoogleApiError extends GcpError {
-  readonly googleStatus?: string;
+  readonly googleStatus: string | undefined;
 
   constructor(message: string, status: number, googleStatus?: string) {
     super(message, status);

@@ -1,4 +1,5 @@
 import { Hono, type Context } from "hono";
+import { sValidator } from "@hono/standard-validator";
 import {
   createGenericTokenFailureResponse,
   createOidcDiscoveryMetadata,
@@ -13,6 +14,7 @@ import {
   OIDC_TOKEN_CACHE_CONTROL
 } from "../../constants/oidc";
 import type { Env } from "../../types/env";
+import { OidcTokenRequestSchema } from "../../schemas/oidc/token";
 
 type OidcContext = Context<{ Bindings: Env }>;
 
@@ -37,12 +39,6 @@ function jsonHeaders(cacheControl: string): Record<string, string> {
 
 function isLocalHostname(hostname: string): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
-}
-
-async function readTokenAudience(c: OidcContext): Promise<string> {
-  if (c.req.method !== "POST") return c.req.query("audience") ?? "";
-  const body = await c.req.json<{ audience?: unknown }>();
-  return typeof body.audience === "string" ? body.audience : "";
 }
 
 function tokenFailure(c: OidcContext, status: 500 | 401, code?: string, message?: string) {
@@ -82,7 +78,7 @@ oidcRouter.get("/jwks.json", async (c) => {
   }
 });
 
-async function handleToken(c: OidcContext) {
+async function handleToken(c: OidcContext, audience: string) {
   const secret = c.env.PUBLIC_TOKEN_BEARER_SECRET?.trim();
   if (!secret) {
     console.error("Missing public token Bearer secret");
@@ -98,7 +94,7 @@ async function handleToken(c: OidcContext) {
   }
   try {
     return c.json(
-      await issueOidcToken(c.env, { audience: await readTokenAudience(c) }),
+      await issueOidcToken(c.env, { audience }),
       200,
       jsonHeaders(OIDC_TOKEN_CACHE_CONTROL)
     );
@@ -108,8 +104,16 @@ async function handleToken(c: OidcContext) {
   }
 }
 
-oidcRouter.get("/token", handleToken);
-oidcRouter.post("/token", handleToken);
+oidcRouter.get(
+  "/token",
+  sValidator("query", OidcTokenRequestSchema),
+  (c) => handleToken(c, c.req.valid("query").audience)
+);
+oidcRouter.post(
+  "/token",
+  sValidator("json", OidcTokenRequestSchema),
+  (c) => handleToken(c, c.req.valid("json").audience)
+);
 
 export function shouldHandleOidcRequest(request: Request, env: Env): boolean {
   const url = new URL(request.url);

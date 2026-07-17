@@ -16,9 +16,9 @@ export const AI_REVIEW_STATUSES = ["success", "running", "failed", "unknown"] as
 export type AiReviewStatus = (typeof AI_REVIEW_STATUSES)[number];
 
 export function isTerminalHostRunStatus(status: HostRunStatus): status is TerminalHostRunStatus {
-  return (TERMINAL_HOST_RUN_STATUSES as readonly HostRunStatus[]).includes(status);
+  return TERMINAL_HOST_RUN_STATUSES.some((terminalStatus) => terminalStatus === status);
 }
 
 export function isAiReviewStatus(value: string): value is AiReviewStatus {
-  return (AI_REVIEW_STATUSES as readonly string[]).includes(value);
+  return AI_REVIEW_STATUSES.some((status) => status === value);
 }

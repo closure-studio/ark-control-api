@@ -40,7 +40,7 @@ describe("control API health", () => {
     });
   });
 
-  it("allows authenticated machine registration requests to reach validation", async () => {
+  it("rejects missing registration fields before controller execution", async () => {
     const response = await api.request(
       "https://control.example.com/api/public/accounts",
       {
@@ -54,8 +54,48 @@ describe("control API health", () => {
       { ADMIN_TOKEN: "secret" } as Env
     );
     expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: API_ERROR_CODES.BAD_REQUEST }
+    });
+  });
+
+  it("rejects non-object JSON request bodies before controller execution", async () => {
+    const response = await api.request(
+      "https://control.example.com/api/public/accounts",
+      {
+        method: "POST",
+        body: "[]",
+        headers: {
+          authorization: "Bearer secret",
+          "content-type": "application/json"
+        }
+      },
+      { ADMIN_TOKEN: "secret" } as Env
+    );
+
+    expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: { code: API_ERROR_CODES.BAD_REQUEST, message: "Project id is required." }
+      error: { code: API_ERROR_CODES.BAD_REQUEST, message: "Request body must be an object." }
+    });
+  });
+
+  it("rejects invalid field types before controller execution", async () => {
+    const response = await api.request(
+      "https://control.example.com/api/public/accounts",
+      {
+        method: "POST",
+        body: JSON.stringify({ projectId: 123 }),
+        headers: {
+          authorization: "Bearer secret",
+          "content-type": "application/json"
+        }
+      },
+      { ADMIN_TOKEN: "secret" } as Env
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: API_ERROR_CODES.BAD_REQUEST }
     });
   });
 });

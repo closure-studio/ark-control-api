@@ -1,5 +1,5 @@
+import { sValidator } from "@hono/standard-validator";
 import { Hono } from "hono";
-import { API_ERROR_CODES } from "../../constants/api/error-codes";
 import {
   createGcpAccount,
   deleteGcpAccount,
@@ -9,59 +9,74 @@ import {
   updateGcpAccount
 } from "../../controller/gcp";
 import { provisionGcpVps } from "../../controller/vps";
+import {
+  CreateGcpAccountRequestSchema,
+  RegisterGcpAccountRequestSchema,
+  UpdateGcpAccountRequestSchema
+} from "../../schemas/gcp/accounts";
+import { IdParamSchema } from "../../schemas/http";
 import type { Env } from "../../types/env";
-import { ControlApiError } from "../../errors/control-api";
-import { jsonData, jsonError, parseId, readBody } from "../../utils/http";
+import { jsonData, jsonError, validationErrorHook } from "../../utils/http";
 
 export function createGcpRouter() {
   const router = new Hono<{ Bindings: Env }>();
 
-  router.post("/public/accounts", async (c) => {
-    try {
-      const result = await registerMachineGcpAccount(c.env, await readBody(c));
-      return jsonData(c, { account: result.account }, result.created ? 201 : 200);
-    } catch (error) {
-      const controlError = toGcpControlError(error);
-      if (controlError) {
-        return jsonError(
-          c,
-          controlError.code,
-          controlError.message,
-          controlError.status
-        );
+  router.post(
+    "/public/accounts",
+    sValidator("json", RegisterGcpAccountRequestSchema, validationErrorHook),
+    async (c) => {
+      try {
+        const result = await registerMachineGcpAccount(c.env, c.req.valid("json"));
+        return jsonData(c, { account: result.account }, result.created ? 201 : 200);
+      } catch (error) {
+        const controlError = toGcpControlError(error);
+        if (controlError) {
+          return jsonError(c, controlError.code, controlError.message, controlError.status);
+        }
+        throw error;
       }
-      throw error;
     }
-  });
+  );
 
-  router.get("/accounts", async (c) => jsonData(c, { accounts: await listGcpAccounts(c.env) }));
-  router.post("/accounts", async (c) => {
-    const account = await createGcpAccount(c.env, await readBody(c));
-    return jsonData(c, { account }, 201);
-  });
-  router.patch("/accounts/:id", async (c) => {
-    const id = parseId(c.req.param("id"));
-    if (!id) {
-      throw new ControlApiError(API_ERROR_CODES.BAD_REQUEST, "Invalid account id.", 400);
+  router.get("/accounts", async (c) =>
+    jsonData(c, { accounts: await listGcpAccounts(c.env) })
+  );
+  router.post(
+    "/accounts",
+    sValidator("json", CreateGcpAccountRequestSchema, validationErrorHook),
+    async (c) => {
+      const account = await createGcpAccount(c.env, c.req.valid("json"));
+      return jsonData(c, { account }, 201);
     }
-    return jsonData(c, { account: await updateGcpAccount(c.env, id, await readBody(c)) });
-  });
-  router.delete("/accounts/:id", async (c) => {
-    const id = parseId(c.req.param("id"));
-    if (!id) {
-      throw new ControlApiError(API_ERROR_CODES.BAD_REQUEST, "Invalid account id.", 400);
+  );
+  router.patch(
+    "/accounts/:id",
+    sValidator("param", IdParamSchema, validationErrorHook),
+    sValidator("json", UpdateGcpAccountRequestSchema, validationErrorHook),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const account = await updateGcpAccount(c.env, id, c.req.valid("json"));
+      return jsonData(c, { account });
     }
-    await deleteGcpAccount(c.env, id);
-    return jsonData(c, { deleted: true });
-  });
-  router.post("/accounts/:id/vps", async (c) => {
-    const id = parseId(c.req.param("id"));
-    if (!id) {
-      throw new ControlApiError(API_ERROR_CODES.BAD_REQUEST, "Invalid account id.", 400);
+  );
+  router.delete(
+    "/accounts/:id",
+    sValidator("param", IdParamSchema, validationErrorHook),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      await deleteGcpAccount(c.env, id);
+      return jsonData(c, { deleted: true });
     }
-    const result = await provisionGcpVps(c.env, id, new URL(c.req.url).origin);
-    return jsonData(c, result, 201);
-  });
+  );
+  router.post(
+    "/accounts/:id/vps",
+    sValidator("param", IdParamSchema, validationErrorHook),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const result = await provisionGcpVps(c.env, id, new URL(c.req.url).origin);
+      return jsonData(c, result, 201);
+    }
+  );
 
   return router;
 }

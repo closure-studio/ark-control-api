@@ -13,19 +13,10 @@ export interface ServiceVpsHost extends AdminVpsHost {
   password_ciphertext: string;
 }
 
-export interface CreateVpsHostRequest {
-  name: string;
-  address: string;
-  port?: number;
-  username: string;
-  password: string;
-}
-
-export interface PatchVpsHostRequest {
-  name?: string;
-  address?: string;
-  port?: number;
-  username?: string;
-  password?: string;
-  enabled?: boolean;
-}
+export type CreateVpsHostRequest = InferInput<typeof CreateVpsHostSchema>;
+export type PatchVpsHostRequest = InferOutput<typeof PatchVpsHostSchema>;
+import type { InferInput, InferOutput } from "valibot";
+import type {
+  CreateVpsHostSchema,
+  PatchVpsHostSchema
+} from "../../schemas/vps/hosts";

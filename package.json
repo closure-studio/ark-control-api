@@ -15,8 +15,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hono/standard-validator": "^0.3.0",
     "drizzle-orm": "^0.45.2",
-    "hono": "^4.12.26"
+    "hono": "^4.12.26",
+    "valibot": "^1.4.2"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260708.1",

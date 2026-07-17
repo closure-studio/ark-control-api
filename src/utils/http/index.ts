@@ -1,7 +1,12 @@
-import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { API_ERROR_CODES } from "../../constants/api/error-codes";
 import { ControlApiError } from "../../errors/control-api";
 import type { ApiContext, ApiErrorCode, ApiFailure, ApiSuccess } from "../../types/http";
+
+function jsonResponse(c: ApiContext, body: object, status: number) {
+  const headers = new Headers(c.res.headers);
+  headers.set("content-type", "application/json");
+  return new Response(JSON.stringify(body), { headers, status });
+}
 
 export function jsonData<T, M = never>(
   c: ApiContext,
@@ -10,7 +15,7 @@ export function jsonData<T, M = never>(
   meta?: M
 ) {
   const body: ApiSuccess<T, M> = meta === undefined ? { data } : { data, meta };
-  return c.json(body, status as ContentfulStatusCode);
+  return jsonResponse(c, body, status);
 }
 
 export function jsonError(
@@ -23,21 +28,20 @@ export function jsonError(
   const body: ApiFailure = {
     error: details === undefined ? { code: error, message } : { code: error, message, details }
   };
-  return c.json(body, status as ContentfulStatusCode);
+  return jsonResponse(c, body, status);
 }
 
-export function parseId(value: string): number | null {
-  return /^[1-9]\d*$/.test(value) ? Number(value) : null;
-}
-
-export async function readBody(c: ApiContext): Promise<Record<string, unknown>> {
-  const value = await c.req.json().catch(() => null);
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+export function validationErrorHook(result: {
+  success: true;
+} | {
+  success: false;
+  error: readonly { message: string }[];
+}) {
+  if (!result.success) {
     throw new ControlApiError(
       API_ERROR_CODES.BAD_REQUEST,
-      "Request body must be an object.",
+      result.error[0]?.message ?? "Invalid request.",
       400
     );
   }
-  return value as Record<string, unknown>;
 }

@@ -14,8 +14,14 @@ export interface OidcDiscoveryMetadata {
   claims_supported: typeof OIDC_CLAIMS_SUPPORTED;
 }
 
+export interface OidcJsonWebKey extends JsonWebKey {
+  alg: string;
+  kid: string;
+  use: string;
+}
+
 export interface JsonWebKeySet {
-  keys: JsonWebKey[];
+  keys: OidcJsonWebKey[];
 }
 
 export interface OidcJwtHeader {

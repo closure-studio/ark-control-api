@@ -1,7 +1,11 @@
 import type { ExecuteHostCommandRequest, ExecuteHostCommandResult } from "../../types/vps/ssh-commands";
 import type { Env } from "../../types/env";
 import { VpsHostRepository } from "../../repositories/vps/vps-hosts";
-import { validateExecuteHostCommandRequest, type NormalizedExecuteHostCommandRequest } from "../../validation/vps/ssh-commands";
+import * as v from "valibot";
+import {
+  ExecuteHostCommandRequestSchema,
+  type NormalizedExecuteHostCommandRequest
+} from "../../schemas/vps/ssh-command";
 import { PasswordCrypto } from "./password-crypto";
 
 export interface SshExecutionRequest {
@@ -26,16 +30,16 @@ export function createHostCommandExecutor(dependencies: HostCommandDependencies)
     env: Env,
     request: ExecuteHostCommandRequest
   ): Promise<ExecuteHostCommandResult> {
-    const validation = validateExecuteHostCommandRequest(request);
-    if (!validation.ok) throw new Error(validation.message);
+    const validation = v.safeParse(ExecuteHostCommandRequestSchema, request);
+    if (!validation.success) throw new Error(validation.issues[0].message);
 
     const repository = dependencies.repository ?? new VpsHostRepository(env.DB);
-    const host = await repository.findById(validation.value.hostId);
+    const host = await repository.findById(validation.output.hostId);
     if (!host) throw new Error("host_not_found");
 
     const crypto = dependencies.crypto ?? new PasswordCrypto(env.VPS_PASSWORD_KEY);
     const password = await crypto.decrypt(host.password_ciphertext);
-    const command = selectCommand(validation.value);
+    const command = selectCommand(validation.output);
 
     return dependencies.executeSshCommand({
       hostname: host.address,
@@ -43,7 +47,7 @@ export function createHostCommandExecutor(dependencies: HostCommandDependencies)
       username: host.username,
       password,
       command,
-      timeoutMs: validation.value.timeoutMs
+      timeoutMs: validation.output.timeoutMs
     });
   };
 }

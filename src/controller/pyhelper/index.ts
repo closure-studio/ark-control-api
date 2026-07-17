@@ -1,7 +1,7 @@
 import { API_ERROR_CODES, type ApiErrorCode } from "../../constants/api/error-codes";
+import type { PyHelperAssetName } from "../../schemas/pyhelper/download";
 import type { Env } from "../../types/env";
 import {
-  isPyHelperAssetName,
   PyHelperDownloadUrlError,
   verifyPyHelperDownloadRequest
 } from "../../services/pyhelper/download-url";
@@ -23,17 +23,9 @@ export class PyHelperControlError extends Error {
 
 export async function downloadPyHelperAsset(
   env: Env,
-  assetName: string,
+  assetName: PyHelperAssetName,
   requestUrl: string
 ): Promise<Response> {
-  if (!isPyHelperAssetName(assetName)) {
-    throw new PyHelperControlError(
-      API_ERROR_CODES.NOT_FOUND,
-      "Unknown PyHelper asset.",
-      404
-    );
-  }
-
   try {
     await verifyPyHelperDownloadRequest({
       assetName,

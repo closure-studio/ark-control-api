@@ -74,7 +74,7 @@ async function notifyEvent(env: Env, event: NotificationEvent, runtime: Notifica
       token: env.QQBOT_TOKEN,
       uid: parseQqBotUid(env.QQBOT_UID),
       msg: notification.message,
-      fetcher: runtime.fetcher,
+      ...(runtime.fetcher !== undefined ? { fetcher: runtime.fetcher } : {})
     });
   } catch (error) {
     logger.error("notification failed", {

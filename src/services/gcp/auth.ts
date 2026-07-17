@@ -1,18 +1,16 @@
 import type { GcpAccountRow } from "../../db/schema";
 import { GoogleApiError } from "../../errors/gcp";
 import type { Env } from "../../types/env";
+import * as v from "valibot";
+import {
+  GoogleErrorResponseSchema,
+  ServiceAccountTokenResponseSchema,
+  StsTokenResponseSchema
+} from "../../schemas/gcp/auth";
 import { issueOidcToken } from "../oidc";
 
 export type GcpAuthOptions = {
   fetch?: typeof fetch;
-};
-
-type StsTokenResponse = {
-  access_token?: string;
-};
-
-type ServiceAccountTokenResponse = {
-  accessToken?: string;
 };
 
 const GOOGLE_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
@@ -20,27 +18,23 @@ const STS_TOKEN_URL = "https://sts.googleapis.com/v1/token";
 const JSON_HEADERS = { "content-type": "application/json" };
 
 function errorDescription(json: unknown, fallback: string): string {
-  if (typeof json !== "object" || json === null) {
+  const result = v.safeParse(GoogleErrorResponseSchema, json);
+  if (!result.success) {
     return fallback;
   }
-  const body = json as Record<string, unknown>;
-  if (typeof body.error_description === "string") {
-    return body.error_description;
+  const description = result.output.error_description;
+  if (description) {
+    return description;
   }
-  if (typeof body.error === "string") {
-    return body.error;
+  const error = result.output.error;
+  if (typeof error === "string" && error) {
+    return error;
   }
-  if (typeof body.error === "object" && body.error !== null) {
-    const nested = body.error as Record<string, unknown>;
-    if (typeof nested.message === "string") {
-      return nested.message;
-    }
+  const nestedMessage = typeof error === "object" ? error.message : undefined;
+  if (nestedMessage) {
+    return nestedMessage;
   }
   return fallback;
-}
-
-async function readJson(response: Response): Promise<unknown> {
-  return response.json().catch(() => null);
 }
 
 export async function fetchGoogleAccessToken(
@@ -67,7 +61,7 @@ export async function fetchGoogleAccessToken(
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: stsBody.toString()
   });
-  const stsJson = await readJson(stsResponse);
+  const stsJson = await stsResponse.json().catch(() => undefined);
 
   if (!stsResponse.ok) {
     throw new GoogleApiError(
@@ -76,13 +70,14 @@ export async function fetchGoogleAccessToken(
     );
   }
 
-  const stsToken = stsJson as StsTokenResponse;
-  if (typeof stsToken.access_token !== "string") {
+  const stsResult = v.safeParse(StsTokenResponseSchema, stsJson);
+  if (!stsResult.success) {
     throw new GoogleApiError(
       "Google STS token exchange failed: missing access_token",
       stsResponse.status
     );
   }
+  const accessToken = stsResult.output.access_token;
 
   const serviceAccountUrl =
     "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/" +
@@ -91,11 +86,11 @@ export async function fetchGoogleAccessToken(
     method: "POST",
     headers: {
       ...JSON_HEADERS,
-      Authorization: `Bearer ${stsToken.access_token}`
+      Authorization: `Bearer ${accessToken}`
     },
     body: JSON.stringify({ scope: [GOOGLE_SCOPE] })
   });
-  const serviceAccountJson = await readJson(serviceAccountResponse);
+  const serviceAccountJson = await serviceAccountResponse.json().catch(() => undefined);
 
   if (!serviceAccountResponse.ok) {
     throw new GoogleApiError(
@@ -107,13 +102,13 @@ export async function fetchGoogleAccessToken(
     );
   }
 
-  const serviceAccountToken = serviceAccountJson as ServiceAccountTokenResponse;
-  if (typeof serviceAccountToken.accessToken !== "string") {
+  const tokenResult = v.safeParse(ServiceAccountTokenResponseSchema, serviceAccountJson);
+  if (!tokenResult.success) {
     throw new GoogleApiError(
       "Google service account impersonation failed: missing accessToken",
       serviceAccountResponse.status
     );
   }
 
-  return serviceAccountToken.accessToken;
+  return tokenResult.output.accessToken;
 }

@@ -1,67 +1,45 @@
 import { API_ERROR_CODES, type ApiErrorCode } from "../../constants/api/error-codes";
 import type { Env } from "../../types/env";
+import type {
+  CreateGcpAccountRequest,
+  RegisterGcpAccountRequest,
+  UpdateGcpAccountRequest
+} from "../../schemas/gcp/accounts";
 import {
   createAccount,
   deleteAccount,
   listAccounts,
   upsertAccountByProjectId,
-  updateAccount,
-  type CreateGcpAccountInput,
-  type UpdateGcpAccountInput
+  updateAccount
 } from "../../services/gcp/accounts";
 import { GcpError } from "../../errors/gcp";
-
-function accountInput(body: Record<string, unknown>): CreateGcpAccountInput {
-  return {
-    name: typeof body.name === "string" ? body.name : "",
-    projectId: typeof body.projectId === "string" ? body.projectId : "",
-    serviceAccountEmail: typeof body.serviceAccountEmail === "string" ? body.serviceAccountEmail : "",
-    workloadIdentityProvider:
-      typeof body.workloadIdentityProvider === "string" ? body.workloadIdentityProvider : "",
-    defaultZone: typeof body.defaultZone === "string" ? body.defaultZone : ""
-  };
-}
-
-function accountPatch(body: Record<string, unknown>): UpdateGcpAccountInput {
-  return {
-    name: typeof body.name === "string" ? body.name : undefined,
-    projectId: typeof body.projectId === "string" ? body.projectId : undefined,
-    serviceAccountEmail:
-      typeof body.serviceAccountEmail === "string" ? body.serviceAccountEmail : undefined,
-    workloadIdentityProvider:
-      typeof body.workloadIdentityProvider === "string"
-        ? body.workloadIdentityProvider
-        : undefined,
-    defaultZone: typeof body.defaultZone === "string" ? body.defaultZone : undefined,
-    enabled: typeof body.enabled === "boolean" ? body.enabled : undefined
-  };
-}
 
 export async function listGcpAccounts(env: Env) {
   return listAccounts(env);
 }
 
-export async function createGcpAccount(env: Env, body: Record<string, unknown>) {
-  return createAccount(env, accountInput(body));
+export async function createGcpAccount(env: Env, body: CreateGcpAccountRequest) {
+  return createAccount(env, body);
 }
 
-export async function updateGcpAccount(env: Env, accountId: number, body: Record<string, unknown>) {
-  return updateAccount(env, accountId, accountPatch(body));
+export async function updateGcpAccount(
+  env: Env,
+  accountId: number,
+  body: UpdateGcpAccountRequest
+) {
+  return updateAccount(env, accountId, body);
 }
 
 export async function deleteGcpAccount(env: Env, accountId: number): Promise<void> {
   await deleteAccount(env, accountId);
 }
 
-export async function registerMachineGcpAccount(env: Env, body: Record<string, unknown>) {
-  const input = accountInput(body);
-  const name =
-    typeof body.name === "string"
-      ? body.name
-      : typeof body.id === "string"
-        ? body.id
-        : input.projectId;
-  return upsertAccountByProjectId(env, { ...input, name });
+export async function registerMachineGcpAccount(env: Env, body: RegisterGcpAccountRequest) {
+  const { id, name, ...account } = body;
+  return upsertAccountByProjectId(env, {
+    ...account,
+    name: name?.trim() || id?.trim() || account.projectId
+  });
 }
 
 export function toGcpControlError(

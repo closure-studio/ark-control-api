@@ -92,8 +92,8 @@ export async function countRunsByReleaseIds(
     .all();
 
   return rows.reduce<Record<number, Record<string, number>>>((acc, row) => {
-    acc[row.release_id] ??= {};
-    acc[row.release_id][row.status] = row.count;
+    const releaseCounts = acc[row.release_id] ?? (acc[row.release_id] = {});
+    releaseCounts[row.status] = row.count;
     return acc;
   }, {});
 }

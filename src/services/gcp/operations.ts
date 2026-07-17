@@ -165,7 +165,7 @@ export async function submitBatchInstanceAction(
           instanceName: target.instanceName,
           action,
           status: "submitted",
-          googleOperationName: operationName
+          ...(operationName !== undefined ? { googleOperationName: operationName } : {})
         };
         await recordOperation(env, result, { batchId, accountId: account.id, accountName: account.name });
         results.push(result);
@@ -238,20 +238,25 @@ export async function createDefaultVps(
   const nowMs = options.now?.();
   const batchId = crypto.randomUUID();
   const instanceName = defaultInstanceName(nowMs);
-  const resultBase = {
+  const resultBase: Pick<
+    GcpOperationResult,
+    "accountId" | "projectId" | "zone" | "instanceName" | "action"
+  > = {
     accountId: account.id,
     projectId: account.project_id,
     zone: account.default_zone,
     instanceName,
-    action: "create" as const,
+    action: "create",
   };
   let operationName: string | undefined;
 
   try {
     const startupScript = await buildPyHelperStartupScript({
       env,
-      workerBaseUrl: options.workerBaseUrl,
-      nowMs
+      ...(options.workerBaseUrl !== undefined
+        ? { workerBaseUrl: options.workerBaseUrl }
+        : {}),
+      ...(nowMs !== undefined ? { nowMs } : {})
     });
     const accessToken = await fetchGoogleAccessToken(env, account, { fetch: fetcher });
     operationName = await createDefaultInstance({
@@ -275,7 +280,7 @@ export async function createDefaultVps(
     const result: GcpOperationResult = {
       ...resultBase,
       status: "succeeded",
-      googleOperationName: operationName
+      ...(operationName !== undefined ? { googleOperationName: operationName } : {})
     };
     await recordOperation(env, result, { batchId, accountId: account.id, accountName: account.name });
     return result;
@@ -284,7 +289,7 @@ export async function createDefaultVps(
       ...resultBase,
       status: "failed",
       message: error instanceof Error ? error.message : "Unable to create VPS.",
-      googleOperationName: operationName
+      ...(operationName !== undefined ? { googleOperationName: operationName } : {})
     };
     await recordOperation(env, result, { batchId, accountId: account.id, accountName: account.name });
     return result;

@@ -1,38 +1,55 @@
+import * as v from "valibot";
 import { GoogleApiError } from "../../errors/gcp";
+import { GoogleErrorResponseSchema } from "../../schemas/gcp/auth";
 
-export async function requestGoogleJson<T>(
+function googleErrorDetails(body: unknown): {
+  message?: string;
+  status?: string;
+} {
+  const result = v.safeParse(GoogleErrorResponseSchema, body);
+  if (!result.success) {
+    return {};
+  }
+  const error = result.output.error;
+  return {
+    ...(result.output.message ? { message: result.output.message } : {}),
+    ...(typeof error === "object" && error?.message ? { message: error.message } : {}),
+    ...(typeof error === "object" && error?.status ? { status: error.status } : {})
+  };
+}
+
+export async function requestGoogleJson<TSchema extends v.GenericSchema>(
   fetcher: typeof fetch,
   url: string,
   accessToken: string,
+  responseSchema: TSchema,
   init: RequestInit = {}
-): Promise<T> {
+): Promise<v.InferOutput<TSchema>> {
+  const headers = new Headers(init.headers);
+  headers.set("authorization", `Bearer ${accessToken}`);
+  if (init.body !== undefined && !headers.has("content-type")) {
+    headers.set("content-type", "application/json");
+  }
   const response = await fetcher(url, {
     ...init,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      ...(init.body ? { "content-type": "application/json" } : {}),
-      ...(init.headers as Record<string, string> | undefined)
-    }
+    headers
   });
-  const text = await response.text();
-  let body: Record<string, unknown> | null = null;
-  try {
-    body = text ? (JSON.parse(text) as Record<string, unknown>) : null;
-  } catch {
-    body = null;
-  }
+  const textPromise = response.clone().text();
+  const body = await response.json().catch(() => undefined);
+  const text = await textPromise;
 
   if (!response.ok) {
-    const error = body?.error as Record<string, unknown> | undefined;
-    const message =
-      typeof error?.message === "string"
-        ? error.message
-        : typeof body?.message === "string"
-          ? body.message
-          : text || "Google API request failed.";
-    const status = typeof error?.status === "string" ? error.status : undefined;
-    throw new GoogleApiError(message, response.status, status);
+    const details = googleErrorDetails(body);
+    throw new GoogleApiError(
+      details.message ?? (text || "Google API request failed."),
+      response.status,
+      details.status
+    );
   }
 
-  return body as T;
+  const result = v.safeParse(responseSchema, body);
+  if (!result.success) {
+    throw new GoogleApiError("Google API returned an invalid response.", 502);
+  }
+  return result.output;
 }

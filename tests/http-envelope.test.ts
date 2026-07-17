@@ -5,7 +5,10 @@ import type { Env } from "../src/types/env";
 import { jsonData, jsonError } from "../src/utils/http";
 
 const app = new Hono<{ Bindings: Env }>();
-app.get("/success", (c) => jsonData(c, { value: 42 }));
+app.get("/success", (c) => {
+  c.header("cache-control", "no-store");
+  return jsonData(c, { value: 42 });
+});
 app.get("/failure", (c) =>
   jsonError(c, API_ERROR_CODES.BAD_REQUEST, "The request is invalid.", 400, { field: "value" })
 );
@@ -14,6 +17,8 @@ describe("API response envelope", () => {
   it("wraps successful JSON under data", async () => {
     const response = await app.request("/success");
     expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/json");
+    expect(response.headers.get("cache-control")).toBe("no-store");
     await expect(response.json()).resolves.toEqual({ data: { value: 42 } });
   });
 

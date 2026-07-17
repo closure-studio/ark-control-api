@@ -1,5 +1,12 @@
 import type { GcpInstance, GcpInstanceLifecycleAction } from "../../types/gcp/api";
 import {
+  AggregatedInstancesResponseSchema,
+  ComputeInstanceSchema,
+  ComputeOperationResponseSchema,
+  type ComputeInstance,
+  type ComputeOperationResponse
+} from "../../schemas/gcp/compute";
+import {
   DEFAULT_VPS_BOOT_DISK,
   DEFAULT_VPS_BOOT_IMAGE,
   DEFAULT_VPS_MACHINE_TYPE,
@@ -7,35 +14,6 @@ import {
   DEFAULT_VPS_STARTUP_SCRIPT
 } from "./startup-script";
 import { requestGoogleJson } from "./google-http";
-
-type ComputeNetworkInterface = {
-  networkIP?: string;
-  accessConfigs?: Array<{ natIP?: string }>;
-};
-
-type ComputeInstance = {
-  name?: string;
-  status?: string;
-  machineType?: string;
-  networkInterfaces?: ComputeNetworkInterface[];
-  labels?: Record<string, string>;
-};
-
-type AggregatedInstancesResponse = {
-  items?: Record<string, { instances?: ComputeInstance[] }>;
-  nextPageToken?: string;
-};
-
-type ComputeOperationResponse = {
-  name?: string;
-  status?: string;
-  error?: {
-    errors?: Array<{
-      code?: string;
-      message?: string;
-    }>;
-  };
-};
 
 export type CreateDefaultInstanceInput = {
   fetcher: typeof fetch;
@@ -221,10 +199,11 @@ export async function listProjectInstances(input: {
       url.searchParams.set("pageToken", pageToken);
     }
 
-    const response = await requestGoogleJson<AggregatedInstancesResponse>(
+    const response = await requestGoogleJson(
       input.fetcher,
       url.toString(),
-      input.accessToken
+      input.accessToken,
+      AggregatedInstancesResponseSchema
     );
 
     for (const [zoneKey, scopedList] of Object.entries(response.items ?? {})) {
@@ -259,10 +238,11 @@ export async function getProjectInstance(input: {
   const url = `https://compute.googleapis.com/compute/v1/projects/${encodeURIComponent(
     input.projectId
   )}/zones/${encodeURIComponent(input.zone)}/instances/${encodeURIComponent(input.instanceName)}`;
-  const instance = await requestGoogleJson<ComputeInstance>(
+  const instance = await requestGoogleJson(
     input.fetcher,
     url,
-    input.accessToken
+    input.accessToken,
+    ComputeInstanceSchema
   );
   return normalizeComputeInstance({
     accountId: input.accountId,
@@ -288,10 +268,11 @@ export async function submitInstanceAction(input: {
   )}`;
   const url = input.action === "delete" ? instanceUrl : `${instanceUrl}/${input.action}`;
   const method = input.action === "delete" ? "DELETE" : "POST";
-  const response = await requestGoogleJson<ComputeOperationResponse>(
+  const response = await requestGoogleJson(
     input.fetcher,
     url,
     input.accessToken,
+    ComputeOperationResponseSchema,
     { method }
   );
   return response.name;
@@ -301,17 +282,20 @@ export async function createDefaultInstance(input: CreateDefaultInstanceInput): 
   const url = `https://compute.googleapis.com/compute/beta/projects/${encodeURIComponent(
     input.projectId
   )}/zones/${encodeURIComponent(input.zone)}/instances`;
-  const response = await requestGoogleJson<ComputeOperationResponse>(
+  const response = await requestGoogleJson(
     input.fetcher,
     url,
     input.accessToken,
+    ComputeOperationResponseSchema,
     {
       method: "POST",
       body: JSON.stringify(
         buildDefaultInstanceInsertRequest({
           zone: input.zone,
           instanceName: input.instanceName,
-          startupScript: input.startupScript
+          ...(input.startupScript !== undefined
+            ? { startupScript: input.startupScript }
+            : {})
         })
       )
     }
@@ -335,10 +319,11 @@ export async function waitForZoneOperation(input: {
   const delayMs = input.delayMs ?? 0;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const operation = await requestGoogleJson<ComputeOperationResponse>(
+    const operation = await requestGoogleJson(
       input.fetcher,
       url,
-      input.accessToken
+      input.accessToken,
+      ComputeOperationResponseSchema
     );
     if (operation.status === "DONE") {
       const message = computeOperationErrorMessage(operation);

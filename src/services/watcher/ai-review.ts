@@ -1,6 +1,9 @@
 import { AI_REVIEW_MAX_TOKENS, DEFAULT_AI_MODEL } from "../../constants/watcher/config";
+import { AI_REVIEW_STATUSES } from "../../constants/watcher/status";
 import type { Env } from "../../types/env";
 import { parseAiReviewJson, type AiReviewParseResult } from "../../utils/watcher/ai";
+import * as v from "valibot";
+import { AiProviderResponseSchema } from "../../schemas/watcher/ai";
 
 export interface AiReviewWithModel extends AiReviewParseResult {
   model: string;
@@ -22,38 +25,6 @@ function buildPrompt(logTail: string): string {
   ].join("\n\n");
 }
 
-function getObjectStringProperty(value: unknown, property: string): string | null {
-  if (!value || typeof value !== "object" || !(property in value)) {
-    return null;
-  }
-
-  const propertyValue = (value as Record<string, unknown>)[property];
-  return typeof propertyValue === "string" ? propertyValue : null;
-}
-
-function getFirstChoice(response: Record<string, unknown>): Record<string, unknown> | null {
-  const choices = response.choices;
-  if (!Array.isArray(choices) || !choices[0] || typeof choices[0] !== "object") {
-    return null;
-  }
-  return choices[0] as Record<string, unknown>;
-}
-
-function extractChoiceText(choice: Record<string, unknown>): string | null {
-  const text = getObjectStringProperty(choice, "text");
-  if (text !== null) {
-    return text;
-  }
-
-  const message = choice.message;
-  const content = getObjectStringProperty(message, "content");
-  if (content !== null) {
-    return content;
-  }
-
-  return null;
-}
-
 interface NormalizedAiResponse {
   rawResponse: string;
   protocolErrorReason: string | null;
@@ -64,22 +35,21 @@ function normalizeAiResponse(response: unknown): NormalizedAiResponse {
     return { rawResponse: response, protocolErrorReason: null };
   }
 
-  if (response && typeof response === "object") {
-    const responseObject = response as Record<string, unknown>;
-    const directResponse = getObjectStringProperty(responseObject, "response")
-      ?? getObjectStringProperty(responseObject, "output_text");
-    if (directResponse !== null) {
+  const result = v.safeParse(AiProviderResponseSchema, response);
+  if (result.success) {
+    const directResponse = result.output.response ?? result.output.output_text;
+    if (directResponse !== undefined) {
       return { rawResponse: directResponse, protocolErrorReason: null };
     }
 
-    const choice = getFirstChoice(responseObject);
-    if (choice && getObjectStringProperty(choice, "finish_reason") === "length") {
+    const [choice] = result.output.choices ?? [];
+    if (choice?.finish_reason === "length") {
       return { rawResponse: JSON.stringify(response), protocolErrorReason: "AI response was truncated" };
     }
 
     if (choice) {
-      const choiceText = extractChoiceText(choice);
-      if (choiceText !== null && choiceText.trim().length > 0) {
+      const choiceText = choice.text ?? choice.message?.content;
+      if (choiceText !== undefined && choiceText.trim().length > 0) {
         return { rawResponse: choiceText, protocolErrorReason: null };
       }
     }
@@ -87,7 +57,10 @@ function normalizeAiResponse(response: unknown): NormalizedAiResponse {
     return { rawResponse: JSON.stringify(response), protocolErrorReason: "AI response did not include content" };
   }
 
-  return { rawResponse: JSON.stringify(response), protocolErrorReason: "AI response had an unsupported shape" };
+  return {
+    rawResponse: JSON.stringify(response) ?? "",
+    protocolErrorReason: "AI response had an unsupported shape"
+  };
 }
 
 export async function reviewLogWithAi(env: Env, logTail: string): Promise<AiReviewWithModel> {
@@ -111,7 +84,7 @@ export async function reviewLogWithAi(env: Env, logTail: string): Promise<AiRevi
         schema: {
           type: "object",
           properties: {
-            status: { type: "string", enum: ["success", "running", "failed", "unknown"] },
+            status: { type: "string", enum: [...AI_REVIEW_STATUSES] },
             reason: { type: "string" },
           },
           required: ["status", "reason"],

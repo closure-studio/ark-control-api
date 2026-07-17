@@ -1,18 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { validateCreateVpsHost, validatePatchVpsHost } from "../src/validation/vps/vps-hosts";
+import * as v from "valibot";
+import { CreateVpsHostSchema, PatchVpsHostSchema } from "../src/schemas/vps/hosts";
 
 describe("VPS host validation", () => {
   it("accepts a hostname and applies the default SSH port", () => {
     expect(
-      validateCreateVpsHost({
+      v.safeParse(CreateVpsHostSchema, {
         name: "primary",
         address: "vps.example.com",
         username: "root",
         password: "secret"
       })
-    ).toEqual({
-      ok: true,
-      value: {
+    ).toMatchObject({
+      success: true,
+      output: {
         name: "primary",
         address: "vps.example.com",
         port: 22,
@@ -23,7 +24,10 @@ describe("VPS host validation", () => {
   });
 
   it("validates enabled updates", () => {
-    expect(validatePatchVpsHost({ enabled: false })).toEqual({ ok: true, value: { enabled: false } });
-    expect(validatePatchVpsHost({ enabled: "no" })).toEqual({ ok: false, message: "enabled must be a boolean" });
+    expect(v.safeParse(PatchVpsHostSchema, { enabled: false })).toMatchObject({
+      success: true,
+      output: { enabled: false }
+    });
+    expect(v.safeParse(PatchVpsHostSchema, { enabled: "no" }).success).toBe(false);
   });
 });

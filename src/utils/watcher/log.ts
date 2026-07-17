@@ -19,7 +19,7 @@ function truncateUtf8Tail(value: string, maxBytes: number): string {
   }
 
   let start = bytes.length - maxBytes;
-  while (start < bytes.length && (bytes[start] & 0xc0) === 0x80) {
+  while (start < bytes.length && ((bytes[start] ?? 0) & 0xc0) === 0x80) {
     start += 1;
   }
   return new TextDecoder().decode(bytes.slice(start));

@@ -1,5 +1,4 @@
-export const PYHELPER_ASSET_NAMES = ["Helper-arm64", "Helper-amd64"] as const;
-export type PyHelperAssetName = (typeof PYHELPER_ASSET_NAMES)[number];
+import type { PyHelperAssetName } from "../../schemas/pyhelper/download";
 
 const PYHELPER_DOWNLOAD_TTL_SECONDS = 6 * 60 * 60;
 
@@ -11,10 +10,6 @@ export class PyHelperDownloadUrlError extends Error {
     this.name = "PyHelperDownloadUrlError";
     this.status = status;
   }
-}
-
-export function isPyHelperAssetName(value: string): value is PyHelperAssetName {
-  return PYHELPER_ASSET_NAMES.includes(value as PyHelperAssetName);
 }
 
 function requireToken(token: string): string {

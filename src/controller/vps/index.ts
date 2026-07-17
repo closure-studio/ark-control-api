@@ -20,8 +20,6 @@ import { PasswordCrypto } from "../../services/vps/password-crypto";
 import { ControlApiError } from "../../errors/control-api";
 import type { VpsInventoryResponse, VpsResource } from "../../types/vps";
 
-export { validateCreateVpsHost, validatePatchVpsHost } from "../../validation/vps/vps-hosts";
-
 type VpsServiceOptions = {
   fetcher?: typeof fetch;
   operationPollDelayMs?: number;
@@ -136,7 +134,9 @@ export async function provisionGcpVps(
   const fetcher = options.fetcher ?? fetch;
   const operation = await createDefaultVps(env, accountId, {
     fetch: fetcher,
-    operationPollDelayMs: options.operationPollDelayMs,
+    ...(options.operationPollDelayMs !== undefined
+      ? { operationPollDelayMs: options.operationPollDelayMs }
+      : {}),
     workerBaseUrl
   });
   if (operation.status !== "succeeded") {

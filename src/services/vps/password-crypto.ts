@@ -1,9 +1,8 @@
-interface PasswordEnvelope {
-  v: 1;
-  alg: "AES-GCM";
-  iv: string;
-  ciphertext: string;
-}
+import * as v from "valibot";
+import {
+  PasswordEnvelopeJsonSchema,
+  type PasswordEnvelope
+} from "../../schemas/vps/password";
 
 const ENCODER = new TextEncoder();
 const DECODER = new TextDecoder();
@@ -53,16 +52,11 @@ export class PasswordCrypto {
 }
 
 function parseEnvelope(value: string): PasswordEnvelope {
-  let parsed: Partial<PasswordEnvelope>;
-  try {
-    parsed = JSON.parse(value) as Partial<PasswordEnvelope>;
-  } catch {
+  const result = v.safeParse(PasswordEnvelopeJsonSchema, value);
+  if (!result.success) {
     throw new Error("password_ciphertext_invalid");
   }
-  if (parsed.v !== 1 || parsed.alg !== "AES-GCM" || typeof parsed.iv !== "string" || typeof parsed.ciphertext !== "string") {
-    throw new Error("password_ciphertext_invalid");
-  }
-  return parsed as PasswordEnvelope;
+  return result.output;
 }
 
 function bytesToBase64(bytes: Uint8Array): string {

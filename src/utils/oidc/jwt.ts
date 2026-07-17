@@ -2,7 +2,7 @@ import {
   OIDC_JWT_ALGORITHM,
   OIDC_PUBLIC_KEY_USE,
 } from "../../constants/oidc";
-import type { OidcJwtHeader, OidcJwtPayload } from "../../types/oidc";
+import type { OidcJsonWebKey, OidcJwtHeader, OidcJwtPayload } from "../../types/oidc";
 
 const textEncoder = new TextEncoder();
 
@@ -22,12 +22,6 @@ const binaryToBytes = (binary: string): Uint8Array => {
   return bytes;
 };
 
-const normalizeBase64 = (value: string): string => {
-  const remainder = value.length % 4;
-  const padding = remainder === 0 ? "" : "=".repeat(4 - remainder);
-  return `${value.replace(/-/g, "+").replace(/_/g, "/")}${padding}`;
-};
-
 export const base64UrlEncode = (
   value: string | Uint8Array | ArrayBuffer,
 ): string => {
@@ -44,13 +38,6 @@ export const base64UrlEncode = (
     .replace(/=+$/g, "");
 };
 
-export const base64UrlDecodeJson = <T = unknown>(value: string): T => {
-  const json = new TextDecoder().decode(
-    binaryToBytes(atob(normalizeBase64(value))),
-  );
-  return JSON.parse(json) as T;
-};
-
 const pemToArrayBuffer = (pem: string): ArrayBuffer => {
   const base64 = pem
     .replace(/-----BEGIN PRIVATE KEY-----/g, "")
@@ -58,9 +45,9 @@ const pemToArrayBuffer = (pem: string): ArrayBuffer => {
     .replace(/\s+/g, "");
 
   const bytes = binaryToBytes(atob(base64));
-  const copy = new Uint8Array(bytes.byteLength);
+  const copy = new Uint8Array(new ArrayBuffer(bytes.byteLength));
   copy.set(bytes);
-  return copy.buffer as ArrayBuffer;
+  return copy.buffer;
 };
 
 export const importPkcs8PrivateKey = (pem: string): Promise<CryptoKey> =>
@@ -78,24 +65,25 @@ export const importPkcs8PrivateKey = (pem: string): Promise<CryptoKey> =>
 export const exportPublicJwk = async (
   privateKey: CryptoKey,
   keyId: string,
-): Promise<JsonWebKey> => {
-  const privateJwk = (await crypto.subtle.exportKey(
+): Promise<OidcJsonWebKey> => {
+  const privateJwk = await crypto.subtle.exportKey(
     "jwk",
     privateKey,
-  )) as JsonWebKey;
+  );
 
   if (privateJwk.kty !== "RSA" || !privateJwk.n || !privateJwk.e) {
     throw new Error("Signing key is not an RSA private key");
   }
 
-  return {
+  const publicJwk: OidcJsonWebKey = {
     alg: OIDC_JWT_ALGORITHM,
     e: privateJwk.e,
     kid: keyId,
     kty: privateJwk.kty,
     n: privateJwk.n,
     use: OIDC_PUBLIC_KEY_USE,
-  } as JsonWebKey;
+  };
+  return publicJwk;
 };
 
 export const signJwt = async (

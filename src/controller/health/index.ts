@@ -1,7 +1,11 @@
-export function getHealthData(now = new Date()) {
+export function getHealthData(now = new Date()): {
+  ok: true;
+  service: "ark-control-api";
+  time: string;
+} {
   return {
-    ok: true as const,
-    service: "ark-control-api" as const,
+    ok: true,
+    service: "ark-control-api",
     time: now.toISOString()
   };
 }

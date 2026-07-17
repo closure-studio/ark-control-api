@@ -14,4 +14,12 @@ describe("PasswordCrypto", () => {
     await expect(new PasswordCrypto(undefined).encrypt("secret")).rejects.toThrow("password_key_missing");
     await expect(new PasswordCrypto(btoa("short")).encrypt("secret")).rejects.toThrow("password_key_invalid");
   });
+
+  it("rejects malformed ciphertext envelopes", async () => {
+    const crypto = new PasswordCrypto(btoa("k".repeat(32)));
+
+    await expect(
+      crypto.decrypt('{"v":1,"alg":"AES-GCM","iv":false,"ciphertext":"value"}')
+    ).rejects.toThrow("password_ciphertext_invalid");
+  });
 });

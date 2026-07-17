@@ -1,8 +1,7 @@
-export interface ExecuteHostCommandRequest {
-  hostId: number;
-  command?: string;
-  timeoutMs?: number;
-}
+import type { InferInput } from "valibot";
+import type { ExecuteHostCommandRequestSchema } from "../../schemas/vps/ssh-command";
+
+export type ExecuteHostCommandRequest = InferInput<typeof ExecuteHostCommandRequestSchema>;
 
 export interface ExecuteHostCommandResult {
   connected: boolean;

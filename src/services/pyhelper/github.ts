@@ -1,20 +1,10 @@
-import type { PyHelperAssetName } from "./download-url";
+import * as v from "valibot";
+import type { PyHelperAssetName } from "../../schemas/pyhelper/download";
+import { GitHubReleaseSchema, type GitHubRelease } from "../../schemas/pyhelper/github";
 
 const GITHUB_API_VERSION = "2022-11-28";
 const PYHELPER_OWNER = "closure-studio";
 const PYHELPER_REPO = "PyHelper";
-
-type GitHubReleaseAsset = {
-  name?: string;
-  url?: string;
-  size?: number;
-  content_type?: string;
-};
-
-type GitHubRelease = {
-  tag_name?: string;
-  assets?: GitHubReleaseAsset[];
-};
 
 export class PyHelperGitHubError extends Error {
   readonly status: number;
@@ -43,14 +33,25 @@ function apiHeaders(token: string, accept = "application/vnd.github+json"): Reco
   };
 }
 
-async function readGitHubJson<T>(fetcher: typeof fetch, url: string, token: string): Promise<T> {
+async function readGitHubRelease(
+  fetcher: typeof fetch,
+  url: string,
+  token: string
+): Promise<GitHubRelease> {
   const response = await fetcher(url, { headers: apiHeaders(token) });
   if (!response.ok) {
     throw new PyHelperGitHubError(
       `GitHub release API failed ${response.status}: ${await response.text()}`
     );
   }
-  return response.json() as Promise<T>;
+  const result = v.safeParse(
+    GitHubReleaseSchema,
+    await response.json().catch(() => undefined)
+  );
+  if (!result.success) {
+    throw new PyHelperGitHubError("GitHub release API returned an invalid response.");
+  }
+  return result.output;
 }
 
 export async function downloadLatestPyHelperAsset(input: {
@@ -60,7 +61,7 @@ export async function downloadLatestPyHelperAsset(input: {
 }): Promise<Response> {
   const token = requireToken(input.token);
   const fetcher = input.fetcher ?? fetch;
-  const release = await readGitHubJson<GitHubRelease>(
+  const release = await readGitHubRelease(
     fetcher,
     `https://api.github.com/repos/${PYHELPER_OWNER}/${PYHELPER_REPO}/releases/latest`,
     token
