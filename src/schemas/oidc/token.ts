@@ -1,6 +1,5 @@
 import * as v from "valibot";
-import { objectSchema } from "../object";
 
-export const OidcTokenRequestSchema = objectSchema({
+export const OidcTokenRequestSchema = v.object({
   audience: v.pipe(v.string(), v.trim(), v.nonEmpty("Audience is required."))
 });

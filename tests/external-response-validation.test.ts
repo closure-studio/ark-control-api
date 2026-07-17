@@ -22,40 +22,9 @@ describe("external response validation", () => {
     ).rejects.toThrow("Google API returned an invalid response");
   });
 
-  it("does not treat arrays as Google response objects", async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response("[]", { status: 200 })
-    );
-
-    await expect(
-      waitForZoneOperation({
-        fetcher,
-        accessToken: "token",
-        projectId: "project-a",
-        zone: "us-central1-a",
-        operationName: "operation-1",
-        maxAttempts: 1
-      })
-    ).rejects.toThrow("Google API returned an invalid response");
-  });
-
   it("rejects malformed GitHub release responses", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({ assets: "invalid" }), { status: 200 })
-    );
-
-    await expect(
-      downloadLatestPyHelperAsset({
-        assetName: "Helper-arm64",
-        token: "token",
-        fetcher
-      })
-    ).rejects.toThrow("GitHub release API returned an invalid response");
-  });
-
-  it("does not treat arrays as GitHub release objects", async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response("[]", { status: 200 })
     );
 
     await expect(

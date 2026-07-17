@@ -1,9 +1,8 @@
 import * as v from "valibot";
-import { objectSchema } from "../object";
 
 export const PyHelperAssetNameSchema = v.picklist(["Helper-arm64", "Helper-amd64"]);
 
-export const PyHelperAssetParamSchema = objectSchema({
+export const PyHelperAssetParamSchema = v.object({
   assetName: PyHelperAssetNameSchema
 });
 

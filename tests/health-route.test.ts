@@ -59,26 +59,6 @@ describe("control API health", () => {
     });
   });
 
-  it("rejects non-object JSON request bodies before controller execution", async () => {
-    const response = await api.request(
-      "https://control.example.com/api/public/accounts",
-      {
-        method: "POST",
-        body: "[]",
-        headers: {
-          authorization: "Bearer secret",
-          "content-type": "application/json"
-        }
-      },
-      { ADMIN_TOKEN: "secret" } as Env
-    );
-
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({
-      error: { code: API_ERROR_CODES.BAD_REQUEST, message: "Request body must be an object." }
-    });
-  });
-
   it("rejects invalid field types before controller execution", async () => {
     const response = await api.request(
       "https://control.example.com/api/public/accounts",

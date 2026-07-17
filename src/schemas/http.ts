@@ -1,5 +1,4 @@
 import * as v from "valibot";
-import { objectSchema } from "./object";
 
 const PositiveIntegerStringSchema = v.pipe(
   v.string(),
@@ -15,11 +14,11 @@ const NonNegativeIntegerStringSchema = v.pipe(
   v.safeInteger()
 );
 
-export const IdParamSchema = objectSchema({
+export const IdParamSchema = v.object({
   id: PositiveIntegerStringSchema
 });
 
-export const PaginationQuerySchema = objectSchema({
+export const PaginationQuerySchema = v.object({
   limit: v.exactOptional(
     v.pipe(NonNegativeIntegerStringSchema, v.transform((value) => Math.min(value, 100)))
   ),

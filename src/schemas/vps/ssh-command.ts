@@ -1,10 +1,9 @@
 import * as v from "valibot";
-import { objectSchema } from "../object";
 
 export const DEFAULT_COMMAND_TIMEOUT_MS = 60_000;
 export const MAX_COMMAND_TIMEOUT_MS = 600_000;
 
-export const ExecuteHostCommandRequestSchema = objectSchema({
+export const ExecuteHostCommandRequestSchema = v.object({
   hostId: v.pipe(
     v.number("host_id_invalid"),
     v.integer("host_id_invalid"),

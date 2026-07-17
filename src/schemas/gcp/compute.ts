@@ -1,42 +1,41 @@
 import * as v from "valibot";
-import { objectSchema, recordSchema } from "../object";
 
-const ComputeAccessConfigSchema = objectSchema({
+const ComputeAccessConfigSchema = v.object({
   natIP: v.exactOptional(v.string())
 });
 
-const ComputeNetworkInterfaceSchema = objectSchema({
+const ComputeNetworkInterfaceSchema = v.object({
   networkIP: v.exactOptional(v.string()),
   accessConfigs: v.exactOptional(v.array(ComputeAccessConfigSchema))
 });
 
-export const ComputeInstanceSchema = objectSchema({
+export const ComputeInstanceSchema = v.object({
   name: v.exactOptional(v.string()),
   status: v.exactOptional(v.string()),
   machineType: v.exactOptional(v.string()),
   networkInterfaces: v.exactOptional(v.array(ComputeNetworkInterfaceSchema)),
-  labels: v.exactOptional(recordSchema(v.string()))
+  labels: v.exactOptional(v.record(v.string(), v.string()))
 });
 
-const AggregatedScopedListSchema = objectSchema({
+const AggregatedScopedListSchema = v.object({
   instances: v.exactOptional(v.array(ComputeInstanceSchema))
 });
 
-export const AggregatedInstancesResponseSchema = objectSchema({
-  items: v.exactOptional(recordSchema(AggregatedScopedListSchema)),
+export const AggregatedInstancesResponseSchema = v.object({
+  items: v.exactOptional(v.record(v.string(), AggregatedScopedListSchema)),
   nextPageToken: v.exactOptional(v.string())
 });
 
-const ComputeOperationErrorItemSchema = objectSchema({
+const ComputeOperationErrorItemSchema = v.object({
   code: v.exactOptional(v.string()),
   message: v.exactOptional(v.string())
 });
 
-const ComputeOperationErrorSchema = objectSchema({
+const ComputeOperationErrorSchema = v.object({
   errors: v.exactOptional(v.array(ComputeOperationErrorItemSchema))
 });
 
-export const ComputeOperationResponseSchema = objectSchema({
+export const ComputeOperationResponseSchema = v.object({
   name: v.exactOptional(v.string()),
   status: v.exactOptional(v.string()),
   error: v.exactOptional(ComputeOperationErrorSchema)

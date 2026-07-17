@@ -1,14 +1,13 @@
 import * as v from "valibot";
-import { objectSchema } from "../object";
 
-const GitHubReleaseAssetSchema = objectSchema({
+const GitHubReleaseAssetSchema = v.object({
   name: v.exactOptional(v.string()),
   url: v.exactOptional(v.string()),
   size: v.exactOptional(v.number()),
   content_type: v.exactOptional(v.string())
 });
 
-export const GitHubReleaseSchema = objectSchema({
+export const GitHubReleaseSchema = v.object({
   tag_name: v.exactOptional(v.string()),
   assets: v.exactOptional(v.array(GitHubReleaseAssetSchema))
 });

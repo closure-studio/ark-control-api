@@ -1,5 +1,4 @@
 import * as v from "valibot";
-import { objectSchema } from "../object";
 
 const RequiredAccountFields = {
   projectId: v.pipe(v.string(), v.trim(), v.nonEmpty("Project id is required.")),
@@ -16,18 +15,18 @@ const RequiredAccountFields = {
   defaultZone: v.pipe(v.string(), v.trim(), v.nonEmpty("Default zone is required."))
 };
 
-export const CreateGcpAccountRequestSchema = objectSchema({
+export const CreateGcpAccountRequestSchema = v.object({
   name: v.pipe(v.string(), v.trim(), v.nonEmpty("Account name is required.")),
   ...RequiredAccountFields
 });
 
-export const RegisterGcpAccountRequestSchema = objectSchema({
+export const RegisterGcpAccountRequestSchema = v.object({
   id: v.exactOptional(v.string()),
   name: v.exactOptional(v.string()),
   ...RequiredAccountFields
 });
 
-export const UpdateGcpAccountRequestSchema = objectSchema({
+export const UpdateGcpAccountRequestSchema = v.object({
   name: v.exactOptional(
     v.pipe(v.string(), v.trim(), v.nonEmpty("Account name is required."))
   ),

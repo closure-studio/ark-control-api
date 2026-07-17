@@ -1,17 +1,16 @@
 import * as v from "valibot";
-import { objectSchema, recordSchema } from "../object";
 
-export const ApiEnvelopeSchema = objectSchema({
+export const ApiEnvelopeSchema = v.object({
   errCode: v.number(),
   msg: v.string(),
   data: v.exactOptional(v.unknown())
 });
 
-const TaskTrackSchema = objectSchema({
+const TaskTrackSchema = v.object({
   min_ver: v.exactOptional(v.nullable(v.string()))
 });
 
-export const TaskPayloadSchema = objectSchema({
+export const TaskPayloadSchema = v.looseObject({
   task_id: v.string(),
   needScreenshot: v.boolean(),
   task_status: v.number(),
@@ -26,13 +25,13 @@ export const TaskPayloadJsonSchema = v.pipe(
   TaskPayloadSchema
 );
 
-export const TaskPatchSchema = objectSchema({
+export const TaskPatchSchema = v.object({
   task_status: v.exactOptional(v.number())
 });
 
 const NumberPairSchema = v.tuple([v.number(), v.number()]);
 
-export const TaskStatusSchema = objectSchema({
+export const TaskStatusSchema = v.object({
   StartTs: v.number(),
   typeOfIdx: v.tuple([v.string(), v.string()]),
   sum_total: NumberPairSchema,
@@ -46,7 +45,7 @@ export const TaskStatusSchema = objectSchema({
   unknown: NumberPairSchema
 });
 
-export const TaskStatisticSchema = objectSchema({
+export const TaskStatisticSchema = v.object({
   cts: v.number(),
   nts: v.number(),
   fts: v.number(),
@@ -54,22 +53,22 @@ export const TaskStatisticSchema = objectSchema({
   sc: v.boolean()
 });
 
-export const TaskStatisticRecordSchema = recordSchema(TaskStatisticSchema);
+export const TaskStatisticRecordSchema = v.record(v.string(), TaskStatisticSchema);
 export const NullableTaskStatisticRecordSchema = v.nullable(TaskStatisticRecordSchema);
 
-export const TaskStatisticsByDaySchema = objectSchema({
+export const TaskStatisticsByDaySchema = v.object({
   "0d": TaskStatisticRecordSchema,
   "1d": NullableTaskStatisticRecordSchema,
   "2d": NullableTaskStatisticRecordSchema
 });
 
-export const FreqStatisticSchema = objectSchema({
+export const FreqStatisticSchema = v.object({
   cts: v.number(),
-  infosc: recordSchema(v.number()),
-  infonc: recordSchema(v.number())
+  infosc: v.record(v.string(), v.number()),
+  infonc: v.record(v.string(), v.number())
 });
 
-export const FreqStatisticsSchema = recordSchema(FreqStatisticSchema);
+export const FreqStatisticsSchema = v.record(v.string(), FreqStatisticSchema);
 export const StringArraySchema = v.array(v.string());
 export const StringSchema = v.string();
 export const NumberSchema = v.number();

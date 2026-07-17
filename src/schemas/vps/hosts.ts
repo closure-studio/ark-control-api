@@ -1,6 +1,5 @@
 import * as v from "valibot";
 import { VPS_HOST_FIELD_LIMITS } from "../../constants/vps/fields";
-import { objectSchema } from "../object";
 
 function requiredString(field: string) {
   return v.pipe(
@@ -45,15 +44,15 @@ const PatchVpsHostEntries = {
   enabled: v.exactOptional(v.boolean("enabled must be a boolean"))
 };
 
-export const CreateVpsHostSchema = objectSchema(CreateVpsHostEntries);
-export const PatchVpsHostSchema = objectSchema(PatchVpsHostEntries);
+export const CreateVpsHostSchema = v.object(CreateVpsHostEntries);
+export const PatchVpsHostSchema = v.object(PatchVpsHostEntries);
 
-export const CreateVpsRequestSchema = objectSchema({
+export const CreateVpsRequestSchema = v.object({
   ...CreateVpsHostEntries,
   watcherEnabled: v.exactOptional(v.boolean("watcherEnabled must be a boolean"))
 });
 
-export const PatchVpsRequestSchema = objectSchema({
+export const PatchVpsRequestSchema = v.object({
   name: PatchVpsHostEntries.name,
   address: PatchVpsHostEntries.address,
   port: PatchVpsHostEntries.port,
