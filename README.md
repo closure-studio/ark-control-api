@@ -69,6 +69,20 @@ The authenticated control surface is exposed under `/api/dashboard`,
 `/api/vps`, `/api/accounts`, `/api/releases`, and `/api/runs`. The baseline
 migration creates the current six-table schema directly.
 
+## Architecture
+
+HTTP code is grouped by domain under `src/router`, while business use cases are
+grouped under the matching `src/control` directory:
+
+```text
+src/router/<domain> -> src/control/<domain> -> service/model/repository
+```
+
+The current router and control domains are `dashboard`, `gcp`, `oidc`,
+`pyhelper`, `vps`, and `watcher`. Cross-cutting HTTP helpers stay in
+`src/utils/http`; API contexts and domain response contracts are grouped under
+`src/types/<domain>`.
+
 GCP provisioning registers the new instance as a standalone SSH host. VPS rows
 do not retain GCP ownership or instance identity, so deleting a VPS or account
 configuration does not delete the corresponding cloud resource.

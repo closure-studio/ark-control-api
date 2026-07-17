@@ -1,6 +1,6 @@
 import type { GcpAccountRow } from "../../model/schema/gcp";
 import type { Env } from "../../model/schema/worker";
-import { issueOidcToken } from "../../../../oidc/service/oidc";
+import { issueOidcToken } from "../../../../control/oidc";
 import { GoogleApiError } from "./errors";
 
 export type GcpAuthOptions = {

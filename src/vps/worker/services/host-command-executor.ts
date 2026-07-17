@@ -1,5 +1,5 @@
 import type { ExecuteHostCommandRequest, ExecuteHostCommandResult } from "../../shared/types/ssh-commands";
-import type { Env } from "../env";
+import type { Env } from "../../../env";
 import { VpsHostRepository } from "../repositories/vps-hosts";
 import { validateExecuteHostCommandRequest, type NormalizedExecuteHostCommandRequest } from "../validation/ssh-commands";
 import { PasswordCrypto } from "./password-crypto";

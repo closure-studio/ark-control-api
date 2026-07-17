@@ -1,5 +1,3 @@
-import type { ApiErrorCode } from "../constants/errors";
-
 export interface AdminVpsHost {
   id: number;
   name: string;
@@ -30,21 +28,4 @@ export interface PatchVpsHostRequest {
   username?: string;
   password?: string;
   enabled?: boolean;
-}
-
-export interface AdminVpsHostsResponse {
-  hosts: AdminVpsHost[];
-}
-
-export interface AdminVpsHostResponse {
-  host: AdminVpsHost;
-}
-
-export interface ServiceVpsHostsResponse {
-  hosts: ServiceVpsHost[];
-}
-
-export interface ApiErrorResponse {
-  error: ApiErrorCode;
-  message?: string;
 }
