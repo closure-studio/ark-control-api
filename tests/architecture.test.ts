@@ -70,4 +70,13 @@ describe("router to control architecture", () => {
       }
     }
   });
+
+  it("keeps JSON envelope serialization in shared HTTP utilities", () => {
+    for (const domain of domains.filter((domain) => domain !== "oidc")) {
+      for (const path of typescriptFiles(join(sourceRoot, "router", domain))) {
+        const source = readFileSync(path, "utf8");
+        expect(source, path).not.toMatch(/\bc\.json\(/);
+      }
+    }
+  });
 });

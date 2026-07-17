@@ -83,6 +83,23 @@ The current router and control domains are `dashboard`, `gcp`, `oidc`,
 `src/utils/http`; API contexts and domain response contracts are grouped under
 `src/types/<domain>`.
 
+## API responses
+
+JSON endpoints under `/api/*` use one of two mutually exclusive envelopes:
+
+```json
+{ "data": {}, "meta": {} }
+```
+
+```json
+{ "error": { "code": "not_found", "message": "Resource was not found.", "details": {} } }
+```
+
+The HTTP status remains authoritative. Error `code` values are stable machine
+identifiers; clients must not parse `message`. The `meta` and `details` members
+are omitted when unused. OIDC responses, health checks, and successful binary
+downloads retain their protocol-specific formats.
+
 GCP provisioning registers the new instance as a standalone SSH host. VPS rows
 do not retain GCP ownership or instance identity, so deleting a VPS or account
 configuration does not delete the corresponding cloud resource.

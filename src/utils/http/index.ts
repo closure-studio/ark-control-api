@@ -1,6 +1,16 @@
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { ControlApiError } from "../../types/control/errors";
-import type { ApiContext } from "../../types/http";
+import type { ApiContext, ApiFailure, ApiSuccess } from "../../types/http";
+
+export function jsonData<T, M = never>(
+  c: ApiContext,
+  data: T,
+  status = 200,
+  meta?: M
+) {
+  const body: ApiSuccess<T, M> = meta === undefined ? { data } : { data, meta };
+  return c.json(body, status as ContentfulStatusCode);
+}
 
 export function jsonError(
   c: ApiContext,
@@ -9,10 +19,10 @@ export function jsonError(
   status: number,
   details?: unknown
 ) {
-  return c.json(
-    details === undefined ? { error, message } : { error, message, details },
-    status as ContentfulStatusCode
-  );
+  const body: ApiFailure = {
+    error: details === undefined ? { code: error, message } : { code: error, message, details }
+  };
+  return c.json(body, status as ContentfulStatusCode);
 }
 
 export function parseId(value: string): number | null {

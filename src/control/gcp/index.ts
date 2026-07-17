@@ -63,6 +63,10 @@ export async function registerMachineGcpAccount(env: Env, body: Record<string, u
   return upsertAccountByProjectId(env, { ...input, name });
 }
 
-export function toGcpControlError(error: unknown): { message: string; status: number } | null {
-  return error instanceof GcpError ? { message: error.message, status: error.status } : null;
+export function toGcpControlError(
+  error: unknown
+): { code: string; message: string; status: number } | null {
+  if (!(error instanceof GcpError)) return null;
+  const code = error.status === 404 ? "not_found" : error.status >= 500 ? "gcp_error" : "bad_request";
+  return { code, message: error.message, status: error.status };
 }

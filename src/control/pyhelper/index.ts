@@ -10,7 +10,7 @@ import {
 } from "../../gcp/worker/services/pyhelper/github";
 
 export class PyHelperControlError extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(readonly code: string, message: string, readonly status: number) {
     super(message);
     this.name = "PyHelperControlError";
   }
@@ -22,7 +22,7 @@ export async function downloadPyHelperAsset(
   requestUrl: string
 ): Promise<Response> {
   if (!isPyHelperAssetName(assetName)) {
-    throw new PyHelperControlError("Unknown PyHelper asset.", 404);
+    throw new PyHelperControlError("not_found", "Unknown PyHelper asset.", 404);
   }
 
   try {
@@ -34,7 +34,11 @@ export async function downloadPyHelperAsset(
     return downloadLatestPyHelperAsset({ assetName, token: env.GITHUB_PYHELPER_TOKEN });
   } catch (error) {
     if (error instanceof PyHelperDownloadUrlError || error instanceof PyHelperGitHubError) {
-      throw new PyHelperControlError(error.message, error.status);
+      const code =
+        error instanceof PyHelperDownloadUrlError
+          ? "invalid_download_request"
+          : "pyhelper_download_failed";
+      throw new PyHelperControlError(code, error.message, error.status);
     }
     throw error;
   }

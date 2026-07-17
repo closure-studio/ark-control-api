@@ -16,7 +16,9 @@ describe("control API health", () => {
       { ADMIN_TOKEN: "secret" } as Env
     );
     expect(response.status).toBe(401);
-    await expect(response.json()).resolves.toEqual({ error: "unauthorized", message: "Unauthorized" });
+    await expect(response.json()).resolves.toEqual({
+      error: { code: "unauthorized", message: "Unauthorized" }
+    });
   });
 
   it("protects machine account registration with the admin token", async () => {
@@ -26,7 +28,9 @@ describe("control API health", () => {
       { ADMIN_TOKEN: "secret" } as Env
     );
     expect(response.status).toBe(401);
-    await expect(response.json()).resolves.toEqual({ error: "unauthorized", message: "Unauthorized" });
+    await expect(response.json()).resolves.toEqual({
+      error: { code: "unauthorized", message: "Unauthorized" }
+    });
   });
 
   it("allows authenticated machine registration requests to reach validation", async () => {
@@ -43,6 +47,8 @@ describe("control API health", () => {
       { ADMIN_TOKEN: "secret" } as Env
     );
     expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({ error: "Project id is required." });
+    await expect(response.json()).resolves.toEqual({
+      error: { code: "bad_request", message: "Project id is required." }
+    });
   });
 });

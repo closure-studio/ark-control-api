@@ -1,10 +1,10 @@
 import { Hono } from "hono";
-import type { ContentfulStatusCode } from "hono/utils/http-status";
 import {
   downloadPyHelperAsset,
   PyHelperControlError
 } from "../../control/pyhelper";
 import type { Env } from "../../env";
+import { jsonError } from "../../utils/http";
 
 export function createPyHelperRouter() {
   const router = new Hono<{ Bindings: Env }>();
@@ -17,7 +17,7 @@ export function createPyHelperRouter() {
       );
     } catch (error) {
       if (error instanceof PyHelperControlError) {
-        return c.json({ error: error.message }, error.status as ContentfulStatusCode);
+        return jsonError(c, error.code, error.message, error.status);
       }
       throw error;
     }
