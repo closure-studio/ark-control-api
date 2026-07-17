@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { getHealthData } from "../../control/utils";
+import { getHealthData } from "../../controller/utils";
 import type { Env } from "../../env";
 
 export function createUtilsRouter() {

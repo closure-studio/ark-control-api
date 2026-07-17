@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import {
   downloadPyHelperAsset,
   PyHelperControlError
-} from "../../control/pyhelper";
+} from "../../controller/pyhelper";
 import type { Env } from "../../env";
 import { jsonError } from "../../utils/http";
 

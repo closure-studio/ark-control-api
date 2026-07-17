@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 const sourceRoot = fileURLToPath(new URL("../src/", import.meta.url));
 const domains = ["dashboard", "gcp", "oidc", "pyhelper", "utils", "vps", "watcher"];
 const legacyHttpDirectories = [
-  "control/shared",
+  "controller/shared",
   "gcp/worker/controller",
   "gcp/worker/router",
   "oidc/controller",
@@ -25,16 +25,16 @@ function typescriptFiles(directory: string): string[] {
   });
 }
 
-describe("router to control architecture", () => {
-  it("groups every HTTP domain under router and control", () => {
+describe("router to controller architecture", () => {
+  it("groups every HTTP domain under router and controller", () => {
     for (const domain of domains) {
       expect(existsSync(join(sourceRoot, "router", domain))).toBe(true);
-      expect(existsSync(join(sourceRoot, "control", domain))).toBe(true);
+      expect(existsSync(join(sourceRoot, "controller", domain))).toBe(true);
     }
   });
 
-  it("keeps Hono and router dependencies out of controls", () => {
-    for (const path of typescriptFiles(join(sourceRoot, "control"))) {
+  it("keeps Hono and router dependencies out of controllers", () => {
+    for (const path of typescriptFiles(join(sourceRoot, "controller"))) {
       const source = readFileSync(path, "utf8");
       expect(source, path).not.toMatch(/from ["']hono(?:\/[^"']*)?["']/);
       expect(source, path).not.toMatch(/from ["'][^"']*router[^"']*["']/);
@@ -94,7 +94,7 @@ describe("router to control architecture", () => {
     }
   });
 
-  it("prevents domain routers from bypassing controls", () => {
+  it("prevents domain routers from bypassing controllers", () => {
     for (const domain of domains) {
       for (const path of typescriptFiles(join(sourceRoot, "router", domain))) {
         const source = readFileSync(path, "utf8");

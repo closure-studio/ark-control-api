@@ -72,13 +72,13 @@ migration creates the current six-table schema directly.
 ## Architecture
 
 HTTP code is grouped by domain under `src/router`, while business use cases are
-grouped under the matching `src/control` directory:
+grouped under the matching `src/controller` directory:
 
 ```text
-src/router/<domain> -> src/control/<domain> -> service/model/repository
+src/router/<domain> -> src/controller/<domain> -> service/model/repository
 ```
 
-The current router and control domains are `dashboard`, `gcp`, `oidc`,
+The current router and controller domains are `dashboard`, `gcp`, `oidc`,
 `pyhelper`, `utils`, `vps`, and `watcher`. Cross-cutting HTTP helpers stay in
 `src/utils/http`; API contexts and domain response contracts are grouped under
 `src/types/<domain>`, while shared and domain-specific constants are grouped

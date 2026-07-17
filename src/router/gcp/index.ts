@@ -7,8 +7,8 @@ import {
   registerMachineGcpAccount,
   toGcpControlError,
   updateGcpAccount
-} from "../../control/gcp";
-import { provisionGcpVps } from "../../control/vps";
+} from "../../controller/gcp";
+import { provisionGcpVps } from "../../controller/vps";
 import type { Env } from "../../env";
 import { ControlApiError } from "../../types/control/errors";
 import { jsonData, jsonError, parseId, readBody } from "../../utils/http";

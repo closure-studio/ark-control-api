@@ -9,7 +9,7 @@ import {
   validateCreateVpsHost,
   validatePatchVpsHost,
   verifyVps
-} from "../../control/vps";
+} from "../../controller/vps";
 import type { Env } from "../../env";
 import { ControlApiError } from "../../types/control/errors";
 import { jsonData, parseId, readBody } from "../../utils/http";

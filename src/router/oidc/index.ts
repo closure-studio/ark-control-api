@@ -5,7 +5,7 @@ import {
   createOidcJwks,
   createTokenFailureResponse,
   issueOidcToken
-} from "../../control/oidc";
+} from "../../controller/oidc";
 import {
   OIDC_ERROR_CODES,
   OIDC_ERROR_MESSAGES,

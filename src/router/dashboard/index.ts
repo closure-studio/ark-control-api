@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { getDashboardData } from "../../control/dashboard";
+import { getDashboardData } from "../../controller/dashboard";
 import type { Env } from "../../env";
 import { jsonData } from "../../utils/http";
 

@@ -4,7 +4,7 @@ import {
   getRunLog,
   listReleaseRuns,
   listReleaseSummaries
-} from "../../control/watcher";
+} from "../../controller/watcher";
 import type { Env } from "../../env";
 import { jsonData, jsonError, parseId } from "../../utils/http";
 
