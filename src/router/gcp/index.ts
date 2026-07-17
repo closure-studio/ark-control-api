@@ -14,7 +14,7 @@ import {
   RegisterGcpAccountRequestSchema,
   UpdateGcpAccountRequestSchema
 } from "../../schemas/gcp/accounts";
-import { IdParamSchema } from "../../schemas/http";
+import { IdParamSchema } from "../../schemas/params";
 import type { Env } from "../../types/env";
 import { jsonData, jsonError, validationErrorHook } from "../../utils/http";
 

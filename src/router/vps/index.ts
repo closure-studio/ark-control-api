@@ -8,7 +8,7 @@ import {
   updateVps,
   verifyVps
 } from "../../controller/vps";
-import { IdParamSchema } from "../../schemas/http";
+import { IdParamSchema } from "../../schemas/params";
 import { CreateVpsRequestSchema, PatchVpsRequestSchema } from "../../schemas/vps/hosts";
 import type { Env } from "../../types/env";
 import { jsonData, validationErrorHook } from "../../utils/http";

@@ -6,7 +6,8 @@ import {
   listReleaseRuns,
   listReleaseSummaries
 } from "../../controller/watcher";
-import { IdParamSchema, PaginationQuerySchema } from "../../schemas/http";
+import { PaginationQuerySchema } from "../../schemas/pagination";
+import { IdParamSchema } from "../../schemas/params";
 import type { Env } from "../../types/env";
 import { jsonData, jsonError, validationErrorHook } from "../../utils/http";
 
