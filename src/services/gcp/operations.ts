@@ -6,8 +6,8 @@ import type {
   GcpInstanceLifecycleTarget,
   GcpInstanceLifecycleAction,
   GcpOperationResult
-} from "../../types/gcp/api";
-import type { Env } from "../../types/env";
+} from "../../schemas/gcp/operations";
+import type { Env } from "../../schemas/env";
 import { createPyHelperDownloadUrl } from "../pyhelper/download-url";
 import { loadAccountRow } from "./accounts";
 import { fetchGoogleAccessToken } from "./auth";

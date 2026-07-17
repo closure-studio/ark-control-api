@@ -82,22 +82,21 @@ src/
 |-- errors/          runtime application error classes
 |-- repositories/    database access grouped by domain
 |-- router/          Hono route registration grouped by HTTP domain
-|-- schemas/         Valibot request and external response contracts
+|-- schemas/         Valibot data contracts and their inferred types
 |-- services/        external integrations and domain workflows
-|-- types/           type-only contracts grouped by domain
 `-- utils/           stateless helpers grouped by concern
 ```
 
 The HTTP dependency direction is `router -> controller -> service/repository`.
 The current router and controller domains are `dashboard`, `gcp`, `health`,
 `oidc`, `pyhelper`, `vps`, and `watcher`. Cross-cutting HTTP helpers stay in
-`src/utils/http`; API contexts and domain response contracts stay under
-`src/types/<domain>`, while shared and domain-specific constants stay under
-`src/constants/<domain>`.
+`src/utils/http`; request, response, environment, and domain data contracts stay
+under `src/schemas` and export types inferred with Valibot. Shared and
+domain-specific constants stay under `src/constants/<domain>`.
 
 External JSON is parsed and validated with Valibot schemas before services can
-use it. Hono request bodies use the Standard Schema validator, and response
-types are inferred from their runtime schemas where practical. TypeScript also
+use it. Hono request bodies use the Standard Schema validator, and data types
+are inferred from their runtime schemas. TypeScript also
 enables `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`; the
 architecture tests reject explicit `any` and unchecked type assertions in
 production source.

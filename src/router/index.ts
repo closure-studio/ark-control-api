@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { API_ERROR_CODES } from "../constants/api/error-codes";
-import type { Env } from "../types/env";
+import type { Env } from "../schemas/env";
 import { ControlApiError } from "../errors/control-api";
 import { jsonError } from "../utils/http";
 import { createDashboardRouter } from "./dashboard";

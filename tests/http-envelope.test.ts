@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { API_ERROR_CODES } from "../src/constants/api/error-codes";
-import type { Env } from "../src/types/env";
+import type { Env } from "../src/schemas/env";
 import { jsonData, jsonError } from "../src/utils/http";
 
 const app = new Hono<{ Bindings: Env }>();

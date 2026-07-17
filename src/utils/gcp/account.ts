@@ -1,5 +1,5 @@
 import type { GcpAccountRow, GcpVmOperationRow } from "../../db/schema";
-import type { GcpAccount } from "../../types/gcp/api";
+import type { GcpAccount } from "../../schemas/gcp/accounts";
 
 export type { GcpAccountRow, GcpVmOperationRow } from "../../db/schema";
 

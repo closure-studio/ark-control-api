@@ -15,7 +15,6 @@ const sourceLayers = [
   "router",
   "schemas",
   "services",
-  "types",
   "utils"
 ];
 const legacySourceLocations = [
@@ -28,14 +27,14 @@ const legacySourceLocations = [
   "oidc/controller",
   "oidc/router",
   "retention.ts",
+  "types",
   "vps/worker/routes",
   "vps",
   "watcher",
   "watcher/controllers",
   "watcher/routes",
   "router/shared",
-  "router/utils",
-  "types/control"
+  "router/utils"
 ];
 
 function typescriptFiles(directory: string): string[] {
@@ -87,7 +86,7 @@ describe("router to controller architecture", () => {
     expect(source).not.toMatch(/\.(?:all|get|notFound|onError|patch|post|put|route|use)\(/);
   });
 
-  it("groups cross-cutting utilities and types by concern", () => {
+  it("groups cross-cutting utilities and schemas by concern", () => {
     const expectedLocations = [
       "constants/api",
       "constants/oidc",
@@ -102,32 +101,20 @@ describe("router to controller architecture", () => {
       "services/task-server",
       "services/vps",
       "services/watcher",
-      "types/dashboard",
-      "types/env.ts",
-      "types/gcp",
-      "types/http",
-      "types/oidc",
-      "types/vps",
-      "types/watcher",
       "utils/gcp",
       "utils/http",
       "utils/oidc",
       "utils/watcher",
+      "schemas/dashboard",
+      "schemas/env.ts",
       "schemas/gcp",
+      "schemas/oidc",
       "schemas/task-server",
-      "schemas/vps"
+      "schemas/vps",
+      "schemas/watcher"
     ];
     for (const path of expectedLocations) {
       expect(existsSync(join(sourceRoot, path))).toBe(true);
-    }
-  });
-
-  it("keeps the types layer free of runtime declarations", () => {
-    for (const path of typescriptFiles(join(sourceRoot, "types"))) {
-      const source = readFileSync(path, "utf8");
-      expect(source, path).not.toMatch(/export\s+(?:abstract\s+)?class\s/);
-      expect(source, path).not.toMatch(/export\s+(?:async\s+)?function\s/);
-      expect(source, path).not.toMatch(/export\s+const\s/);
     }
   });
 

@@ -8,7 +8,8 @@ import {
   type AiReviewStatus,
   type HostRunStatus
 } from "../../constants/watcher/status";
-import type { HostRunRow, ServiceVpsHost } from "../../types/watcher";
+import type { WatcherDeploymentRow as HostRunRow } from "../../db/schema";
+import type { ServiceVpsHost } from "../../schemas/vps/hosts";
 
 export async function getHostRunForReleaseHost(
   db: D1Database,

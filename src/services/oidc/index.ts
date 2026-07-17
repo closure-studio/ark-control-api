@@ -12,7 +12,7 @@ import {
   OIDC_SIGNING_ALGORITHMS_SUPPORTED,
   OIDC_SUBJECT_TYPES_SUPPORTED
 } from "../../constants/oidc";
-import type { Env } from "../../types/env";
+import type { Env } from "../../schemas/env";
 import type {
   IssueOidcTokenOptions,
   JsonWebKeySet,
@@ -20,7 +20,7 @@ import type {
   OidcJwtPayload,
   OidcTokenFailureResponse,
   OidcTokenSuccessResponse,
-} from "../../types/oidc";
+} from "../../schemas/oidc/protocol";
 import { exportPublicJwk, importPkcs8PrivateKey, signJwt } from "../../utils/oidc/jwt";
 
 type RequiredEnvKey =
@@ -90,12 +90,12 @@ export const createOidcDiscoveryMetadata = (env: Env): OidcDiscoveryMetadata => 
   const issuer = canonicalizeIssuer(requireConfig(env, "OIDC_ISSUER"));
 
   return {
-    claims_supported: OIDC_CLAIMS_SUPPORTED,
-    id_token_signing_alg_values_supported: OIDC_SIGNING_ALGORITHMS_SUPPORTED,
+    claims_supported: [...OIDC_CLAIMS_SUPPORTED],
+    id_token_signing_alg_values_supported: [...OIDC_SIGNING_ALGORITHMS_SUPPORTED],
     issuer,
     jwks_uri: `${issuer}/jwks.json`,
-    response_types_supported: OIDC_RESPONSE_TYPES_SUPPORTED,
-    subject_types_supported: OIDC_SUBJECT_TYPES_SUPPORTED,
+    response_types_supported: [...OIDC_RESPONSE_TYPES_SUPPORTED],
+    subject_types_supported: [...OIDC_SUBJECT_TYPES_SUPPORTED],
   };
 };
 

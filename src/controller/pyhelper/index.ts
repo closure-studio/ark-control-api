@@ -1,6 +1,6 @@
 import { API_ERROR_CODES, type ApiErrorCode } from "../../constants/api/error-codes";
 import type { PyHelperAssetName } from "../../schemas/pyhelper/download";
-import type { Env } from "../../types/env";
+import type { Env } from "../../schemas/env";
 import {
   PyHelperDownloadUrlError,
   verifyPyHelperDownloadRequest

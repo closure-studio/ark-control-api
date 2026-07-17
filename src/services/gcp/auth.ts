@@ -1,6 +1,6 @@
 import type { GcpAccountRow } from "../../db/schema";
 import { GoogleApiError } from "../../errors/gcp";
-import type { Env } from "../../types/env";
+import type { Env } from "../../schemas/env";
 import * as v from "valibot";
 import {
   GoogleErrorResponseSchema,

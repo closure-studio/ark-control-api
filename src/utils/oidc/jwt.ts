@@ -2,7 +2,11 @@ import {
   OIDC_JWT_ALGORITHM,
   OIDC_PUBLIC_KEY_USE,
 } from "../../constants/oidc";
-import type { OidcJsonWebKey, OidcJwtHeader, OidcJwtPayload } from "../../types/oidc";
+import type {
+  OidcJsonWebKey,
+  OidcJwtHeader,
+  OidcJwtPayload
+} from "../../schemas/oidc/protocol";
 
 const textEncoder = new TextEncoder();
 

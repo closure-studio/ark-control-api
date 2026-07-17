@@ -1,6 +1,7 @@
 import { VpsHostRepository } from "../../repositories/vps/vps-hosts";
-import type { Env } from "../../types/env";
-import type { ExecuteHostCommandResult, ServiceVpsHost } from "../../types/watcher";
+import type { Env } from "../../schemas/env";
+import type { ServiceVpsHost } from "../../schemas/vps/hosts";
+import type { ExecuteHostCommandResult } from "../../schemas/vps/ssh-command";
 import { executeHostCommand as executeManagedHostCommand } from "../vps/host-command-executor";
 
 export async function listVpsHosts(env: Env): Promise<ServiceVpsHost[]> {

@@ -10,7 +10,7 @@ import {
 } from "../../controller/vps";
 import { IdParamSchema } from "../../schemas/params";
 import { CreateVpsRequestSchema, PatchVpsRequestSchema } from "../../schemas/vps/hosts";
-import type { Env } from "../../types/env";
+import type { Env } from "../../schemas/env";
 import { jsonData, validationErrorHook } from "../../utils/http";
 
 export function createVpsRouter() {
@@ -21,11 +21,7 @@ export function createVpsRouter() {
     "/vps",
     sValidator("json", CreateVpsRequestSchema, validationErrorHook),
     async (c) => {
-      const { watcherEnabled, ...input } = c.req.valid("json");
-      let vps = await createManualVps(c.env, input);
-      if (watcherEnabled === false) {
-        vps = await updateVps(c.env, vps.id, { enabled: false });
-      }
+      const vps = await createManualVps(c.env, c.req.valid("json"));
       return jsonData(c, { vps }, 201);
     }
   );
@@ -43,13 +39,7 @@ export function createVpsRouter() {
     sValidator("json", PatchVpsRequestSchema, validationErrorHook),
     async (c) => {
       const { id } = c.req.valid("param");
-      const { watcherEnabled, password, ...fields } = c.req.valid("json");
-      const patch = {
-        ...fields,
-        ...(password !== undefined && password !== "" ? { password } : {}),
-        ...(watcherEnabled !== undefined ? { enabled: watcherEnabled } : {})
-      };
-      return jsonData(c, { vps: await updateVps(c.env, id, patch) });
+      return jsonData(c, { vps: await updateVps(c.env, id, c.req.valid("json")) });
     }
   );
   router.delete(

@@ -1,7 +1,7 @@
 import { Miniflare } from "miniflare";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import type { Env } from "../src/types/env";
+import type { Env } from "../src/schemas/env";
 import {
   createAccount,
   deleteAccount,
@@ -116,13 +116,14 @@ describe("Drizzle D1 models", () => {
         username: "root",
         password: "secret"
       },
-      "ciphertext"
+      "ciphertext",
+      false
     );
-    expect(host).toMatchObject({ enabled: true, password_ciphertext: "ciphertext" });
+    expect(host).toMatchObject({ enabled: false, password_ciphertext: "ciphertext" });
 
-    const updated = await repository.patch(host!.id, { name: "Host Renamed", enabled: false });
-    expect(updated).toMatchObject({ name: "Host Renamed", enabled: false });
-    expect(await repository.listEnabled()).toEqual([]);
+    const updated = await repository.patch(host!.id, { name: "Host Renamed", enabled: true });
+    expect(updated).toMatchObject({ name: "Host Renamed", enabled: true });
+    expect(await repository.listEnabled()).toEqual([updated]);
   });
 
   it("runs deployment conflicts, scheduling, and aggregations", async () => {

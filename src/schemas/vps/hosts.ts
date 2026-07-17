@@ -40,26 +40,74 @@ const PatchVpsHostEntries = {
   address: v.exactOptional(requiredString("address")),
   port: v.exactOptional(PortSchema),
   username: v.exactOptional(requiredString("username")),
-  password: v.exactOptional(v.union([v.literal(""), PasswordSchema])),
+  password: v.exactOptional(PasswordSchema),
   enabled: v.exactOptional(v.boolean("enabled must be a boolean"))
+};
+
+const AdminVpsHostEntries = {
+  id: v.number(),
+  name: v.string(),
+  address: v.string(),
+  port: v.number(),
+  username: v.string(),
+  enabled: v.boolean(),
+  created_at: v.string(),
+  updated_at: v.string()
 };
 
 export const CreateVpsHostSchema = v.object(CreateVpsHostEntries);
 export const PatchVpsHostSchema = v.object(PatchVpsHostEntries);
-
-export const CreateVpsRequestSchema = v.object({
-  ...CreateVpsHostEntries,
-  watcherEnabled: v.exactOptional(v.boolean("watcherEnabled must be a boolean"))
+export const AdminVpsHostSchema = v.object(AdminVpsHostEntries);
+export const ServiceVpsHostSchema = v.object({
+  ...AdminVpsHostEntries,
+  password_ciphertext: v.string()
 });
 
-export const PatchVpsRequestSchema = v.object({
-  name: PatchVpsHostEntries.name,
-  address: PatchVpsHostEntries.address,
-  port: PatchVpsHostEntries.port,
-  username: PatchVpsHostEntries.username,
-  password: PatchVpsHostEntries.password,
-  watcherEnabled: v.exactOptional(v.boolean("watcherEnabled must be a boolean"))
+export const VpsResourceSchema = v.object({
+  id: v.number(),
+  name: v.string(),
+  address: v.string(),
+  port: v.number(),
+  username: v.string(),
+  watcherEnabled: v.boolean(),
+  createdAt: v.string(),
+  updatedAt: v.string()
 });
+
+export const VpsInventoryResponseSchema = v.object({
+  vps: v.array(VpsResourceSchema)
+});
+
+export const CreateVpsRequestSchema = v.pipe(
+  v.object({
+    ...CreateVpsHostEntries,
+    watcherEnabled: v.exactOptional(v.boolean("watcherEnabled must be a boolean"))
+  }),
+  v.transform(({ watcherEnabled, ...input }) => ({
+    ...input,
+    enabled: watcherEnabled ?? true
+  }))
+);
+
+export const PatchVpsRequestSchema = v.pipe(
+  v.object({
+    name: PatchVpsHostEntries.name,
+    address: PatchVpsHostEntries.address,
+    port: PatchVpsHostEntries.port,
+    username: PatchVpsHostEntries.username,
+    password: PatchVpsHostEntries.password,
+    watcherEnabled: v.exactOptional(v.boolean("watcherEnabled must be a boolean"))
+  }),
+  v.transform(({ watcherEnabled, ...input }) =>
+    watcherEnabled === undefined ? input : { ...input, enabled: watcherEnabled }
+  )
+);
 
 export type CreateVpsHost = v.InferOutput<typeof CreateVpsHostSchema>;
 export type PatchVpsHost = v.InferOutput<typeof PatchVpsHostSchema>;
+export type AdminVpsHost = v.InferOutput<typeof AdminVpsHostSchema>;
+export type ServiceVpsHost = v.InferOutput<typeof ServiceVpsHostSchema>;
+export type CreateVpsRequest = v.InferOutput<typeof CreateVpsRequestSchema>;
+export type PatchVpsRequest = v.InferOutput<typeof PatchVpsRequestSchema>;
+export type VpsResource = v.InferOutput<typeof VpsResourceSchema>;
+export type VpsInventoryResponse = v.InferOutput<typeof VpsInventoryResponseSchema>;

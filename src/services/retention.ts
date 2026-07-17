@@ -2,7 +2,7 @@ import { lt } from "drizzle-orm";
 
 import { createDatabase } from "../db/client";
 import { gcpInstanceOperations } from "../db/schema";
-import type { Env } from "../types/env";
+import type { Env } from "../schemas/env";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

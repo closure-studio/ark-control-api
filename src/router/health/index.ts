@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { getHealthData } from "../../controller/health";
-import type { Env } from "../../types/env";
+import type { Env } from "../../schemas/env";
 
 export function createHealthRouter() {
   const router = new Hono<{ Bindings: Env }>();

@@ -1,6 +1,6 @@
 import { createRouter } from "./router";
 import { oidcRouter, shouldHandleOidcRequest } from "./router/oidc";
-import type { Env } from "./types/env";
+import type { Env } from "./schemas/env";
 import { runPipelineForEnv } from "./services/watcher/pipeline";
 import { runRetentionCleanup } from "./services/retention";
 

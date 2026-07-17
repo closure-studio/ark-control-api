@@ -1,9 +1,10 @@
-import type { ExecuteHostCommandRequest, ExecuteHostCommandResult } from "../../types/vps/ssh-commands";
-import type { Env } from "../../types/env";
+import type { Env } from "../../schemas/env";
 import { VpsHostRepository } from "../../repositories/vps/vps-hosts";
 import * as v from "valibot";
 import {
-  ExecuteHostCommandRequestSchema,
+  NormalizedExecuteHostCommandRequestSchema,
+  type ExecuteHostCommandRequest,
+  type ExecuteHostCommandResult,
   type NormalizedExecuteHostCommandRequest
 } from "../../schemas/vps/ssh-command";
 import { PasswordCrypto } from "./password-crypto";
@@ -30,7 +31,7 @@ export function createHostCommandExecutor(dependencies: HostCommandDependencies)
     env: Env,
     request: ExecuteHostCommandRequest
   ): Promise<ExecuteHostCommandResult> {
-    const validation = v.safeParse(ExecuteHostCommandRequestSchema, request);
+    const validation = v.safeParse(NormalizedExecuteHostCommandRequestSchema, request);
     if (!validation.success) throw new Error(validation.issues[0].message);
 
     const repository = dependencies.repository ?? new VpsHostRepository(env.DB);

@@ -1,4 +1,4 @@
-import type { ApiErrorCode } from "../types/http";
+import type { ApiErrorCode } from "../constants/api/error-codes";
 
 export class ControlApiError extends Error {
   readonly code: ApiErrorCode;

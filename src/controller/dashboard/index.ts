@@ -1,9 +1,9 @@
 import { listAccounts } from "../../services/gcp/accounts";
 import { listRecentOperations } from "../../services/gcp/operations";
-import type { Env } from "../../types/env";
+import type { DashboardResponse } from "../../schemas/dashboard/response";
+import type { Env } from "../../schemas/env";
 import { countNonTerminalHostRuns, countRunsByReleaseIds, hasNonTerminalHostRuns } from "../../repositories/watcher/host-runs";
 import { getLatestReleaseApkFilename, listReleases } from "../../repositories/watcher/releases";
-import type { DashboardResponse } from "../../types/dashboard";
 import { listVpsResources } from "../vps";
 
 export async function getDashboardData(env: Env): Promise<DashboardResponse> {

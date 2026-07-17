@@ -73,3 +73,10 @@ export const StringArraySchema = v.array(v.string());
 export const StringSchema = v.string();
 export const NumberSchema = v.number();
 export const NullSchema = v.null();
+
+export type TaskPayload = v.InferOutput<typeof TaskPayloadSchema>;
+export type TaskPatch = v.InferOutput<typeof TaskPatchSchema>;
+export type TaskStatus = v.InferOutput<typeof TaskStatusSchema>;
+export type TaskStatisticRecord = v.InferOutput<typeof TaskStatisticRecordSchema>;
+export type TaskStatisticsByDay = v.InferOutput<typeof TaskStatisticsByDaySchema>;
+export type FreqStatistic = v.InferOutput<typeof FreqStatisticSchema>;

@@ -1,11 +1,12 @@
-import type { GcpInstance, GcpInstanceLifecycleAction } from "../../types/gcp/api";
 import {
   AggregatedInstancesResponseSchema,
   ComputeInstanceSchema,
   ComputeOperationResponseSchema,
   type ComputeInstance,
-  type ComputeOperationResponse
+  type ComputeOperationResponse,
+  type GcpInstance
 } from "../../schemas/gcp/compute";
+import type { GcpInstanceLifecycleAction } from "../../schemas/gcp/operations";
 import {
   DEFAULT_VPS_BOOT_DISK,
   DEFAULT_VPS_BOOT_IMAGE,

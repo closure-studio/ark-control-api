@@ -1,5 +1,5 @@
 import type { TerminalHostRunStatus } from "../../constants/watcher/status";
-import type { Env } from "../../types/env";
+import type { Env } from "../../schemas/env";
 import { buildNotificationMessage, type NotificationEvent } from "../../utils/watcher/notification-message";
 import { sendQqBotAutoMessage } from "./qq-bot";
 

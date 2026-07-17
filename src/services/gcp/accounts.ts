@@ -3,8 +3,8 @@ import { asc, desc, eq, sql } from "drizzle-orm";
 import { createDatabase } from "../../db/client";
 import { gcpAccounts, type GcpAccountRow } from "../../db/schema";
 import { GcpError } from "../../errors/gcp";
-import type { GcpAccount } from "../../types/gcp/api";
-import type { Env } from "../../types/env";
+import type { Env } from "../../schemas/env";
+import type { GcpAccount } from "../../schemas/gcp/accounts";
 import { toGcpAccount } from "../../utils/gcp/account";
 
 export type CreateGcpAccountInput = {

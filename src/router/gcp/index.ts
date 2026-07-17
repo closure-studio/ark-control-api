@@ -15,7 +15,7 @@ import {
   UpdateGcpAccountRequestSchema
 } from "../../schemas/gcp/accounts";
 import { IdParamSchema } from "../../schemas/params";
-import type { Env } from "../../types/env";
+import type { Env } from "../../schemas/env";
 import { jsonData, jsonError, validationErrorHook } from "../../utils/http";
 
 export function createGcpRouter() {

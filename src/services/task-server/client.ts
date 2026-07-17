@@ -1,13 +1,3 @@
-import type {
-  FreqStatistic,
-  QueueKind,
-  TaskPatch,
-  TaskPayload,
-  TaskStatisticRecord,
-  TaskStatisticsByDay,
-  TaskStatisticsDay,
-  TaskStatus
-} from "../../types/gcp/task";
 import * as v from "valibot";
 import {
   ApiEnvelopeSchema,
@@ -19,13 +9,20 @@ import {
   StringSchema,
   TaskPayloadJsonSchema,
   TaskStatisticsByDaySchema,
-  TaskStatusSchema
+  TaskStatusSchema,
+  type FreqStatistic,
+  type TaskPatch,
+  type TaskPayload,
+  type TaskStatisticRecord,
+  type TaskStatisticsByDay,
+  type TaskStatus
 } from "../../schemas/task-server/responses";
+import type { QueueKind, TaskStatisticsDay } from "../../schemas/task-server/requests";
 import {
   TASK_SERVER_AUTHORIZATION_BINDING,
   TASK_SERVER_BASE_URL_BINDING
 } from "../../constants/task-server";
-import type { Env } from "../../types/env";
+import type { Env } from "../../schemas/env";
 
 export type TaskServerClientOptions = {
   fetch?: typeof fetch;

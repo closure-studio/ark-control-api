@@ -17,6 +17,19 @@ export const ComputeInstanceSchema = v.object({
   labels: v.exactOptional(v.record(v.string(), v.string()))
 });
 
+export const GcpInstanceSchema = v.object({
+  accountId: v.number(),
+  accountName: v.string(),
+  projectId: v.string(),
+  zone: v.string(),
+  name: v.string(),
+  status: v.string(),
+  machineType: v.string(),
+  internalIps: v.array(v.string()),
+  externalIps: v.array(v.string()),
+  labels: v.record(v.string(), v.string())
+});
+
 const AggregatedScopedListSchema = v.object({
   instances: v.exactOptional(v.array(ComputeInstanceSchema))
 });
@@ -43,3 +56,4 @@ export const ComputeOperationResponseSchema = v.object({
 
 export type ComputeInstance = v.InferOutput<typeof ComputeInstanceSchema>;
 export type ComputeOperationResponse = v.InferOutput<typeof ComputeOperationResponseSchema>;
+export type GcpInstance = v.InferOutput<typeof GcpInstanceSchema>;

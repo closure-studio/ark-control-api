@@ -12,8 +12,11 @@ import {
 } from "../../repositories/watcher/host-runs";
 import { getLatestReleaseApkFilename, getOrCreateRelease, getReleaseApkFilename } from "../../repositories/watcher/releases";
 import type { AiReviewStatus, HostRunStatus, TerminalHostRunStatus } from "../../constants/watcher/status";
-import type { ApkMetadata, ExecuteHostCommandResult, HostRunRow, ServiceVpsHost } from "../../types/watcher";
-import type { Env } from "../../types/env";
+import type { WatcherDeploymentRow as HostRunRow } from "../../db/schema";
+import type { Env } from "../../schemas/env";
+import type { ServiceVpsHost } from "../../schemas/vps/hosts";
+import type { ExecuteHostCommandResult } from "../../schemas/vps/ssh-command";
+import type { ApkMetadata } from "../../schemas/watcher/apk";
 import { parseHostLogSnapshot } from "../../utils/watcher/log";
 import { buildLogTailCommand, buildStartCommand } from "../../utils/watcher/shell";
 import { fetchLatestApkMetadata } from "./apk";

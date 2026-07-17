@@ -1,6 +1,5 @@
 import * as v from "valibot";
-import type { AiReviewResult } from "../../types/watcher";
-import { AiReviewJsonSchema } from "../../schemas/watcher/ai";
+import { AiReviewJsonSchema, type AiReviewResult } from "../../schemas/watcher/ai";
 
 export interface AiReviewParseResult extends AiReviewResult {
   protocolError: boolean;

@@ -1,7 +1,7 @@
-import type { Env } from "../../types/env";
+import type { WatcherDeploymentRow as HostRunRow } from "../../db/schema";
+import type { Env } from "../../schemas/env";
 import { countRunsByReleaseIds, getHostRun, listRunsForRelease } from "../../repositories/watcher/host-runs";
 import { getRelease, listReleases, type ReleaseRow } from "../../repositories/watcher/releases";
-import type { HostRunRow } from "../../types/watcher";
 
 type ReleaseListItem = {
   id: number;

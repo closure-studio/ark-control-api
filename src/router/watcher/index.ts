@@ -8,7 +8,7 @@ import {
 } from "../../controller/watcher";
 import { PaginationQuerySchema } from "../../schemas/pagination";
 import { IdParamSchema } from "../../schemas/params";
-import type { Env } from "../../types/env";
+import type { Env } from "../../schemas/env";
 import { jsonData, jsonError, validationErrorHook } from "../../utils/http";
 
 export function createWatcherRouter() {
@@ -19,7 +19,7 @@ export function createWatcherRouter() {
     sValidator("query", PaginationQuerySchema, validationErrorHook),
     async (c) => {
       c.header("cache-control", "no-store");
-      const { limit = 50, offset = 0 } = c.req.valid("query");
+      const { limit, offset } = c.req.valid("query");
       return jsonData(c, await listReleaseSummaries(c.env, limit, offset));
     }
   );

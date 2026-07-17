@@ -1,6 +1,10 @@
+import type { Context } from "hono";
 import { API_ERROR_CODES } from "../../constants/api/error-codes";
+import type { ApiErrorCode } from "../../constants/api/error-codes";
 import { ControlApiError } from "../../errors/control-api";
-import type { ApiContext, ApiErrorCode, ApiFailure, ApiSuccess } from "../../types/http";
+import type { Env } from "../../schemas/env";
+
+type ApiContext = Context<{ Bindings: Env }>;
 
 function jsonResponse(c: ApiContext, body: object, status: number) {
   const headers = new Headers(c.res.headers);
@@ -14,7 +18,7 @@ export function jsonData<T, M = never>(
   status = 200,
   meta?: M
 ) {
-  const body: ApiSuccess<T, M> = meta === undefined ? { data } : { data, meta };
+  const body = meta === undefined ? { data } : { data, meta };
   return jsonResponse(c, body, status);
 }
 
@@ -25,7 +29,7 @@ export function jsonError(
   status: number,
   details?: unknown
 ) {
-  const body: ApiFailure = {
+  const body = {
     error: details === undefined ? { code: error, message } : { code: error, message, details }
   };
   return jsonResponse(c, body, status);

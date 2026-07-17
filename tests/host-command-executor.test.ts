@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Env } from "../src/types/env";
+import type { Env } from "../src/schemas/env";
 import { createHostCommandExecutor } from "../src/services/vps/host-command-executor";
 
 describe("managed host command execution", () => {

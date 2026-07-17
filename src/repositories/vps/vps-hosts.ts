@@ -5,10 +5,10 @@ import { createDatabase, type Database } from "../../db/client";
 import { vpsHosts, type VpsHostRow } from "../../db/schema";
 import type {
   AdminVpsHost,
-  CreateVpsHostRequest,
-  PatchVpsHostRequest,
+  CreateVpsHost,
+  PatchVpsHost,
   ServiceVpsHost
-} from "../../types/vps/vps-hosts";
+} from "../../schemas/vps/hosts";
 
 export type VpsHostRecord = VpsHostRow;
 
@@ -57,8 +57,9 @@ export class VpsHostRepository {
   }
 
   async create(
-    input: Required<CreateVpsHostRequest>,
-    passwordCiphertext: string
+    input: CreateVpsHost,
+    passwordCiphertext: string,
+    enabled = true
   ): Promise<VpsHostRecord | null> {
     const inserted = await this.db
       .insert(vpsHosts)
@@ -67,14 +68,15 @@ export class VpsHostRepository {
         address: input.address,
         port: input.port,
         username: input.username,
-        password_ciphertext: passwordCiphertext
+        password_ciphertext: passwordCiphertext,
+        enabled
       })
       .returning({ id: vpsHosts.id })
       .get();
     return this.findById(inserted.id);
   }
 
-  async patch(id: number, input: PatchVpsHostRequest, passwordCiphertext?: string): Promise<VpsHostRecord | null> {
+  async patch(id: number, input: PatchVpsHost, passwordCiphertext?: string): Promise<VpsHostRecord | null> {
     const values: SQLiteUpdateSetSource<typeof vpsHosts> = {
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.address !== undefined ? { address: input.address } : {}),

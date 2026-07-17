@@ -5,7 +5,7 @@ import {
   PyHelperControlError
 } from "../../controller/pyhelper";
 import { PyHelperAssetParamSchema } from "../../schemas/pyhelper/download";
-import type { Env } from "../../types/env";
+import type { Env } from "../../schemas/env";
 import { jsonError, validationErrorHook } from "../../utils/http";
 
 export function createPyHelperRouter() {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { API_ERROR_CODES } from "../src/constants/api/error-codes";
 import { api } from "../src/index";
-import type { Env } from "../src/types/env";
+import type { Env } from "../src/schemas/env";
 
 describe("control API health", () => {
   it("returns the merged service identity", async () => {

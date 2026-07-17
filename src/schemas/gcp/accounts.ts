@@ -1,5 +1,17 @@
 import * as v from "valibot";
 
+export const GcpAccountSchema = v.object({
+  id: v.number(),
+  name: v.string(),
+  projectId: v.string(),
+  serviceAccountEmail: v.string(),
+  workloadIdentityProvider: v.string(),
+  defaultZone: v.string(),
+  enabled: v.boolean(),
+  createdAt: v.string(),
+  updatedAt: v.string()
+});
+
 const RequiredAccountFields = {
   projectId: v.pipe(v.string(), v.trim(), v.nonEmpty("Project id is required.")),
   serviceAccountEmail: v.pipe(
@@ -40,3 +52,4 @@ export const UpdateGcpAccountRequestSchema = v.object({
 export type CreateGcpAccountRequest = v.InferOutput<typeof CreateGcpAccountRequestSchema>;
 export type RegisterGcpAccountRequest = v.InferOutput<typeof RegisterGcpAccountRequestSchema>;
 export type UpdateGcpAccountRequest = v.InferOutput<typeof UpdateGcpAccountRequestSchema>;
+export type GcpAccount = v.InferOutput<typeof GcpAccountSchema>;
