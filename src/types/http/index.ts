@@ -1,7 +1,9 @@
 import type { Context } from "hono";
+import type { ApiErrorCode } from "../../constants/api/error-codes";
 import type { Env } from "../../env";
 
 export type ApiContext = Context<{ Bindings: Env }>;
+export type { ApiErrorCode } from "../../constants/api/error-codes";
 
 export type ApiSuccess<T, M = never> = {
   data: T;
@@ -10,7 +12,7 @@ export type ApiSuccess<T, M = never> = {
 
 export type ApiFailure = {
   error: {
-    code: string;
+    code: ApiErrorCode;
     message: string;
     details?: unknown;
   };

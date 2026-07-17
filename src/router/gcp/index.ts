@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { API_ERROR_CODES } from "../../constants/api/error-codes";
 import {
   createGcpAccount,
   deleteGcpAccount,
@@ -40,18 +41,24 @@ export function createGcpRouter() {
   });
   router.patch("/accounts/:id", async (c) => {
     const id = parseId(c.req.param("id"));
-    if (!id) throw new ControlApiError("bad_request", "Invalid account id.", 400);
+    if (!id) {
+      throw new ControlApiError(API_ERROR_CODES.BAD_REQUEST, "Invalid account id.", 400);
+    }
     return jsonData(c, { account: await updateGcpAccount(c.env, id, await readBody(c)) });
   });
   router.delete("/accounts/:id", async (c) => {
     const id = parseId(c.req.param("id"));
-    if (!id) throw new ControlApiError("bad_request", "Invalid account id.", 400);
+    if (!id) {
+      throw new ControlApiError(API_ERROR_CODES.BAD_REQUEST, "Invalid account id.", 400);
+    }
     await deleteGcpAccount(c.env, id);
     return jsonData(c, { deleted: true });
   });
   router.post("/accounts/:id/vps", async (c) => {
     const id = parseId(c.req.param("id"));
-    if (!id) throw new ControlApiError("bad_request", "Invalid account id.", 400);
+    if (!id) {
+      throw new ControlApiError(API_ERROR_CODES.BAD_REQUEST, "Invalid account id.", 400);
+    }
     const result = await provisionGcpVps(c.env, id, new URL(c.req.url).origin);
     return jsonData(c, result, 201);
   });

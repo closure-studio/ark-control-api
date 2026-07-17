@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { API_ERROR_CODES } from "../src/constants/api/error-codes";
 import { api } from "../src/index";
 import type { Env } from "../src/env";
 
@@ -17,7 +18,7 @@ describe("control API health", () => {
     );
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({
-      error: { code: "unauthorized", message: "Unauthorized" }
+      error: { code: API_ERROR_CODES.UNAUTHORIZED, message: "Unauthorized" }
     });
   });
 
@@ -29,7 +30,7 @@ describe("control API health", () => {
     );
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({
-      error: { code: "unauthorized", message: "Unauthorized" }
+      error: { code: API_ERROR_CODES.UNAUTHORIZED, message: "Unauthorized" }
     });
   });
 
@@ -48,7 +49,7 @@ describe("control API health", () => {
     );
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: { code: "bad_request", message: "Project id is required." }
+      error: { code: API_ERROR_CODES.BAD_REQUEST, message: "Project id is required." }
     });
   });
 });

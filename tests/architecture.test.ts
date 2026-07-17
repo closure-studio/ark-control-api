@@ -49,6 +49,8 @@ describe("router to control architecture", () => {
 
   it("groups cross-cutting utilities and types by concern", () => {
     const expectedDirectories = [
+      "constants/api",
+      "constants/oidc",
       "types/control",
       "types/dashboard",
       "types/http",
@@ -57,6 +59,32 @@ describe("router to control architecture", () => {
     ];
     for (const path of expectedDirectories) {
       expect(existsSync(join(sourceRoot, path))).toBe(true);
+    }
+  });
+
+  it("keeps HTTP error code definitions in categorized constants", () => {
+    const errorCodeLiterals = [
+      "bad_request",
+      "cloud_create_failed",
+      "gcp_error",
+      "host_registration_failed",
+      "internal_error",
+      "invalid_download_request",
+      "invalid_request",
+      "not_found",
+      "pyhelper_download_failed",
+      "request_failed",
+      "server_error",
+      "unauthorized"
+    ];
+    const allowedRoot = join(sourceRoot, "constants");
+
+    for (const path of typescriptFiles(sourceRoot)) {
+      if (path.startsWith(allowedRoot)) continue;
+      const source = readFileSync(path, "utf8");
+      for (const code of errorCodeLiterals) {
+        expect(source, `${path}: ${code}`).not.toContain(`"${code}"`);
+      }
     }
   });
 

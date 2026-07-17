@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { OIDC_ERROR_CODES } from "../src/constants/oidc";
 import type { Env } from "../src/env";
 import { oidcRouter, shouldHandleOidcRequest } from "../src/router/oidc";
 
@@ -29,7 +30,7 @@ describe("OIDC router", () => {
     );
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toMatchObject({
-      code: "unauthorized",
+      code: OIDC_ERROR_CODES.unauthorized,
       success: false
     });
   });

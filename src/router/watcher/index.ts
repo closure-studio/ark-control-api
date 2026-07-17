@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { API_ERROR_CODES } from "../../constants/api/error-codes";
 import {
   getRunLog,
   listReleaseRuns,
@@ -24,19 +25,21 @@ export function createWatcherRouter() {
   });
   router.get("/releases/:id/runs", async (c) => {
     const id = parseId(c.req.param("id"));
-    if (!id) return jsonError(c, "not_found", "Release was not found.", 404);
+    if (!id) return jsonError(c, API_ERROR_CODES.NOT_FOUND, "Release was not found.", 404);
     c.header("cache-control", "no-store");
     const result = await listReleaseRuns(c.env, id);
     return result
       ? jsonData(c, result)
-      : jsonError(c, "not_found", "Release was not found.", 404);
+      : jsonError(c, API_ERROR_CODES.NOT_FOUND, "Release was not found.", 404);
   });
   router.get("/runs/:id/log", async (c) => {
     const id = parseId(c.req.param("id"));
-    if (!id) return jsonError(c, "not_found", "Run was not found.", 404);
+    if (!id) return jsonError(c, API_ERROR_CODES.NOT_FOUND, "Run was not found.", 404);
     c.header("cache-control", "no-store");
     const result = await getRunLog(c.env, id);
-    return result ? jsonData(c, result) : jsonError(c, "not_found", "Run was not found.", 404);
+    return result
+      ? jsonData(c, result)
+      : jsonError(c, API_ERROR_CODES.NOT_FOUND, "Run was not found.", 404);
   });
 
   return router;

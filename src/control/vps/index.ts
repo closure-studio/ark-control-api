@@ -1,3 +1,4 @@
+import { API_ERROR_CODES } from "../../constants/api/error-codes";
 import type { GcpOperationResult } from "../../gcp/shared/api";
 import { loadAccountRow } from "../../gcp/worker/services/gcp/accounts";
 import { fetchGoogleAccessToken } from "../../gcp/worker/services/gcp/auth";
@@ -53,7 +54,7 @@ export async function listVpsResources(env: Env): Promise<VpsInventoryResponse> 
 
 export async function getVpsResource(env: Env, hostId: number): Promise<VpsResource> {
   const host = await new VpsHostRepository(env.DB).findById(hostId);
-  if (!host) throw new ControlApiError("not_found", "VPS was not found.", 404);
+  if (!host) throw new ControlApiError(API_ERROR_CODES.NOT_FOUND, "VPS was not found.", 404);
   return toResource(host);
 }
 
@@ -67,7 +68,9 @@ export async function createManualVps(
 ): Promise<VpsResource> {
   const password = await new PasswordCrypto(env.VPS_PASSWORD_KEY).encrypt(input.password);
   const host = await new VpsHostRepository(env.DB).create(input, password);
-  if (!host) throw new ControlApiError("internal_error", "Unable to create VPS.", 500);
+  if (!host) {
+    throw new ControlApiError(API_ERROR_CODES.INTERNAL_ERROR, "Unable to create VPS.", 500);
+  }
   return toResource(host);
 }
 
@@ -78,14 +81,16 @@ export async function updateVps(
 ): Promise<VpsResource> {
   const repository = new VpsHostRepository(env.DB);
   if (!(await repository.findById(hostId))) {
-    throw new ControlApiError("not_found", "VPS was not found.", 404);
+    throw new ControlApiError(API_ERROR_CODES.NOT_FOUND, "VPS was not found.", 404);
   }
   const passwordCiphertext =
     input.password === undefined
       ? undefined
       : await new PasswordCrypto(env.VPS_PASSWORD_KEY).encrypt(input.password);
   const updated = await repository.patch(hostId, input, passwordCiphertext);
-  if (!updated) throw new ControlApiError("not_found", "VPS was not found.", 404);
+  if (!updated) {
+    throw new ControlApiError(API_ERROR_CODES.NOT_FOUND, "VPS was not found.", 404);
+  }
   return toResource(updated);
 }
 
@@ -136,7 +141,7 @@ export async function provisionGcpVps(
   });
   if (operation.status !== "succeeded") {
     throw new ControlApiError(
-      "cloud_create_failed",
+      API_ERROR_CODES.VPS_CLOUD_CREATE_FAILED,
       operation.message ?? "Unable to create GCP VPS.",
       502,
       { operation }
@@ -184,7 +189,7 @@ export async function provisionGcpVps(
     const compensationError = await compensateCreatedInstance(env, identity, options);
     if (compensationError) console.error("GCP VPS compensation failed", { identity, compensationError });
     throw new ControlApiError(
-      "host_registration_failed",
+      API_ERROR_CODES.VPS_HOST_REGISTRATION_FAILED,
       error instanceof Error ? error.message : "Unable to register the new VPS host.",
       502,
       { identity, compensationError }

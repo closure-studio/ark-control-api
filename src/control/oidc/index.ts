@@ -10,8 +10,8 @@ import {
   OIDC_PURPOSE_CLAIM_VALUE,
   OIDC_RESPONSE_TYPES_SUPPORTED,
   OIDC_SIGNING_ALGORITHMS_SUPPORTED,
-  OIDC_SUBJECT_TYPES_SUPPORTED,
-} from "./constants";
+  OIDC_SUBJECT_TYPES_SUPPORTED
+} from "../../constants/oidc";
 import type { Env } from "../../env";
 import type {
   IssueOidcTokenOptions,

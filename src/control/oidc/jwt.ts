@@ -1,7 +1,7 @@
 import {
   OIDC_JWT_ALGORITHM,
   OIDC_PUBLIC_KEY_USE,
-} from "./constants";
+} from "../../constants/oidc";
 import type { OidcJwtHeader, OidcJwtPayload } from "./types";
 
 const textEncoder = new TextEncoder();

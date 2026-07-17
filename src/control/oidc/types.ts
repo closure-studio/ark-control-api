@@ -3,7 +3,7 @@ import type {
   OIDC_RESPONSE_TYPES_SUPPORTED,
   OIDC_SIGNING_ALGORITHMS_SUPPORTED,
   OIDC_SUBJECT_TYPES_SUPPORTED,
-} from "./constants";
+} from "../../constants/oidc";
 
 export interface OidcDiscoveryMetadata {
   issuer: string;

@@ -1,9 +1,11 @@
+import type { ApiErrorCode } from "../http";
+
 export class ControlApiError extends Error {
-  readonly code: string;
+  readonly code: ApiErrorCode;
   readonly status: number;
   readonly details?: unknown;
 
-  constructor(code: string, message: string, status = 400, details?: unknown) {
+  constructor(code: ApiErrorCode, message: string, status = 400, details?: unknown) {
     super(message);
     this.name = "ControlApiError";
     this.code = code;

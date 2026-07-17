@@ -11,7 +11,7 @@ import {
   OIDC_ERROR_MESSAGES,
   OIDC_METADATA_CACHE_CONTROL,
   OIDC_TOKEN_CACHE_CONTROL
-} from "../../control/oidc/constants";
+} from "../../constants/oidc";
 import type { Env } from "../../env";
 
 type OidcContext = Context<{ Bindings: Env }>;

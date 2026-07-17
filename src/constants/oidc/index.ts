@@ -20,16 +20,16 @@ export const OIDC_CLAIMS_SUPPORTED = [
   "iat",
   "nbf",
   "jti",
-  OIDC_PURPOSE_CLAIM_NAME,
+  OIDC_PURPOSE_CLAIM_NAME
 ] as const;
 
 export const OIDC_ERROR_CODES = {
   invalidRequest: "invalid_request",
   serverError: "server_error",
-  unauthorized: "unauthorized",
+  unauthorized: "unauthorized"
 } as const;
 
 export const OIDC_ERROR_MESSAGES = {
   unableToIssueToken: "Unable to issue token",
-  unauthorized: "Unauthorized",
+  unauthorized: "Unauthorized"
 } as const;

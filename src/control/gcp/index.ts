@@ -1,3 +1,4 @@
+import { API_ERROR_CODES, type ApiErrorCode } from "../../constants/api/error-codes";
 import type { Env } from "../../env";
 import {
   createAccount,
@@ -65,8 +66,13 @@ export async function registerMachineGcpAccount(env: Env, body: Record<string, u
 
 export function toGcpControlError(
   error: unknown
-): { code: string; message: string; status: number } | null {
+): { code: ApiErrorCode; message: string; status: number } | null {
   if (!(error instanceof GcpError)) return null;
-  const code = error.status === 404 ? "not_found" : error.status >= 500 ? "gcp_error" : "bad_request";
+  const code =
+    error.status === 404
+      ? API_ERROR_CODES.NOT_FOUND
+      : error.status >= 500
+        ? API_ERROR_CODES.GCP_SERVICE_ERROR
+        : API_ERROR_CODES.BAD_REQUEST;
   return { code, message: error.message, status: error.status };
 }

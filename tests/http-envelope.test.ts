@@ -1,12 +1,13 @@
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
+import { API_ERROR_CODES } from "../src/constants/api/error-codes";
 import type { Env } from "../src/env";
 import { jsonData, jsonError } from "../src/utils/http";
 
 const app = new Hono<{ Bindings: Env }>();
 app.get("/success", (c) => jsonData(c, { value: 42 }));
 app.get("/failure", (c) =>
-  jsonError(c, "bad_request", "The request is invalid.", 400, { field: "value" })
+  jsonError(c, API_ERROR_CODES.BAD_REQUEST, "The request is invalid.", 400, { field: "value" })
 );
 
 describe("API response envelope", () => {
@@ -21,7 +22,7 @@ describe("API response envelope", () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
       error: {
-        code: "bad_request",
+        code: API_ERROR_CODES.BAD_REQUEST,
         message: "The request is invalid.",
         details: { field: "value" }
       }

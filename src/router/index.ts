@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { API_ERROR_CODES } from "../constants/api/error-codes";
 import type { Env } from "../env";
 import { ControlApiError } from "../types/control/errors";
 import { jsonError } from "../utils/http";
@@ -18,7 +19,7 @@ export function createApiRouter() {
       return;
     }
     if (!c.env.ADMIN_TOKEN || c.req.header("authorization") !== `Bearer ${c.env.ADMIN_TOKEN}`) {
-      return jsonError(c, "unauthorized", "Unauthorized", 401);
+      return jsonError(c, API_ERROR_CODES.UNAUTHORIZED, "Unauthorized", 401);
     }
     await next();
   });
@@ -29,16 +30,18 @@ export function createApiRouter() {
   app.route("/api", createWatcherRouter());
   app.route("/api", createPyHelperRouter());
 
-  app.all("/api/*", (c) => jsonError(c, "not_found", "API route was not found.", 404));
+  app.all("/api/*", (c) =>
+    jsonError(c, API_ERROR_CODES.NOT_FOUND, "API route was not found.", 404)
+  );
   app.onError((error, c) => {
     if (error instanceof ControlApiError) {
       return jsonError(c, error.code, error.message, error.status, error.details);
     }
     if (error instanceof Error && "status" in error && typeof error.status === "number") {
-      return jsonError(c, "request_failed", error.message, error.status);
+      return jsonError(c, API_ERROR_CODES.REQUEST_FAILED, error.message, error.status);
     }
     console.error("Unexpected control API error", error);
-    return jsonError(c, "internal_error", "Internal server error.", 500);
+    return jsonError(c, API_ERROR_CODES.INTERNAL_ERROR, "Internal server error.", 500);
   });
 
   return app;
