@@ -10,6 +10,12 @@ describe("control API health", () => {
     await expect(response.json()).resolves.toMatchObject({ ok: true, service: "ark-control-api" });
   });
 
+  it("returns root not-found responses from the root router", async () => {
+    const response = await api.request("https://control.example.com/missing", undefined, {} as Env);
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: API_ERROR_CODES.NOT_FOUND });
+  });
+
   it("protects the unified control routes with the admin token", async () => {
     const response = await api.request(
       "https://control.example.com/api/dashboard",

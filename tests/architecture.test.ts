@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const sourceRoot = fileURLToPath(new URL("../src/", import.meta.url));
-const domains = ["dashboard", "gcp", "oidc", "pyhelper", "vps", "watcher"];
+const domains = ["dashboard", "gcp", "oidc", "pyhelper", "utils", "vps", "watcher"];
 const legacyHttpDirectories = [
   "control/shared",
   "gcp/worker/controller",
@@ -45,6 +45,12 @@ describe("router to control architecture", () => {
     for (const path of legacyHttpDirectories) {
       expect(existsSync(join(sourceRoot, path))).toBe(false);
     }
+  });
+
+  it("keeps HTTP route registration out of the Worker entrypoint", () => {
+    const source = readFileSync(join(sourceRoot, "index.ts"), "utf8");
+    expect(source).not.toMatch(/from ["']hono["']/);
+    expect(source).not.toMatch(/\.(?:all|get|notFound|onError|patch|post|put|route|use)\(/);
   });
 
   it("groups cross-cutting utilities and types by concern", () => {
@@ -100,7 +106,8 @@ describe("router to control architecture", () => {
   });
 
   it("keeps JSON envelope serialization in shared HTTP utilities", () => {
-    for (const domain of domains.filter((domain) => domain !== "oidc")) {
+    const protocolRouters = new Set(["oidc", "utils"]);
+    for (const domain of domains.filter((domain) => !protocolRouters.has(domain))) {
       for (const path of typescriptFiles(join(sourceRoot, "router", domain))) {
         const source = readFileSync(path, "utf8");
         expect(source, path).not.toMatch(/\bc\.json\(/);

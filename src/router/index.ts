@@ -6,11 +6,14 @@ import { jsonError } from "../utils/http";
 import { createDashboardRouter } from "./dashboard";
 import { createGcpRouter } from "./gcp";
 import { createPyHelperRouter } from "./pyhelper";
+import { createUtilsRouter } from "./utils";
 import { createVpsRouter } from "./vps";
 import { createWatcherRouter } from "./watcher";
 
-export function createApiRouter() {
+export function createRouter() {
   const app = new Hono<{ Bindings: Env }>();
+
+  app.route("/", createUtilsRouter());
 
   app.use("/api/*", async (c, next) => {
     const path = new URL(c.req.url).pathname;
@@ -43,6 +46,7 @@ export function createApiRouter() {
     console.error("Unexpected control API error", error);
     return jsonError(c, API_ERROR_CODES.INTERNAL_ERROR, "Internal server error.", 500);
   });
+  app.notFound((c) => c.json({ error: API_ERROR_CODES.NOT_FOUND }, 404));
 
   return app;
 }

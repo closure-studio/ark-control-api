@@ -79,7 +79,7 @@ src/router/<domain> -> src/control/<domain> -> service/model/repository
 ```
 
 The current router and control domains are `dashboard`, `gcp`, `oidc`,
-`pyhelper`, `vps`, and `watcher`. Cross-cutting HTTP helpers stay in
+`pyhelper`, `utils`, `vps`, and `watcher`. Cross-cutting HTTP helpers stay in
 `src/utils/http`; API contexts and domain response contracts are grouped under
 `src/types/<domain>`, while shared and domain-specific constants are grouped
 under `src/constants/<domain>`.

@@ -1,16 +1,10 @@
-import { Hono } from "hono";
-import { API_ERROR_CODES } from "./constants/api/error-codes";
-import type { Env } from "./env";
-import { createApiRouter } from "./router";
+import { createRouter } from "./router";
 import { oidcRouter, shouldHandleOidcRequest } from "./router/oidc";
+import type { Env } from "./env";
 import { runPipelineForEnv } from "./watcher/services/pipelineService";
 import { runRetentionCleanup } from "./retention";
 
-export const api = new Hono<{ Bindings: Env }>();
-
-api.get("/health", (c) => c.json({ ok: true, service: "ark-control-api", time: new Date().toISOString() }));
-api.route("/", createApiRouter());
-api.notFound((c) => c.json({ error: API_ERROR_CODES.NOT_FOUND }, 404));
+export const api = createRouter();
 
 export default {
   async fetch(request, env, ctx): Promise<Response> {
