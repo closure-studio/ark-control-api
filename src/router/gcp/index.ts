@@ -9,8 +9,8 @@ import {
   updateGcpAccount
 } from "../../controller/gcp";
 import { provisionGcpVps } from "../../controller/vps";
-import type { Env } from "../../env";
-import { ControlApiError } from "../../types/control/errors";
+import type { Env } from "../../types/env";
+import { ControlApiError } from "../../errors/control-api";
 import { jsonData, jsonError, parseId, readBody } from "../../utils/http";
 
 export function createGcpRouter() {

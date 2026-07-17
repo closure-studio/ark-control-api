@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateCreateVpsHost, validatePatchVpsHost } from "../src/vps/worker/validation/vps-hosts";
+import { validateCreateVpsHost, validatePatchVpsHost } from "../src/validation/vps/vps-hosts";
 
 describe("VPS host validation", () => {
   it("accepts a hostname and applies the default SSH port", () => {

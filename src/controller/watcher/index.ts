@@ -1,7 +1,7 @@
-import type { Env } from "../../env";
-import { countRunsByReleaseIds, getHostRun, listRunsForRelease } from "../../watcher/models/hostRunModel";
-import { getRelease, listReleases, type ReleaseRow } from "../../watcher/models/releaseModel";
-import type { HostRunRow } from "../../watcher/types";
+import type { Env } from "../../types/env";
+import { countRunsByReleaseIds, getHostRun, listRunsForRelease } from "../../repositories/watcher/host-runs";
+import { getRelease, listReleases, type ReleaseRow } from "../../repositories/watcher/releases";
+import type { HostRunRow } from "../../types/watcher";
 
 type ReleaseListItem = {
   id: number;

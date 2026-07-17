@@ -71,18 +71,29 @@ migration creates the current six-table schema directly.
 
 ## Architecture
 
-HTTP code is grouped by domain under `src/router`, while business use cases are
-grouped under the matching `src/controller` directory:
+Source code uses top-level responsibility layers, with related files grouped by
+domain inside each layer:
 
 ```text
-src/router/<domain> -> src/controller/<domain> -> service/model/repository
+src/
+|-- constants/       stable configuration values and protocol constants
+|-- controller/      business use cases exposed to HTTP handlers
+|-- db/              Drizzle client and schema
+|-- errors/          runtime application error classes
+|-- repositories/    database access grouped by domain
+|-- router/          Hono route registration grouped by HTTP domain
+|-- services/        external integrations and domain workflows
+|-- types/           type-only contracts grouped by domain
+|-- utils/           stateless helpers grouped by concern
+`-- validation/      request normalization and validation
 ```
 
-The current router and controller domains are `dashboard`, `gcp`, `oidc`,
-`pyhelper`, `utils`, `vps`, and `watcher`. Cross-cutting HTTP helpers stay in
-`src/utils/http`; API contexts and domain response contracts are grouped under
-`src/types/<domain>`, while shared and domain-specific constants are grouped
-under `src/constants/<domain>`.
+The HTTP dependency direction is `router -> controller -> service/repository`.
+The current router and controller domains are `dashboard`, `gcp`, `health`,
+`oidc`, `pyhelper`, `vps`, and `watcher`. Cross-cutting HTTP helpers stay in
+`src/utils/http`; API contexts and domain response contracts stay under
+`src/types/<domain>`, while shared and domain-specific constants stay under
+`src/constants/<domain>`.
 
 ## API responses
 

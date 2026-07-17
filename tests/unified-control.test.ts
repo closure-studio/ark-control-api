@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { waitForZoneOperation } from "../src/gcp/worker/services/gcp/compute";
+import { waitForZoneOperation } from "../src/services/gcp/compute";
 
 describe("unified control services", () => {
   it("waits for a completed Google operation", async () => {

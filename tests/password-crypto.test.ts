@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PasswordCrypto } from "../src/vps/worker/services/password-crypto";
+import { PasswordCrypto } from "../src/services/vps/password-crypto";
 
 describe("PasswordCrypto", () => {
   it("round-trips a password without storing plaintext", async () => {

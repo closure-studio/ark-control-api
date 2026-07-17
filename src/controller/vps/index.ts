@@ -1,26 +1,26 @@
 import { API_ERROR_CODES } from "../../constants/api/error-codes";
-import type { GcpOperationResult } from "../../gcp/shared/api";
-import { loadAccountRow } from "../../gcp/worker/services/gcp/accounts";
-import { fetchGoogleAccessToken } from "../../gcp/worker/services/gcp/auth";
+import type { GcpOperationResult } from "../../types/gcp/api";
+import { loadAccountRow } from "../../services/gcp/accounts";
+import { fetchGoogleAccessToken } from "../../services/gcp/auth";
 import {
   getProjectInstance,
   submitInstanceAction,
   waitForZoneOperation
-} from "../../gcp/worker/services/gcp/compute";
+} from "../../services/gcp/compute";
 import {
   DEFAULT_VPS_SSH_PASSWORD,
   DEFAULT_VPS_SSH_USERNAME
-} from "../../gcp/worker/services/gcp/constants";
-import { createDefaultVps } from "../../gcp/worker/services/gcp/operations";
-import type { Env } from "../../env";
-import type { CreateVpsHostRequest, PatchVpsHostRequest } from "../../vps/shared/types/vps-hosts";
-import { VpsHostRepository, type VpsHostRecord } from "../../vps/worker/repositories/vps-hosts";
-import { executeHostCommand } from "../../vps/worker/services/host-command-executor";
-import { PasswordCrypto } from "../../vps/worker/services/password-crypto";
-import { ControlApiError } from "../../types/control/errors";
+} from "../../services/gcp/startup-script";
+import { createDefaultVps } from "../../services/gcp/operations";
+import type { Env } from "../../types/env";
+import type { CreateVpsHostRequest, PatchVpsHostRequest } from "../../types/vps/vps-hosts";
+import { VpsHostRepository, type VpsHostRecord } from "../../repositories/vps/vps-hosts";
+import { executeHostCommand } from "../../services/vps/host-command-executor";
+import { PasswordCrypto } from "../../services/vps/password-crypto";
+import { ControlApiError } from "../../errors/control-api";
 import type { VpsInventoryResponse, VpsResource } from "../../types/vps";
 
-export { validateCreateVpsHost, validatePatchVpsHost } from "../../vps/worker/validation/vps-hosts";
+export { validateCreateVpsHost, validatePatchVpsHost } from "../../validation/vps/vps-hosts";
 
 type VpsServiceOptions = {
   fetcher?: typeof fetch;

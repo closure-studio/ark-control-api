@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Env } from "../src/env";
-import { createHostCommandExecutor } from "../src/vps/worker/services/host-command-executor";
+import type { Env } from "../src/types/env";
+import { createHostCommandExecutor } from "../src/services/vps/host-command-executor";
 
 describe("managed host command execution", () => {
   it("loads and decrypts credentials before calling the stateless SSH executor", async () => {

@@ -1,21 +1,21 @@
 import { Miniflare } from "miniflare";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import type { Env } from "../src/env";
+import type { Env } from "../src/types/env";
 import {
   createAccount,
   deleteAccount,
   listEnabledAccountRows,
   upsertAccountByProjectId,
   updateAccount
-} from "../src/gcp/worker/services/gcp/accounts";
+} from "../src/services/gcp/accounts";
 import {
   listRecentOperations,
   recordOperation
-} from "../src/gcp/worker/services/gcp/operations";
-import { runRetentionCleanup } from "../src/retention";
-import { VpsHostRepository } from "../src/vps/worker/repositories/vps-hosts";
-import { acquireAppStateLock, releaseAppStateLock } from "../src/watcher/models/appStateModel";
+} from "../src/services/gcp/operations";
+import { runRetentionCleanup } from "../src/services/retention";
+import { VpsHostRepository } from "../src/repositories/vps/vps-hosts";
+import { acquireAppStateLock, releaseAppStateLock } from "../src/repositories/watcher/app-state";
 import {
   countNonTerminalHostRuns,
   countRunsByReleaseIds,
@@ -24,8 +24,8 @@ import {
   listDueRunningHostRuns,
   markHostRunStarted,
   updateHostRunReview
-} from "../src/watcher/models/hostRunModel";
-import { getOrCreateRelease } from "../src/watcher/models/releaseModel";
+} from "../src/repositories/watcher/host-runs";
+import { getOrCreateRelease } from "../src/repositories/watcher/releases";
 import { applyD1Migrations } from "./helpers/migrations";
 
 describe("Drizzle D1 models", () => {

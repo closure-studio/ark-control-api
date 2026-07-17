@@ -1,19 +1,19 @@
 import { Hono } from "hono";
 import { API_ERROR_CODES } from "../constants/api/error-codes";
-import type { Env } from "../env";
-import { ControlApiError } from "../types/control/errors";
+import type { Env } from "../types/env";
+import { ControlApiError } from "../errors/control-api";
 import { jsonError } from "../utils/http";
 import { createDashboardRouter } from "./dashboard";
 import { createGcpRouter } from "./gcp";
 import { createPyHelperRouter } from "./pyhelper";
-import { createUtilsRouter } from "./utils";
+import { createHealthRouter } from "./health";
 import { createVpsRouter } from "./vps";
 import { createWatcherRouter } from "./watcher";
 
 export function createRouter() {
   const app = new Hono<{ Bindings: Env }>();
 
-  app.route("/", createUtilsRouter());
+  app.route("/", createHealthRouter());
 
   app.use("/api/*", async (c, next) => {
     const path = new URL(c.req.url).pathname;

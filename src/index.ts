@@ -1,8 +1,8 @@
 import { createRouter } from "./router";
 import { oidcRouter, shouldHandleOidcRequest } from "./router/oidc";
-import type { Env } from "./env";
-import { runPipelineForEnv } from "./watcher/services/pipelineService";
-import { runRetentionCleanup } from "./retention";
+import type { Env } from "./types/env";
+import { runPipelineForEnv } from "./services/watcher/pipeline";
+import { runRetentionCleanup } from "./services/retention";
 
 export const api = createRouter();
 

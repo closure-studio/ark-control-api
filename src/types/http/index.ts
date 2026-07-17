@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import type { ApiErrorCode } from "../../constants/api/error-codes";
-import type { Env } from "../../env";
+import type { Env } from "../env";
 
 export type ApiContext = Context<{ Bindings: Env }>;
 export type { ApiErrorCode } from "../../constants/api/error-codes";

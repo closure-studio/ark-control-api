@@ -1,5 +1,5 @@
 import { API_ERROR_CODES, type ApiErrorCode } from "../../constants/api/error-codes";
-import type { Env } from "../../env";
+import type { Env } from "../../types/env";
 import {
   createAccount,
   deleteAccount,
@@ -8,8 +8,8 @@ import {
   updateAccount,
   type CreateGcpAccountInput,
   type UpdateGcpAccountInput
-} from "../../gcp/worker/services/gcp/accounts";
-import { GcpError } from "../../gcp/worker/services/gcp/errors";
+} from "../../services/gcp/accounts";
+import { GcpError } from "../../errors/gcp";
 
 function accountInput(body: Record<string, unknown>): CreateGcpAccountInput {
   return {

@@ -5,7 +5,7 @@ import {
   listReleaseRuns,
   listReleaseSummaries
 } from "../../controller/watcher";
-import type { Env } from "../../env";
+import type { Env } from "../../types/env";
 import { jsonData, jsonError, parseId } from "../../utils/http";
 
 function parsePaginationValue(value: string | undefined, fallback: number): number {

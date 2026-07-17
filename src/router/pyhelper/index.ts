@@ -3,7 +3,7 @@ import {
   downloadPyHelperAsset,
   PyHelperControlError
 } from "../../controller/pyhelper";
-import type { Env } from "../../env";
+import type { Env } from "../../types/env";
 import { jsonError } from "../../utils/http";
 
 export function createPyHelperRouter() {

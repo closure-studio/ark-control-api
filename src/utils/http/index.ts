@@ -1,6 +1,6 @@
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { API_ERROR_CODES } from "../../constants/api/error-codes";
-import { ControlApiError } from "../../types/control/errors";
+import { ControlApiError } from "../../errors/control-api";
 import type { ApiContext, ApiErrorCode, ApiFailure, ApiSuccess } from "../../types/http";
 
 export function jsonData<T, M = never>(

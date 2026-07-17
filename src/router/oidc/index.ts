@@ -12,7 +12,7 @@ import {
   OIDC_METADATA_CACHE_CONTROL,
   OIDC_TOKEN_CACHE_CONTROL
 } from "../../constants/oidc";
-import type { Env } from "../../env";
+import type { Env } from "../../types/env";
 
 type OidcContext = Context<{ Bindings: Env }>;
 

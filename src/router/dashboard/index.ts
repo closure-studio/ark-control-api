@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { getDashboardData } from "../../controller/dashboard";
-import type { Env } from "../../env";
+import type { Env } from "../../types/env";
 import { jsonData } from "../../utils/http";
 
 export function createDashboardRouter() {

@@ -4,17 +4,37 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const sourceRoot = fileURLToPath(new URL("../src/", import.meta.url));
-const domains = ["dashboard", "gcp", "oidc", "pyhelper", "utils", "vps", "watcher"];
-const legacyHttpDirectories = [
+const domains = ["dashboard", "gcp", "health", "oidc", "pyhelper", "vps", "watcher"];
+const sourceLayers = [
+  "constants",
+  "controller",
+  "db",
+  "errors",
+  "repositories",
+  "router",
+  "services",
+  "types",
+  "utils",
+  "validation"
+];
+const legacySourceLocations = [
   "controller/shared",
+  "controller/utils",
+  "env.ts",
+  "gcp",
   "gcp/worker/controller",
   "gcp/worker/router",
   "oidc/controller",
   "oidc/router",
+  "retention.ts",
   "vps/worker/routes",
+  "vps",
+  "watcher",
   "watcher/controllers",
   "watcher/routes",
-  "router/shared"
+  "router/shared",
+  "router/utils",
+  "types/control"
 ];
 
 function typescriptFiles(directory: string): string[] {
@@ -26,6 +46,19 @@ function typescriptFiles(directory: string): string[] {
 }
 
 describe("router to controller architecture", () => {
+  it("uses one conventional top-level directory per responsibility", () => {
+    const directories = readdirSync(sourceRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
+    const rootTypescriptFiles = readdirSync(sourceRoot, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".ts"))
+      .map((entry) => entry.name);
+
+    expect(directories).toEqual(sourceLayers);
+    expect(rootTypescriptFiles).toEqual(["index.ts"]);
+  });
+
   it("groups every HTTP domain under router and controller", () => {
     for (const domain of domains) {
       expect(existsSync(join(sourceRoot, "router", domain))).toBe(true);
@@ -41,8 +74,8 @@ describe("router to controller architecture", () => {
     }
   });
 
-  it("does not retain legacy HTTP directories", () => {
-    for (const path of legacyHttpDirectories) {
+  it("does not retain legacy domain and HTTP locations", () => {
+    for (const path of legacySourceLocations) {
       expect(existsSync(join(sourceRoot, path))).toBe(false);
     }
   });
@@ -54,17 +87,60 @@ describe("router to controller architecture", () => {
   });
 
   it("groups cross-cutting utilities and types by concern", () => {
-    const expectedDirectories = [
+    const expectedLocations = [
       "constants/api",
       "constants/oidc",
-      "types/control",
+      "constants/vps",
+      "constants/watcher",
+      "errors",
+      "repositories/vps",
+      "repositories/watcher",
+      "services/gcp",
+      "services/oidc",
+      "services/pyhelper",
+      "services/task-server",
+      "services/vps",
+      "services/watcher",
       "types/dashboard",
+      "types/env.ts",
+      "types/gcp",
       "types/http",
+      "types/oidc",
       "types/vps",
-      "utils/http"
+      "types/watcher",
+      "utils/gcp",
+      "utils/http",
+      "utils/oidc",
+      "utils/watcher",
+      "validation/vps"
     ];
-    for (const path of expectedDirectories) {
+    for (const path of expectedLocations) {
       expect(existsSync(join(sourceRoot, path))).toBe(true);
+    }
+  });
+
+  it("keeps the types layer free of runtime declarations", () => {
+    for (const path of typescriptFiles(join(sourceRoot, "types"))) {
+      const source = readFileSync(path, "utf8");
+      expect(source, path).not.toMatch(/export\s+(?:abstract\s+)?class\s/);
+      expect(source, path).not.toMatch(/export\s+(?:async\s+)?function\s/);
+      expect(source, path).not.toMatch(/export\s+const\s/);
+    }
+  });
+
+  it("keeps repositories independent of HTTP and service layers", () => {
+    for (const path of typescriptFiles(join(sourceRoot, "repositories"))) {
+      const source = readFileSync(path, "utf8");
+      expect(source, path).not.toMatch(/from ["'][^"']*(?:controller|router|services)[^"']*["']/);
+      expect(source, path).not.toMatch(/from ["']hono(?:\/[^"']*)?["']/);
+    }
+  });
+
+  it("keeps services independent of HTTP layers", () => {
+    for (const path of typescriptFiles(join(sourceRoot, "services"))) {
+      const source = readFileSync(path, "utf8");
+      expect(source, path).not.toMatch(/from ["'][^"']*(?:controller|router)[^"']*["']/);
+      expect(source, path).not.toMatch(/from ["']hono(?:\/[^"']*)?["']/);
     }
   });
 
@@ -106,7 +182,7 @@ describe("router to controller architecture", () => {
   });
 
   it("keeps JSON envelope serialization in shared HTTP utilities", () => {
-    const protocolRouters = new Set(["oidc", "utils"]);
+    const protocolRouters = new Set(["health", "oidc"]);
     for (const domain of domains.filter((domain) => !protocolRouters.has(domain))) {
       for (const path of typescriptFiles(join(sourceRoot, "router", domain))) {
         const source = readFileSync(path, "utf8");

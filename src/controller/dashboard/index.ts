@@ -1,8 +1,8 @@
-import { listAccounts } from "../../gcp/worker/services/gcp/accounts";
-import { listRecentOperations } from "../../gcp/worker/services/gcp/operations";
-import type { Env } from "../../env";
-import { countNonTerminalHostRuns, countRunsByReleaseIds, hasNonTerminalHostRuns } from "../../watcher/models/hostRunModel";
-import { getLatestReleaseApkFilename, listReleases } from "../../watcher/models/releaseModel";
+import { listAccounts } from "../../services/gcp/accounts";
+import { listRecentOperations } from "../../services/gcp/operations";
+import type { Env } from "../../types/env";
+import { countNonTerminalHostRuns, countRunsByReleaseIds, hasNonTerminalHostRuns } from "../../repositories/watcher/host-runs";
+import { getLatestReleaseApkFilename, listReleases } from "../../repositories/watcher/releases";
 import type { DashboardResponse } from "../../types/dashboard";
 import { listVpsResources } from "../vps";
 

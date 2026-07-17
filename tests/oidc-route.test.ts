@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { OIDC_ERROR_CODES } from "../src/constants/oidc";
-import type { Env } from "../src/env";
+import type { Env } from "../src/types/env";
 import { oidcRouter, shouldHandleOidcRequest } from "../src/router/oidc";
 
 const env = {
