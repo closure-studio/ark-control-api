@@ -1,5 +1,8 @@
 import { API_ERROR_CODES, type ApiErrorCode } from "../../constants/api/error-codes";
-import type { PyHelperAssetName } from "../../schemas/pyhelper/download";
+import type {
+  PyHelperAssetName,
+  PyHelperDownloadQuery
+} from "../../schemas/pyhelper/download";
 import type { Env } from "../../schemas/env";
 import {
   PyHelperDownloadUrlError,
@@ -24,12 +27,12 @@ export class PyHelperControlError extends Error {
 export async function downloadPyHelperAsset(
   env: Env,
   assetName: PyHelperAssetName,
-  requestUrl: string
+  query: PyHelperDownloadQuery
 ): Promise<Response> {
   try {
     await verifyPyHelperDownloadRequest({
       assetName,
-      requestUrl,
+      ...query,
       token: env.GITHUB_PYHELPER_TOKEN
     });
     return downloadLatestPyHelperAsset({ assetName, token: env.GITHUB_PYHELPER_TOKEN });

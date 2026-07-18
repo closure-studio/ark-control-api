@@ -16,6 +16,12 @@ import {
 } from "../../schemas/gcp/accounts";
 import { IdParamSchema } from "../../schemas/params";
 import type { Env } from "../../schemas/env";
+import type {
+  GcpAccountDeleteResponse,
+  GcpAccountResponse,
+  GcpAccountsResponse
+} from "../../schemas/gcp/responses";
+import type { VpsProvisionResponse } from "../../schemas/vps/responses";
 import { jsonData, jsonError, validationErrorHook } from "../../utils/http";
 
 export function createGcpRouter() {
@@ -27,7 +33,8 @@ export function createGcpRouter() {
     async (c) => {
       try {
         const result = await registerMachineGcpAccount(c.env, c.req.valid("json"));
-        return jsonData(c, { account: result.account }, result.created ? 201 : 200);
+        const response: GcpAccountResponse = { account: result.account };
+        return jsonData(c, response, result.created ? 201 : 200);
       } catch (error) {
         const controlError = toGcpControlError(error);
         if (controlError) {
@@ -38,15 +45,17 @@ export function createGcpRouter() {
     }
   );
 
-  router.get("/accounts", async (c) =>
-    jsonData(c, { accounts: await listGcpAccounts(c.env) })
-  );
+  router.get("/accounts", async (c) => {
+    const response: GcpAccountsResponse = { accounts: await listGcpAccounts(c.env) };
+    return jsonData(c, response);
+  });
   router.post(
     "/accounts",
     sValidator("json", CreateGcpAccountRequestSchema, validationErrorHook),
     async (c) => {
       const account = await createGcpAccount(c.env, c.req.valid("json"));
-      return jsonData(c, { account }, 201);
+      const response: GcpAccountResponse = { account };
+      return jsonData(c, response, 201);
     }
   );
   router.patch(
@@ -56,7 +65,8 @@ export function createGcpRouter() {
     async (c) => {
       const { id } = c.req.valid("param");
       const account = await updateGcpAccount(c.env, id, c.req.valid("json"));
-      return jsonData(c, { account });
+      const response: GcpAccountResponse = { account };
+      return jsonData(c, response);
     }
   );
   router.delete(
@@ -65,7 +75,8 @@ export function createGcpRouter() {
     async (c) => {
       const { id } = c.req.valid("param");
       await deleteGcpAccount(c.env, id);
-      return jsonData(c, { deleted: true });
+      const response: GcpAccountDeleteResponse = { deleted: true };
+      return jsonData(c, response);
     }
   );
   router.post(
@@ -73,8 +84,12 @@ export function createGcpRouter() {
     sValidator("param", IdParamSchema, validationErrorHook),
     async (c) => {
       const { id } = c.req.valid("param");
-      const result = await provisionGcpVps(c.env, id, new URL(c.req.url).origin);
-      return jsonData(c, result, 201);
+      const response: VpsProvisionResponse = await provisionGcpVps(
+        c.env,
+        id,
+        new URL(c.req.url).origin
+      );
+      return jsonData(c, response, 201);
     }
   );
 

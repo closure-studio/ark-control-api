@@ -49,6 +49,24 @@ function tokenFailure(c: OidcContext, status: 500 | 401, code?: string, message?
   return c.json(body, status, jsonHeaders(OIDC_TOKEN_CACHE_CONTROL));
 }
 
+function oidcValidationErrorHook(
+  result:
+    | { success: true }
+    | { success: false; error: readonly { message: string }[] },
+  c: OidcContext
+) {
+  if (!result.success) {
+    return c.json(
+      createTokenFailureResponse(
+        OIDC_ERROR_CODES.invalidRequest,
+        OIDC_ERROR_MESSAGES.invalidRequest
+      ),
+      400,
+      jsonHeaders(OIDC_TOKEN_CACHE_CONTROL)
+    );
+  }
+}
+
 export const oidcRouter = new Hono<{ Bindings: Env }>();
 
 oidcRouter.get("/", (c) => c.text(ROOT_RESPONSE_TEXT));
@@ -106,12 +124,12 @@ async function handleToken(c: OidcContext, audience: string) {
 
 oidcRouter.get(
   "/token",
-  sValidator("query", OidcTokenRequestSchema),
+  sValidator("query", OidcTokenRequestSchema, oidcValidationErrorHook),
   (c) => handleToken(c, c.req.valid("query").audience)
 );
 oidcRouter.post(
   "/token",
-  sValidator("json", OidcTokenRequestSchema),
+  sValidator("json", OidcTokenRequestSchema, oidcValidationErrorHook),
   (c) => handleToken(c, c.req.valid("json").audience)
 );
 

@@ -30,6 +30,7 @@ export const OIDC_ERROR_CODES = {
 } as const;
 
 export const OIDC_ERROR_MESSAGES = {
+  invalidRequest: "Invalid request",
   unableToIssueToken: "Unable to issue token",
   unauthorized: "Unauthorized"
 } as const;

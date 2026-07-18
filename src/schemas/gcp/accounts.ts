@@ -32,11 +32,17 @@ export const CreateGcpAccountRequestSchema = v.object({
   ...RequiredAccountFields
 });
 
-export const RegisterGcpAccountRequestSchema = v.object({
-  id: v.exactOptional(v.string()),
-  name: v.exactOptional(v.string()),
-  ...RequiredAccountFields
-});
+export const RegisterGcpAccountRequestSchema = v.pipe(
+  v.object({
+    id: v.exactOptional(v.pipe(v.string(), v.trim())),
+    name: v.exactOptional(v.pipe(v.string(), v.trim())),
+    ...RequiredAccountFields
+  }),
+  v.transform(({ id, name, ...account }) => ({
+    ...account,
+    name: name || id || account.projectId
+  }))
+);
 
 export const UpdateGcpAccountRequestSchema = v.object({
   name: v.exactOptional(

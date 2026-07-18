@@ -1,12 +1,15 @@
 import { API_ERROR_CODES } from "../../constants/api/error-codes";
 import type { Env } from "../../schemas/env";
-import type { GcpOperationResult } from "../../schemas/gcp/operations";
 import type {
   CreateVpsRequest,
   PatchVpsRequest,
   VpsInventoryResponse,
   VpsResource
 } from "../../schemas/vps/hosts";
+import type {
+  VpsDeleteResponse,
+  VpsProvisionResponse
+} from "../../schemas/vps/responses";
 import { loadAccountRow } from "../../services/gcp/accounts";
 import { fetchGoogleAccessToken } from "../../services/gcp/auth";
 import {
@@ -135,7 +138,7 @@ export async function provisionGcpVps(
   accountId: number,
   workerBaseUrl: string,
   options: VpsServiceOptions = {}
-): Promise<{ vps: VpsResource; operation: GcpOperationResult }> {
+): Promise<VpsProvisionResponse> {
   const fetcher = options.fetcher ?? fetch;
   const operation = await createDefaultVps(env, accountId, {
     fetch: fetcher,
@@ -205,7 +208,7 @@ export async function provisionGcpVps(
 export async function deleteVps(
   env: Env,
   hostId: number
-): Promise<{ id: number; name: string; deleted: true }> {
+): Promise<VpsDeleteResponse> {
   const repository = new VpsHostRepository(env.DB);
   const host = await repository.findById(hostId);
   if (!host) return { id: hostId, name: `VPS ${hostId}`, deleted: true };

@@ -11,6 +11,7 @@ import {
 import { IdParamSchema } from "../../schemas/params";
 import { CreateVpsRequestSchema, PatchVpsRequestSchema } from "../../schemas/vps/hosts";
 import type { Env } from "../../schemas/env";
+import type { VpsResponse, VpsVerifyResponse } from "../../schemas/vps/responses";
 import { jsonData, validationErrorHook } from "../../utils/http";
 
 export function createVpsRouter() {
@@ -22,7 +23,8 @@ export function createVpsRouter() {
     sValidator("json", CreateVpsRequestSchema, validationErrorHook),
     async (c) => {
       const vps = await createManualVps(c.env, c.req.valid("json"));
-      return jsonData(c, { vps }, 201);
+      const response: VpsResponse = { vps };
+      return jsonData(c, response, 201);
     }
   );
   router.get(
@@ -30,7 +32,8 @@ export function createVpsRouter() {
     sValidator("param", IdParamSchema, validationErrorHook),
     async (c) => {
       const { id } = c.req.valid("param");
-      return jsonData(c, { vps: await getVpsResource(c.env, id) });
+      const response: VpsResponse = { vps: await getVpsResource(c.env, id) };
+      return jsonData(c, response);
     }
   );
   router.patch(
@@ -39,7 +42,8 @@ export function createVpsRouter() {
     sValidator("json", PatchVpsRequestSchema, validationErrorHook),
     async (c) => {
       const { id } = c.req.valid("param");
-      return jsonData(c, { vps: await updateVps(c.env, id, c.req.valid("json")) });
+      const response: VpsResponse = { vps: await updateVps(c.env, id, c.req.valid("json")) };
+      return jsonData(c, response);
     }
   );
   router.delete(
@@ -55,7 +59,8 @@ export function createVpsRouter() {
     sValidator("param", IdParamSchema, validationErrorHook),
     async (c) => {
       const { id } = c.req.valid("param");
-      return jsonData(c, { result: await verifyVps(c.env, id) });
+      const response: VpsVerifyResponse = { result: await verifyVps(c.env, id) };
+      return jsonData(c, response);
     }
   );
 

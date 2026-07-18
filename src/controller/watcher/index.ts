@@ -1,33 +1,14 @@
-import type { WatcherDeploymentRow as HostRunRow } from "../../db/schema";
 import type { Env } from "../../schemas/env";
+import type {
+  ReleaseListItem,
+  ReleaseListResponse,
+  ReleaseRun,
+  ReleaseRunsResponse,
+  RunLogResponse
+} from "../../schemas/watcher/responses";
+import type { WatcherDeploymentRow as HostRunRow } from "../../db/schema";
 import { countRunsByReleaseIds, getHostRun, listRunsForRelease } from "../../repositories/watcher/host-runs";
 import { getRelease, listReleases, type ReleaseRow } from "../../repositories/watcher/releases";
-
-type ReleaseListItem = {
-  id: number;
-  apkFilename: string;
-  finalUrl: string;
-  createdAt: string;
-  statusCounts: Record<string, number>;
-};
-
-type ReleaseRun = {
-  id: number;
-  releaseId: number;
-  hostId: number | null;
-  hostName: string;
-  hostIp: string;
-  status: HostRunRow["status"];
-  startedAt: string | null;
-  nextCheckAt: string | null;
-  deadlineAt: string | null;
-  lastCheckedAt: string | null;
-  lastAiStatus: HostRunRow["last_ai_status"];
-  lastAiReason: string | null;
-  errorMessage: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
 
 function toReleaseListItem(release: ReleaseRow, statusCounts: Record<string, number>): ReleaseListItem {
   return {
@@ -59,7 +40,11 @@ function toReleaseRun(run: HostRunRow): ReleaseRun {
   };
 }
 
-export async function listReleaseSummaries(env: Env, limit: number, offset: number) {
+export async function listReleaseSummaries(
+  env: Env,
+  limit: number,
+  offset: number
+): Promise<ReleaseListResponse> {
   const releases = await listReleases(env.DB, limit, offset);
   const statusCounts = await countRunsByReleaseIds(
     env.DB,
@@ -71,13 +56,16 @@ export async function listReleaseSummaries(env: Env, limit: number, offset: numb
   return { releases: items, pagination: { limit, offset, count: items.length } };
 }
 
-export async function listReleaseRuns(env: Env, releaseId: number) {
+export async function listReleaseRuns(
+  env: Env,
+  releaseId: number
+): Promise<ReleaseRunsResponse | null> {
   if (!(await getRelease(env.DB, releaseId))) return null;
   const runs = await listRunsForRelease(env.DB, releaseId);
   return { runs: runs.map(toReleaseRun) };
 }
 
-export async function getRunLog(env: Env, runId: number) {
+export async function getRunLog(env: Env, runId: number): Promise<RunLogResponse | null> {
   const run = await getHostRun(env.DB, runId);
   if (!run) return null;
   return {

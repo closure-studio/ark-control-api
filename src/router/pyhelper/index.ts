@@ -4,7 +4,10 @@ import {
   downloadPyHelperAsset,
   PyHelperControlError
 } from "../../controller/pyhelper";
-import { PyHelperAssetParamSchema } from "../../schemas/pyhelper/download";
+import {
+  PyHelperAssetParamSchema,
+  PyHelperDownloadQuerySchema
+} from "../../schemas/pyhelper/download";
 import type { Env } from "../../schemas/env";
 import { jsonError, validationErrorHook } from "../../utils/http";
 
@@ -13,12 +16,13 @@ export function createPyHelperRouter() {
   router.get(
     "/pyhelper/assets/:assetName",
     sValidator("param", PyHelperAssetParamSchema, validationErrorHook),
+    sValidator("query", PyHelperDownloadQuerySchema, validationErrorHook),
     async (c) => {
       try {
         return await downloadPyHelperAsset(
           c.env,
           c.req.valid("param").assetName,
-          c.req.url
+          c.req.valid("query")
         );
       } catch (error) {
         if (error instanceof PyHelperControlError) {

@@ -4,25 +4,13 @@ import { createDatabase } from "../../db/client";
 import { gcpAccounts, type GcpAccountRow } from "../../db/schema";
 import { GcpError } from "../../errors/gcp";
 import type { Env } from "../../schemas/env";
-import type { GcpAccount } from "../../schemas/gcp/accounts";
+import type {
+  CreateGcpAccountRequest,
+  GcpAccount,
+  UpdateGcpAccountRequest
+} from "../../schemas/gcp/accounts";
+import type { GcpAccountUpsertResult } from "../../schemas/gcp/responses";
 import { toGcpAccount } from "../../utils/gcp/account";
-
-export type CreateGcpAccountInput = {
-  name: string;
-  projectId: string;
-  serviceAccountEmail: string;
-  workloadIdentityProvider: string;
-  defaultZone: string;
-};
-
-export type UpdateGcpAccountInput = Partial<CreateGcpAccountInput> & {
-  enabled?: boolean;
-};
-
-export type UpsertGcpAccountResult = {
-  account: GcpAccount;
-  created: boolean;
-};
 
 export async function listAccountRows(env: Env): Promise<GcpAccountRow[]> {
   return createDatabase(env.DB).select().from(gcpAccounts).orderBy(desc(gcpAccounts.id)).all();
@@ -34,39 +22,16 @@ export async function listAccounts(env: Env): Promise<GcpAccount[]> {
 
 export async function createAccount(
   env: Env,
-  input: CreateGcpAccountInput
+  input: CreateGcpAccountRequest
 ): Promise<GcpAccount> {
-  const name = input.name.trim();
-  if (!name) {
-    throw new GcpError("Account name is required.");
-  }
-
-  const projectId = input.projectId.trim();
-  const serviceAccountEmail = input.serviceAccountEmail.trim();
-  const workloadIdentityProvider = input.workloadIdentityProvider.trim();
-  const defaultZone = input.defaultZone.trim();
-
-  if (!projectId) {
-    throw new GcpError("Project id is required.");
-  }
-  if (!serviceAccountEmail) {
-    throw new GcpError("Service account email is required.");
-  }
-  if (!workloadIdentityProvider) {
-    throw new GcpError("Workload identity provider is required.");
-  }
-  if (!defaultZone) {
-    throw new GcpError("Default zone is required.");
-  }
-
   const inserted = await createDatabase(env.DB)
     .insert(gcpAccounts)
     .values({
-      name,
-      project_id: projectId,
-      service_account_email: serviceAccountEmail,
-      workload_identity_provider: workloadIdentityProvider,
-      default_zone: defaultZone
+      name: input.name,
+      project_id: input.projectId,
+      service_account_email: input.serviceAccountEmail,
+      workload_identity_provider: input.workloadIdentityProvider,
+      default_zone: input.defaultZone
     })
     .returning({ id: gcpAccounts.id })
     .get();
@@ -76,17 +41,12 @@ export async function createAccount(
 
 export async function upsertAccountByProjectId(
   env: Env,
-  input: CreateGcpAccountInput
-): Promise<UpsertGcpAccountResult> {
-  const projectId = input.projectId.trim();
-  if (!projectId) {
-    throw new GcpError("Project id is required.");
-  }
-
+  input: CreateGcpAccountRequest
+): Promise<GcpAccountUpsertResult> {
   const existing = await createDatabase(env.DB)
     .select()
     .from(gcpAccounts)
-    .where(eq(gcpAccounts.project_id, projectId))
+    .where(eq(gcpAccounts.project_id, input.projectId))
     .orderBy(asc(gcpAccounts.id))
     .limit(1)
     .get();
@@ -121,38 +81,15 @@ export async function loadAccountRow(env: Env, accountId: number): Promise<GcpAc
 export async function updateAccount(
   env: Env,
   accountId: number,
-  input: UpdateGcpAccountInput
+  input: UpdateGcpAccountRequest
 ): Promise<GcpAccount> {
   const current = await loadAccountRow(env, accountId);
-  const name = input.name === undefined ? current.name : input.name.trim();
-  if (!name) {
-    throw new GcpError("Account name is required.");
-  }
-  const projectId = input.projectId === undefined ? current.project_id : input.projectId.trim();
-  const serviceAccountEmail =
-    input.serviceAccountEmail === undefined
-      ? current.service_account_email
-      : input.serviceAccountEmail.trim();
+  const name = input.name ?? current.name;
+  const projectId = input.projectId ?? current.project_id;
+  const serviceAccountEmail = input.serviceAccountEmail ?? current.service_account_email;
   const workloadIdentityProvider =
-    input.workloadIdentityProvider === undefined
-      ? current.workload_identity_provider
-      : input.workloadIdentityProvider.trim();
-  const defaultZone =
-    input.defaultZone === undefined ? current.default_zone : input.defaultZone.trim();
-
-  if (!projectId) {
-    throw new GcpError("Project id is required.");
-  }
-  if (!serviceAccountEmail) {
-    throw new GcpError("Service account email is required.");
-  }
-  if (!workloadIdentityProvider) {
-    throw new GcpError("Workload identity provider is required.");
-  }
-  if (!defaultZone) {
-    throw new GcpError("Default zone is required.");
-  }
-
+    input.workloadIdentityProvider ?? current.workload_identity_provider;
+  const defaultZone = input.defaultZone ?? current.default_zone;
   const enabled = input.enabled ?? current.enabled;
   await createDatabase(env.DB)
     .update(gcpAccounts)

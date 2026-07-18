@@ -64,19 +64,13 @@ export async function createPyHelperDownloadUrl(input: {
 
 export async function verifyPyHelperDownloadRequest(input: {
   assetName: PyHelperAssetName;
-  requestUrl: string;
+  expires: number;
+  signature: string;
   token: string;
   now?: () => number;
 }): Promise<void> {
   const token = requireToken(input.token);
-  const url = new URL(input.requestUrl);
-  const expires = url.searchParams.get("expires");
-  const signature = url.searchParams.get("signature");
-  if (!expires || !signature) {
-    throw new PyHelperDownloadUrlError("Missing PyHelper download signature.");
-  }
-
-  const expiresAt = Number(expires);
+  const expiresAt = input.expires;
   if (!Number.isFinite(expiresAt)) {
     throw new PyHelperDownloadUrlError("Invalid PyHelper download expiration.");
   }
@@ -86,8 +80,8 @@ export async function verifyPyHelperDownloadRequest(input: {
     throw new PyHelperDownloadUrlError("PyHelper download URL expired.");
   }
 
-  const expected = await hmacHex(token, signaturePayload(input.assetName, expires));
-  if (!constantTimeEqual(expected, signature)) {
+  const expected = await hmacHex(token, signaturePayload(input.assetName, String(expiresAt)));
+  if (!constantTimeEqual(expected, input.signature)) {
     throw new PyHelperDownloadUrlError("Invalid PyHelper download signature.");
   }
 }

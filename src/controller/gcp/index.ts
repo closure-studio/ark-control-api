@@ -35,11 +35,7 @@ export async function deleteGcpAccount(env: Env, accountId: number): Promise<voi
 }
 
 export async function registerMachineGcpAccount(env: Env, body: RegisterGcpAccountRequest) {
-  const { id, name, ...account } = body;
-  return upsertAccountByProjectId(env, {
-    ...account,
-    name: name?.trim() || id?.trim() || account.projectId
-  });
+  return upsertAccountByProjectId(env, body);
 }
 
 export function toGcpControlError(
