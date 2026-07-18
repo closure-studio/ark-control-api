@@ -2,14 +2,14 @@ import { and, asc, count, eq, inArray, isNotNull, lte } from "drizzle-orm";
 
 import { createDatabase } from "../../db/client";
 import { watcherDeployments } from "../../db/schema";
-import {
-  NON_TERMINAL_HOST_RUN_STATUSES,
-  isTerminalHostRunStatus,
-  type AiReviewStatus,
-  type HostRunStatus
-} from "../../constants/watcher/status";
+import { NON_TERMINAL_HOST_RUN_STATUSES } from "../../constants/watcher/status";
 import type { WatcherDeploymentRow as HostRunRow } from "../../db/schema";
 import type { ServiceVpsHost } from "../../schemas/vps/hosts";
+import type { AiReviewStatus } from "../../schemas/watcher/ai";
+import {
+  isTerminalHostRunStatus,
+  type HostRunStatus
+} from "../../schemas/watcher/status";
 
 export async function getHostRunForReleaseHost(
   db: D1Database,

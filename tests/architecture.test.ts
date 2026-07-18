@@ -36,6 +36,7 @@ const legacySourceLocations = [
   "router/shared",
   "router/utils"
 ];
+const routeMethods = new Set(["all", "delete", "get", "patch", "post", "put"]);
 
 function typescriptFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -43,6 +44,25 @@ function typescriptFiles(directory: string): string[] {
     if (entry.isDirectory()) return typescriptFiles(path);
     return entry.isFile() && entry.name.endsWith(".ts") ? [path] : [];
   });
+}
+
+function parseTypescriptFile(path: string): ts.SourceFile {
+  return ts.createSourceFile(
+    path,
+    readFileSync(path, "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS
+  );
+}
+
+function lineNumber(sourceFile: ts.SourceFile, node: ts.Node): number {
+  return sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
+}
+
+function isExported(node: ts.Node): boolean {
+  return ts.canHaveModifiers(node) &&
+    ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true;
 }
 
 describe("router to controller architecture", () => {
@@ -108,6 +128,7 @@ describe("router to controller architecture", () => {
       "schemas/dashboard",
       "schemas/env.ts",
       "schemas/gcp",
+      "schemas/health",
       "schemas/oidc",
       "schemas/task-server",
       "schemas/vps",
@@ -141,6 +162,126 @@ describe("router to controller architecture", () => {
           (ts.isAsExpression(node) && node.type.getText(sourceFile) !== "const")
         ) {
           violations.push(`${path}:${position.line + 1}: unchecked type assertion`);
+        }
+        ts.forEachChild(node, visit);
+      }
+
+      visit(sourceFile);
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it("derives exported schema contract types and prevents parallel declarations", () => {
+    const schemasRoot = join(sourceRoot, "schemas");
+    const schemaContractNames = new Set<string>();
+    const violations: string[] = [];
+
+    for (const path of typescriptFiles(schemasRoot)) {
+      const sourceFile = parseTypescriptFile(path);
+      for (const statement of sourceFile.statements) {
+        if (ts.isInterfaceDeclaration(statement) && isExported(statement)) {
+          violations.push(`${path}:${lineNumber(sourceFile, statement)}: exported schema interface`);
+        }
+        if (!ts.isTypeAliasDeclaration(statement) || !isExported(statement)) continue;
+        schemaContractNames.add(statement.name.text);
+        const typeExpression = statement.type.getText(sourceFile).replace(/\s+/g, "");
+        if (!/^v\.InferOutput<typeof[A-Za-z_$][\w$]*Schema>$/.test(typeExpression)) {
+          violations.push(
+            `${path}:${lineNumber(sourceFile, statement)}: schema type must use v.InferOutput`
+          );
+        }
+      }
+    }
+
+    for (const path of typescriptFiles(sourceRoot)) {
+      if (path.startsWith(schemasRoot)) continue;
+      const sourceFile = parseTypescriptFile(path);
+      for (const statement of sourceFile.statements) {
+        if (
+          (ts.isInterfaceDeclaration(statement) || ts.isTypeAliasDeclaration(statement)) &&
+          schemaContractNames.has(statement.name.text)
+        ) {
+          violations.push(
+            `${path}:${lineNumber(sourceFile, statement)}: parallel schema contract ${statement.name.text}`
+          );
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it("requires Standard Schema validators for Hono request inputs", () => {
+    const violations: string[] = [];
+
+    for (const path of typescriptFiles(join(sourceRoot, "router"))) {
+      const sourceFile = parseTypescriptFile(path);
+
+      function visit(node: ts.Node): void {
+        if (
+          ts.isPropertyAccessExpression(node) &&
+          ts.isPropertyAccessExpression(node.expression) &&
+          node.expression.name.text === "req" &&
+          ["json", "param", "query"].includes(node.name.text)
+        ) {
+          violations.push(
+            `${path}:${lineNumber(sourceFile, node)}: direct c.req.${node.name.text} access`
+          );
+        }
+
+        if (
+          !ts.isCallExpression(node) ||
+          !ts.isPropertyAccessExpression(node.expression) ||
+          !routeMethods.has(node.expression.name.text)
+        ) {
+          ts.forEachChild(node, visit);
+          return;
+        }
+        const routePath = node.arguments[0];
+        if (!routePath || !ts.isStringLiteral(routePath) || !routePath.text.startsWith("/")) {
+          ts.forEachChild(node, visit);
+          return;
+        }
+
+        const validators = new Set<string>();
+        const validatedInputs = new Set<string>();
+
+        function inspectRoute(routeNode: ts.Node): void {
+          const target = ts.isCallExpression(routeNode) ? routeNode.arguments[0] : undefined;
+          if (
+            ts.isCallExpression(routeNode) &&
+            ts.isIdentifier(routeNode.expression) &&
+            routeNode.expression.text === "sValidator" &&
+            target &&
+            ts.isStringLiteral(target)
+          ) {
+            validators.add(target.text);
+          }
+          if (
+            ts.isCallExpression(routeNode) &&
+            ts.isPropertyAccessExpression(routeNode.expression) &&
+            routeNode.expression.name.text === "valid" &&
+            target &&
+            ts.isStringLiteral(target)
+          ) {
+            validatedInputs.add(target.text);
+          }
+          ts.forEachChild(routeNode, inspectRoute);
+        }
+
+        for (const argument of node.arguments.slice(1)) inspectRoute(argument);
+        for (const target of validatedInputs) {
+          if (!validators.has(target)) {
+            violations.push(
+              `${path}:${lineNumber(sourceFile, node)}: c.req.valid(${target}) lacks sValidator`
+            );
+          }
+        }
+        if (routePath.text.includes(":") && !validators.has("param")) {
+          violations.push(
+            `${path}:${lineNumber(sourceFile, node)}: parameterized route lacks param sValidator`
+          );
         }
         ts.forEachChild(node, visit);
       }

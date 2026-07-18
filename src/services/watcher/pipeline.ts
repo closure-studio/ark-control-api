@@ -11,12 +11,18 @@ import {
   updateHostRunStatus,
 } from "../../repositories/watcher/host-runs";
 import { getLatestReleaseApkFilename, getOrCreateRelease, getReleaseApkFilename } from "../../repositories/watcher/releases";
-import type { AiReviewStatus, HostRunStatus, TerminalHostRunStatus } from "../../constants/watcher/status";
 import type { WatcherDeploymentRow as HostRunRow } from "../../db/schema";
 import type { Env } from "../../schemas/env";
 import type { ServiceVpsHost } from "../../schemas/vps/hosts";
 import type { ExecuteHostCommandResult } from "../../schemas/vps/ssh-command";
+import type { AiReviewStatus } from "../../schemas/watcher/ai";
 import type { ApkMetadata } from "../../schemas/watcher/apk";
+import type {
+  NotificationEventType,
+  NotifyHelperDeployTerminalInput,
+  NotifyPipelineStartedInput
+} from "../../schemas/watcher/notifications";
+import type { HostRunStatus } from "../../schemas/watcher/status";
 import { parseHostLogSnapshot } from "../../utils/watcher/log";
 import { buildLogTailCommand, buildStartCommand } from "../../utils/watcher/shell";
 import { fetchLatestApkMetadata } from "./apk";
@@ -66,14 +72,8 @@ export interface PipelineDependencies {
     nextCheckAt: string | null;
     errorMessage: string | null;
   }) => Promise<void>;
-  notifyPipelineStarted: (input: { apkFilename: string }) => Promise<void>;
-  notifyHelperDeployTerminal: (input: {
-    hostId: number;
-    hostName: string;
-    apkFilename: string;
-    status: TerminalHostRunStatus;
-    result: string;
-  }) => Promise<void>;
+  notifyPipelineStarted: (input: NotifyPipelineStartedInput) => Promise<void>;
+  notifyHelperDeployTerminal: (input: NotifyHelperDeployTerminalInput) => Promise<void>;
 }
 
 type ReviewResultLike = {
@@ -111,7 +111,7 @@ function formatUnknownError(error: unknown, fallback: string): string {
 }
 
 async function runNotification(
-  eventType: "pipeline_started" | "helper_deploy_terminal",
+  eventType: NotificationEventType,
   action: () => Promise<void>,
 ): Promise<void> {
   try {

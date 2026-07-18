@@ -1,13 +1,9 @@
 import { LOG_TAIL_BYTES } from "../../constants/watcher/config";
+import type {
+  HostLogSnapshot,
+  HostProcessState
+} from "../../schemas/watcher/log";
 import { HOST_PROCESS_META_MARKER } from "./shell";
-
-export type HostProcessState = "running" | "exited" | "unknown";
-
-export interface HostLogSnapshot {
-  logTail: string;
-  processState: HostProcessState;
-  exitCode: number | null;
-}
 
 const ANSI_ESCAPE_PATTERN = /[\u001B\u009B][[\]()#;?]*(?:(?:(?:[a-zA-Z\d]*(?:;[-a-zA-Z\d/#&.:=?%@~_]+)*)?\u0007)|(?:(?:\d{1,4}(?:[;:]\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]))/g;
 const TIMESTAMP_PATTERN = /\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}/;

@@ -1,9 +1,6 @@
 import * as v from "valibot";
 
-import type {
-  ExecuteHostCommandResult,
-  ExecuteSshCommandRequest
-} from "./vps/ssh-command";
+import type { ExecuteSshCommandRequest } from "./vps/ssh-command";
 
 const D1DatabaseSchema = v.custom<D1Database>(
   (input) =>
@@ -22,7 +19,7 @@ const AiBindingSchema = v.custom<Ai>(
 );
 
 const ArkSshBindingSchema = v.custom<{
-  executeCommand(request: ExecuteSshCommandRequest): Promise<ExecuteHostCommandResult>;
+  executeCommand(request: ExecuteSshCommandRequest): Promise<unknown>;
 }>(
   (input) =>
     typeof input === "object" &&

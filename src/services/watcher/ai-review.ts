@@ -1,13 +1,12 @@
 import { AI_REVIEW_MAX_TOKENS, DEFAULT_AI_MODEL } from "../../constants/watcher/config";
 import { AI_REVIEW_STATUSES } from "../../constants/watcher/status";
 import type { Env } from "../../schemas/env";
-import { parseAiReviewJson, type AiReviewParseResult } from "../../utils/watcher/ai";
 import * as v from "valibot";
-import { AiProviderResponseSchema } from "../../schemas/watcher/ai";
-
-export interface AiReviewWithModel extends AiReviewParseResult {
-  model: string;
-}
+import {
+  AiProviderResponseSchema,
+  type AiReviewWithModel
+} from "../../schemas/watcher/ai";
+import { parseAiReviewJson } from "../../utils/watcher/ai";
 
 function buildPrompt(logTail: string): string {
   return [
@@ -25,12 +24,7 @@ function buildPrompt(logTail: string): string {
   ].join("\n\n");
 }
 
-interface NormalizedAiResponse {
-  rawResponse: string;
-  protocolErrorReason: string | null;
-}
-
-function normalizeAiResponse(response: unknown): NormalizedAiResponse {
+function normalizeAiResponse(response: unknown) {
   if (typeof response === "string") {
     return { rawResponse: response, protocolErrorReason: null };
   }

@@ -1,9 +1,8 @@
 import * as v from "valibot";
-import { AiReviewJsonSchema, type AiReviewResult } from "../../schemas/watcher/ai";
-
-export interface AiReviewParseResult extends AiReviewResult {
-  protocolError: boolean;
-}
+import {
+  AiReviewJsonSchema,
+  type AiReviewParseResult
+} from "../../schemas/watcher/ai";
 
 function parseEmbeddedReview(rawResponse: string): v.InferOutput<typeof AiReviewJsonSchema> | null {
   const start = rawResponse.indexOf("{");

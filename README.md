@@ -94,12 +94,13 @@ The current router and controller domains are `dashboard`, `gcp`, `health`,
 under `src/schemas` and export types inferred with Valibot. Shared and
 domain-specific constants stay under `src/constants/<domain>`.
 
-External JSON is parsed and validated with Valibot schemas before services can
-use it. Hono request bodies use the Standard Schema validator, and data types
-are inferred from their runtime schemas. TypeScript also
-enables `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`; the
-architecture tests reject explicit `any` and unchecked type assertions in
-production source.
+External data is validated with Valibot schemas before services can use it.
+Hono JSON bodies, queries, and route parameters use the Standard Schema
+validator, and data types are inferred from their runtime schemas. TypeScript
+also enables `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`; the
+architecture tests reject explicit `any`, unchecked type assertions, direct
+unvalidated Hono request reads, and parallel declarations of Schema-derived
+contracts in production source.
 
 ## API responses
 

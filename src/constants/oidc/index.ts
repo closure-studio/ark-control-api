@@ -1,3 +1,4 @@
+export const OIDC_APP_NAME = "ark-OIDC";
 export const OIDC_JWT_ALGORITHM = "RS256";
 export const OIDC_JWT_TYPE = "JWT";
 export const OIDC_PUBLIC_KEY_USE = "sig";

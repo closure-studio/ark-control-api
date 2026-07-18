@@ -1,23 +1,15 @@
-import type { TerminalHostRunStatus } from "../../constants/watcher/status";
 import type { Env } from "../../schemas/env";
-import { buildNotificationMessage, type NotificationEvent } from "../../utils/watcher/notification-message";
+import type {
+  NotificationEvent,
+  NotifyHelperDeployTerminalInput,
+  NotifyPipelineStartedInput
+} from "../../schemas/watcher/notifications";
+import { buildNotificationMessage } from "../../utils/watcher/notification-message";
 import { sendQqBotAutoMessage } from "./qq-bot";
 
 export interface NotificationRuntime {
   fetcher?: typeof fetch;
   logger?: Pick<Console, "error">;
-}
-
-export interface NotifyPipelineStartedInput {
-  apkFilename: string;
-}
-
-export interface NotifyHelperDeployTerminalInput {
-  hostId: number;
-  hostName: string;
-  apkFilename: string;
-  status: TerminalHostRunStatus;
-  result: string;
 }
 
 function parseQqBotUid(value: string | undefined): number {

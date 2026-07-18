@@ -30,13 +30,22 @@ export const NormalizedExecuteHostCommandRequestSchema = v.pipe(
   }))
 );
 
-export const ExecuteSshCommandRequestSchema = v.object({
+const ExecuteSshCommandRequestEntries = {
   hostname: v.string(),
   port: v.number(),
   username: v.string(),
   password: v.string(),
-  command: v.string(),
+  command: v.string()
+};
+
+export const ExecuteSshCommandRequestSchema = v.object({
+  ...ExecuteSshCommandRequestEntries,
   timeoutMs: v.exactOptional(v.number())
+});
+
+export const NormalizedExecuteSshCommandRequestSchema = v.object({
+  ...ExecuteSshCommandRequestEntries,
+  timeoutMs: v.number()
 });
 
 export const ExecuteHostCommandResultSchema = v.object({
@@ -55,4 +64,7 @@ export type NormalizedExecuteHostCommandRequest = v.InferOutput<
   typeof NormalizedExecuteHostCommandRequestSchema
 >;
 export type ExecuteSshCommandRequest = v.InferOutput<typeof ExecuteSshCommandRequestSchema>;
+export type NormalizedExecuteSshCommandRequest = v.InferOutput<
+  typeof NormalizedExecuteSshCommandRequestSchema
+>;
 export type ExecuteHostCommandResult = v.InferOutput<typeof ExecuteHostCommandResultSchema>;

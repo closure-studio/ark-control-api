@@ -2,12 +2,18 @@ import { describe, expect, it } from "vitest";
 import { API_ERROR_CODES } from "../src/constants/api/error-codes";
 import { api } from "../src/index";
 import type { Env } from "../src/schemas/env";
+import { HealthResponseSchema } from "../src/schemas/health/responses";
+import * as v from "valibot";
 
 describe("control API health", () => {
   it("returns the merged service identity", async () => {
     const response = await api.request("https://control.example.com/health", undefined, {} as Env);
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({ ok: true, service: "ark-control-api" });
+    const result = v.safeParse(HealthResponseSchema, await response.json());
+    expect(result).toMatchObject({
+      success: true,
+      output: { ok: true, service: "ark-control-api" }
+    });
   });
 
   it("returns root not-found responses from the root router", async () => {

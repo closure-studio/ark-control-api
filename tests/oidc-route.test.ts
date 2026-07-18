@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { OIDC_ERROR_CODES } from "../src/constants/oidc";
 import type { Env } from "../src/schemas/env";
+import { OidcHealthResponseSchema } from "../src/schemas/health/responses";
 import { oidcRouter, shouldHandleOidcRequest } from "../src/router/oidc";
+import * as v from "valibot";
 
 const env = {
   OIDC_ISSUER: "https://issuer.example.com",
@@ -9,6 +11,20 @@ const env = {
 } as Env;
 
 describe("OIDC router", () => {
+  it("serves the Schema-defined health response", async () => {
+    const response = await oidcRouter.request(
+      "https://issuer.example.com/health",
+      undefined,
+      env
+    );
+
+    expect(response.status).toBe(200);
+    expect(v.safeParse(OidcHealthResponseSchema, await response.json())).toMatchObject({
+      success: true,
+      output: { name: "ark-OIDC", status: "ok" }
+    });
+  });
+
   it("serves discovery metadata from the OIDC domain router", async () => {
     const response = await oidcRouter.request(
       "https://issuer.example.com/.well-known/openid-configuration",

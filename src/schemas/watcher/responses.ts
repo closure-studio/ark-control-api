@@ -1,6 +1,7 @@
 import * as v from "valibot";
 
-import { AI_REVIEW_STATUSES, HOST_RUN_STATUSES } from "../../constants/watcher/status";
+import { AiReviewStatusSchema } from "./ai";
+import { HostRunStatusSchema } from "./status";
 
 const ReleaseListItemSchema = v.object({
   id: v.number(),
@@ -16,12 +17,12 @@ const ReleaseRunSchema = v.object({
   hostId: v.nullable(v.number()),
   hostName: v.string(),
   hostIp: v.string(),
-  status: v.picklist(HOST_RUN_STATUSES),
+  status: HostRunStatusSchema,
   startedAt: v.nullable(v.string()),
   nextCheckAt: v.nullable(v.string()),
   deadlineAt: v.nullable(v.string()),
   lastCheckedAt: v.nullable(v.string()),
-  lastAiStatus: v.nullable(v.picklist(AI_REVIEW_STATUSES)),
+  lastAiStatus: v.nullable(AiReviewStatusSchema),
   lastAiReason: v.nullable(v.string()),
   errorMessage: v.nullable(v.string()),
   createdAt: v.string(),

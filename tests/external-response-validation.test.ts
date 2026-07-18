@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
+import * as v from "valibot";
 import { waitForZoneOperation } from "../src/services/gcp/compute";
 import { downloadLatestPyHelperAsset } from "../src/services/pyhelper/github";
 import { createTaskServerClient } from "../src/services/task-server/client";
+import {
+  AiReviewParseResultSchema,
+  AiReviewWithModelSchema
+} from "../src/schemas/watcher/ai";
 import { parseAiReviewJson } from "../src/utils/watcher/ai";
 
 describe("external response validation", () => {
@@ -88,5 +93,33 @@ describe("external response validation", () => {
       protocolError: true,
       reason: "AI response had unexpected fields"
     });
+  });
+
+  it("validates normalized AI review contracts from their Schemas", () => {
+    expect(
+      v.safeParse(AiReviewParseResultSchema, {
+        status: "success",
+        reason: "done",
+        rawResponse: "{\"status\":\"success\"}",
+        protocolError: false
+      })
+    ).toMatchObject({ success: true });
+    expect(
+      v.safeParse(AiReviewWithModelSchema, {
+        status: "success",
+        reason: "done",
+        rawResponse: "{}",
+        protocolError: false,
+        model: "model-a"
+      })
+    ).toMatchObject({ success: true });
+    expect(
+      v.safeParse(AiReviewParseResultSchema, {
+        status: "success",
+        reason: "done",
+        rawResponse: "{}",
+        protocolError: "false"
+      }).success
+    ).toBe(false);
   });
 });

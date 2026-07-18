@@ -10,16 +10,17 @@ import {
 import {
   OIDC_ERROR_CODES,
   OIDC_ERROR_MESSAGES,
+  OIDC_APP_NAME,
   OIDC_METADATA_CACHE_CONTROL,
   OIDC_TOKEN_CACHE_CONTROL
 } from "../../constants/oidc";
 import type { Env } from "../../schemas/env";
+import type { OidcHealthResponse } from "../../schemas/health/responses";
 import { OidcTokenRequestSchema } from "../../schemas/oidc/token";
 
 type OidcContext = Context<{ Bindings: Env }>;
 
-const APP_NAME = "ark-OIDC";
-const ROOT_RESPONSE_TEXT = `${APP_NAME} Worker`;
+const ROOT_RESPONSE_TEXT = `${OIDC_APP_NAME} Worker`;
 const OIDC_PATHS = new Set([
   "/",
   "/health",
@@ -70,7 +71,10 @@ function oidcValidationErrorHook(
 export const oidcRouter = new Hono<{ Bindings: Env }>();
 
 oidcRouter.get("/", (c) => c.text(ROOT_RESPONSE_TEXT));
-oidcRouter.get("/health", (c) => c.json({ name: APP_NAME, status: "ok" }));
+oidcRouter.get("/health", (c) => {
+  const response: OidcHealthResponse = { name: OIDC_APP_NAME, status: "ok" };
+  return c.json(response);
+});
 oidcRouter.get("/.well-known/openid-configuration", (c) => {
   try {
     return c.json(

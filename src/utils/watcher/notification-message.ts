@@ -1,27 +1,8 @@
-import type { TerminalHostRunStatus } from "../../constants/watcher/status";
-
-export type NotificationEventType = "pipeline_started" | "helper_deploy_terminal";
-
-export interface PipelineStartedNotification {
-  type: "pipeline_started";
-  apkFilename: string;
-}
-
-export interface HelperDeployTerminalNotification {
-  type: "helper_deploy_terminal";
-  hostId: number;
-  hostName: string;
-  apkFilename: string;
-  status: TerminalHostRunStatus;
-  result: string;
-}
-
-export type NotificationEvent = PipelineStartedNotification | HelperDeployTerminalNotification;
-
-export interface NotificationMessage {
-  eventType: NotificationEventType;
-  message: string;
-}
+import type {
+  NotificationEvent,
+  NotificationMessage
+} from "../../schemas/watcher/notifications";
+import type { TerminalHostRunStatus } from "../../schemas/watcher/status";
 
 const TERMINAL_STATUS_MESSAGES: Record<TerminalHostRunStatus, { title: string; label: string }> = {
   succeeded: { title: "✅ Helper 部署完成", label: "成功" },

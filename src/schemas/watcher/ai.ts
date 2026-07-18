@@ -9,11 +9,25 @@ const AiReviewEntries = {
   reason: AiReviewReasonSchema
 };
 
-export const AiReviewSchema = v.strictObject(AiReviewEntries);
-
-export const AiReviewResultSchema = v.object({
+const AiReviewResultEntries = {
   ...AiReviewEntries,
   rawResponse: v.string()
+};
+
+const AiReviewParseResultEntries = {
+  ...AiReviewResultEntries,
+  protocolError: v.boolean()
+};
+
+export const AiReviewSchema = v.strictObject(AiReviewEntries);
+
+export const AiReviewResultSchema = v.object(AiReviewResultEntries);
+
+export const AiReviewParseResultSchema = v.object(AiReviewParseResultEntries);
+
+export const AiReviewWithModelSchema = v.object({
+  ...AiReviewParseResultEntries,
+  model: v.string()
 });
 
 export const AiReviewJsonSchema = v.pipe(v.string(), v.parseJson(), AiReviewSchema);
@@ -34,4 +48,7 @@ export const AiProviderResponseSchema = v.object({
   choices: v.exactOptional(v.array(AiChoiceSchema))
 });
 
+export type AiReviewStatus = v.InferOutput<typeof AiReviewStatusSchema>;
 export type AiReviewResult = v.InferOutput<typeof AiReviewResultSchema>;
+export type AiReviewParseResult = v.InferOutput<typeof AiReviewParseResultSchema>;
+export type AiReviewWithModel = v.InferOutput<typeof AiReviewWithModelSchema>;
