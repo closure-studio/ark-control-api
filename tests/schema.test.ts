@@ -7,15 +7,17 @@ const businessTables = [
   "control_job_locks",
   "gcp_accounts",
   "gcp_instance_operations",
+  "maintenance_announcements",
   "vps_hosts",
   "watcher_deployments",
   "watcher_releases"
 ];
 
 describe("control database baseline", () => {
-  it("contains one Drizzle-generated baseline", () => {
-    expect(migrationFiles).toHaveLength(1);
+  it("contains the baseline and maintenance migrations", () => {
+    expect(migrationFiles).toHaveLength(2);
     expect(migrationFiles[0]).toMatch(/^\d{14}_initial\.sql$/);
+    expect(migrationFiles[1]).toMatch(/^\d{14}_maintenance_announcements\.sql$/);
   });
 
   it("creates the current tables, columns, and indexes", () => {
@@ -32,7 +34,25 @@ describe("control database baseline", () => {
 
       const columns = (table: string) =>
         db.prepare(`PRAGMA table_info(${table})`).all().map((row) => String(row.name));
-      expect(tables.reduce((total, table) => total + columns(table).length, 0)).toBe(56);
+      expect(tables.reduce((total, table) => total + columns(table).length, 0)).toBe(72);
+      expect(columns("maintenance_announcements")).toEqual([
+        "news_id",
+        "url",
+        "processing_state",
+        "claimed_at",
+        "claim_expires_at",
+        "first_seen_at",
+        "processed_at",
+        "title",
+        "is_maintenance",
+        "maintenance_start",
+        "maintenance_end",
+        "notified",
+        "notify_channel",
+        "reason",
+        "summary",
+        "notify_error"
+      ]);
       expect(columns("gcp_accounts")).not.toContain("project_number");
       expect(columns("gcp_instance_operations")).not.toContain("completed_at");
       expect(columns("watcher_deployments")).not.toEqual(
@@ -46,6 +66,7 @@ describe("control database baseline", () => {
       expect(indexes).toEqual(
         expect.arrayContaining([
           "idx_gcp_instance_operations_created",
+          "idx_maintenance_announcements_state_claim",
           "idx_watcher_deployments_status_next_check",
           "idx_watcher_deployments_status_created",
           "watcher_deployments_release_id_host_id_unique"

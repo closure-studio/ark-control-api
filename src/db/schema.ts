@@ -157,8 +157,51 @@ export const watcherDeployments = sqliteTable(
   ]
 );
 
+export const maintenanceAnnouncements = sqliteTable(
+  "maintenance_announcements",
+  {
+    news_id: text("news_id").primaryKey(),
+    url: text("url").notNull(),
+    processing_state: text("processing_state", {
+      enum: ["processing", "completed", "failed"]
+    }).notNull(),
+    claimed_at: text("claimed_at").notNull(),
+    claim_expires_at: text("claim_expires_at").notNull(),
+    first_seen_at: text("first_seen_at").notNull(),
+    processed_at: text("processed_at"),
+    title: text("title").notNull().default(""),
+    is_maintenance: integer("is_maintenance", { mode: "boolean" }),
+    maintenance_start: text("maintenance_start"),
+    maintenance_end: text("maintenance_end"),
+    notified: integer("notified", { mode: "boolean" }).notNull().default(false),
+    notify_channel: text("notify_channel", { enum: ["qqbot"] }),
+    reason: text("reason").notNull().default(""),
+    summary: text("summary").notNull().default(""),
+    notify_error: text("notify_error")
+  },
+  (table) => [
+    check(
+      "maintenance_announcements_state_check",
+      sql`${table.processing_state} IN ('processing', 'completed', 'failed')`
+    ),
+    check(
+      "maintenance_announcements_notified_check",
+      sql`${table.notified} IN (0, 1)`
+    ),
+    check(
+      "maintenance_announcements_channel_check",
+      sql`${table.notify_channel} IS NULL OR ${table.notify_channel} = 'qqbot'`
+    ),
+    index("idx_maintenance_announcements_state_claim").on(
+      table.processing_state,
+      table.claim_expires_at
+    )
+  ]
+);
+
 export type GcpAccountRow = typeof gcpAccounts.$inferSelect;
 export type GcpVmOperationRow = typeof gcpInstanceOperations.$inferSelect;
 export type VpsHostRow = typeof vpsHosts.$inferSelect;
 export type WatcherReleaseRow = typeof watcherReleases.$inferSelect;
 export type WatcherDeploymentRow = typeof watcherDeployments.$inferSelect;
+export type MaintenanceAnnouncementRow = typeof maintenanceAnnouncements.$inferSelect;

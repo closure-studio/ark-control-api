@@ -11,8 +11,7 @@ npm install
 npx wrangler d1 create ark_control
 ```
 
-Copy the returned database ID into `wrangler.toml`, then apply the single
-baseline migration:
+Copy the returned database ID into `wrangler.toml`, then apply the migrations:
 
 ```sh
 npx wrangler d1 migrations apply ark_control --local
@@ -66,8 +65,9 @@ Deploy `ark-ssh` before the first deployment of this Worker. Update
 OIDC domain.
 
 The authenticated control surface is exposed under `/api/dashboard`,
-`/api/vps`, `/api/accounts`, `/api/releases`, and `/api/runs`. The baseline
-migration creates the current six-table schema directly.
+`/api/vps`, `/api/accounts`, `/api/releases`, and `/api/runs`. The migrations
+create the seven-table schema, including the `maintenance_announcements` table
+used by the scheduled Arknights maintenance monitor.
 
 ## Architecture
 
@@ -93,6 +93,16 @@ The current router and controller domains are `dashboard`, `gcp`, `health`,
 `src/utils/http`; request, response, environment, and domain data contracts stay
 under `src/schemas` and export types inferred with Valibot. Shared and
 domain-specific constants stay under `src/constants/<domain>`.
+
+The maintenance monitor runs at `17 * * * *`. It fetches the latest ten
+announcements from `https://ak.hypergryph.com/news`, applies deterministic
+maintenance rules, and uses the existing Workers AI binding only when rules
+are uncertain. Confirmed maintenance announcements are sent through the
+existing QQBot binding and claimed in D1 before any external notification.
+Claims transition to `completed` or `failed` and are never retried, which
+prevents duplicate QQ notifications when a scheduled invocation overlaps or
+crashes after sending. Expired claims are recorded as failed and skipped.
+No additional secret is required beyond `QQBOT_TOKEN` and `QQBOT_UID`.
 
 External data is validated with Valibot schemas before services can use it.
 Hono JSON bodies, queries, and route parameters use the Standard Schema

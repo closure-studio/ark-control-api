@@ -5,7 +5,7 @@ import type {
   NotifyPipelineStartedInput
 } from "../../schemas/watcher/notifications";
 import { buildNotificationMessage } from "../../utils/watcher/notification-message";
-import { sendQqBotAutoMessage } from "./qq-bot";
+import { sendQqBotAutoMessage } from "../notifications/qq-bot";
 
 export interface NotificationRuntime {
   fetcher?: typeof fetch;

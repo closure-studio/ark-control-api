@@ -1,5 +1,8 @@
 import { CRON_INTERVAL_MS, FIRST_CHECK_DELAY_MS, HOST_RUN_DEADLINE_MS } from "../../constants/watcher/config";
-import { acquireAppStateLock, releaseAppStateLock } from "../../repositories/watcher/app-state";
+import {
+  acquireControlJobLock,
+  releaseControlJobLock
+} from "../../repositories/control-job-locks";
 import {
   getOrCreateHostRun,
   hasNonTerminalHostRuns,
@@ -127,8 +130,10 @@ async function runNotification(
 export function createPipelineDependencies(env: Env): PipelineDependencies {
   return {
     now: () => new Date(),
-    acquirePipelineLock: ({ owner, expiresAt, now }) => acquireAppStateLock(env.DB, PIPELINE_LOCK_KEY, owner, expiresAt, now),
-    releasePipelineLock: ({ owner }) => releaseAppStateLock(env.DB, PIPELINE_LOCK_KEY, owner),
+    acquirePipelineLock: ({ owner, expiresAt, now }) =>
+      acquireControlJobLock(env.DB, PIPELINE_LOCK_KEY, owner, expiresAt, now),
+    releasePipelineLock: ({ owner }) =>
+      releaseControlJobLock(env.DB, PIPELINE_LOCK_KEY, owner),
     hasNonTerminalHostRuns: () => hasNonTerminalHostRuns(env.DB),
     listDueRunningHostRuns: (now) => listDueRunningHostRuns(env.DB, now),
     listPendingStartHostRuns: () => listPendingStartHostRuns(env.DB),

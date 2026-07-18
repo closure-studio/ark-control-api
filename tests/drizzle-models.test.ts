@@ -14,6 +14,10 @@ import {
   recordOperation
 } from "../src/services/gcp/operations";
 import { runRetentionCleanup } from "../src/services/retention";
+import {
+  claimMaintenanceAnnouncement,
+  completeMaintenanceAnnouncement
+} from "../src/repositories/maintenance/announcements";
 import { VpsHostRepository } from "../src/repositories/vps/vps-hosts";
 import { acquireAppStateLock, releaseAppStateLock } from "../src/repositories/watcher/app-state";
 import {
@@ -49,6 +53,7 @@ describe("Drizzle D1 models", () => {
     await db.exec(`
       DELETE FROM watcher_deployments;
       DELETE FROM watcher_releases;
+      DELETE FROM maintenance_announcements;
       DELETE FROM gcp_instance_operations;
       DELETE FROM gcp_accounts;
       DELETE FROM vps_hosts;
@@ -216,5 +221,66 @@ describe("Drizzle D1 models", () => {
         "2026-07-16T00:11:00.000Z"
       )
     ).toBe(true);
+  });
+
+  it("claims maintenance announcements once and persists terminal outcomes", async () => {
+    const link = { id: "009692", url: "https://ak.hypergryph.com/news/9692" };
+    expect(
+      await claimMaintenanceAnnouncement(
+        db,
+        link,
+        "2026-07-18T15:00:00.000Z",
+        "2026-07-18T17:00:00.000Z"
+      )
+    ).toBe(true);
+    expect(
+      await claimMaintenanceAnnouncement(
+        db,
+        link,
+        "2026-07-18T15:01:00.000Z",
+        "2026-07-18T17:01:00.000Z"
+      )
+    ).toBe(false);
+
+    const staleLink = { id: "9693", url: "https://ak.hypergryph.com/news/9693" };
+    await claimMaintenanceAnnouncement(
+      db,
+      staleLink,
+      "2026-07-18T15:00:00.000Z",
+      "2026-07-18T15:01:00.000Z"
+    );
+    expect(
+      await claimMaintenanceAnnouncement(
+        db,
+        staleLink,
+        "2026-07-18T15:02:00.000Z",
+        "2026-07-18T17:02:00.000Z"
+      )
+    ).toBe(false);
+    expect(
+      await db
+        .prepare("SELECT processing_state FROM maintenance_announcements WHERE news_id = ?")
+        .bind(staleLink.id)
+        .first()
+    ).toEqual({ processing_state: "failed" });
+
+    await completeMaintenanceAnnouncement(db, link.id, {
+      processingState: "completed",
+      processedAt: "2026-07-18T15:02:00.000Z",
+      title: "版本更新停机维护公告",
+      isMaintenance: true,
+      maintenanceStart: "2026年05月01日06:00",
+      maintenanceEnd: "12:00",
+      notified: true,
+      notifyChannel: "qqbot",
+      reason: "标题包含停机维护关键词",
+      summary: "服务器将在指定时间停机维护。",
+      notifyError: null
+    });
+
+    const row = await db.prepare(
+        "SELECT processing_state, notified, notify_channel FROM maintenance_announcements WHERE news_id = ?"
+      ).bind(link.id).first();
+    expect(row).toEqual({ processing_state: "completed", notified: 1, notify_channel: "qqbot" });
   });
 });
