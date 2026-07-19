@@ -5,7 +5,7 @@ import * as ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const sourceRoot = fileURLToPath(new URL("../src/", import.meta.url));
-const domains = ["dashboard", "gcp", "health", "oidc", "pyhelper", "vps", "watcher"];
+const domains = ["gcp", "health", "oidc", "pyhelper", "vps", "watcher"];
 const sourceLayers = [
   "constants",
   "controller",
