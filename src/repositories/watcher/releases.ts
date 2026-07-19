@@ -1,19 +1,17 @@
 import { desc, eq } from "drizzle-orm";
 
 import { createDatabase } from "../../db/client";
-import { watcherReleases, type WatcherReleaseRow } from "../../db/schema";
-
-export type ReleaseRow = WatcherReleaseRow;
+import { arknightsApkReleases, type ArknightsApkReleaseRow } from "../../db/schema";
 
 export async function getReleaseByApkFilename(
   db: D1Database,
   apkFilename: string
-): Promise<ReleaseRow | null> {
+): Promise<ArknightsApkReleaseRow | null> {
   return (
     (await createDatabase(db)
       .select()
-      .from(watcherReleases)
-      .where(eq(watcherReleases.apk_filename, apkFilename))
+      .from(arknightsApkReleases)
+      .where(eq(arknightsApkReleases.apk_filename, apkFilename))
       .get()) ?? null
   );
 }
@@ -23,11 +21,11 @@ export async function getOrCreateRelease(
   apkFilename: string,
   finalUrl: string,
   now: string
-): Promise<ReleaseRow> {
+): Promise<ArknightsApkReleaseRow> {
   await createDatabase(db)
-    .insert(watcherReleases)
+    .insert(arknightsApkReleases)
     .values({ apk_filename: apkFilename, final_url: finalUrl, detected_at: now })
-    .onConflictDoNothing({ target: watcherReleases.apk_filename })
+    .onConflictDoNothing({ target: arknightsApkReleases.apk_filename })
     .run();
 
   const row = await getReleaseByApkFilename(db, apkFilename);
@@ -41,11 +39,11 @@ export async function listReleases(
   db: D1Database,
   limit: number,
   offset: number
-): Promise<ReleaseRow[]> {
+): Promise<ArknightsApkReleaseRow[]> {
   return createDatabase(db)
     .select()
-    .from(watcherReleases)
-    .orderBy(desc(watcherReleases.detected_at), desc(watcherReleases.id))
+    .from(arknightsApkReleases)
+    .orderBy(desc(arknightsApkReleases.detected_at), desc(arknightsApkReleases.id))
     .limit(limit)
     .offset(offset)
     .all();
@@ -54,12 +52,12 @@ export async function listReleases(
 export async function getRelease(
   db: D1Database,
   releaseId: number
-): Promise<ReleaseRow | null> {
+): Promise<ArknightsApkReleaseRow | null> {
   return (
     (await createDatabase(db)
       .select()
-      .from(watcherReleases)
-      .where(eq(watcherReleases.id, releaseId))
+      .from(arknightsApkReleases)
+      .where(eq(arknightsApkReleases.id, releaseId))
       .get()) ?? null
   );
 }
@@ -69,9 +67,9 @@ export async function getReleaseApkFilename(
   releaseId: number
 ): Promise<string> {
   const row = await createDatabase(db)
-    .select({ apk_filename: watcherReleases.apk_filename })
-    .from(watcherReleases)
-    .where(eq(watcherReleases.id, releaseId))
+    .select({ apk_filename: arknightsApkReleases.apk_filename })
+    .from(arknightsApkReleases)
+    .where(eq(arknightsApkReleases.id, releaseId))
     .get();
   if (!row) {
     throw new Error("release_not_found");
@@ -81,9 +79,9 @@ export async function getReleaseApkFilename(
 
 export async function getLatestReleaseApkFilename(db: D1Database): Promise<string | null> {
   const row = await createDatabase(db)
-    .select({ apk_filename: watcherReleases.apk_filename })
-    .from(watcherReleases)
-    .orderBy(desc(watcherReleases.detected_at), desc(watcherReleases.id))
+    .select({ apk_filename: arknightsApkReleases.apk_filename })
+    .from(arknightsApkReleases)
+    .orderBy(desc(arknightsApkReleases.detected_at), desc(arknightsApkReleases.id))
     .limit(1)
     .get();
   return row?.apk_filename ?? null;

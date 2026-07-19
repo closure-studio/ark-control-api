@@ -66,7 +66,7 @@ OIDC domain.
 
 The authenticated control surface is exposed under `/api/dashboard`,
 `/api/vps`, `/api/accounts`, `/api/releases`, and `/api/runs`. The migrations
-create the seven-table schema, including the `maintenance_announcements` table
+create the seven-table schema, including the `arknights_maintenance_announcements` table
 used by the scheduled Arknights maintenance monitor.
 
 ## Architecture

@@ -227,7 +227,7 @@ describe("maintenance monitor contracts", () => {
       "9694",
       expect.objectContaining({
         processingState: "failed",
-        reason: expect.stringContaining("AI provider unavailable")
+        errorMessage: expect.stringContaining("AI provider unavailable")
       })
     );
   });

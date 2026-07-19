@@ -6,11 +6,17 @@ import type {
   ReleaseRunsResponse,
   RunLogResponse
 } from "../../schemas/watcher/responses";
-import type { WatcherDeploymentRow as HostRunRow } from "../../db/schema";
+import type {
+  ArknightsApkDeploymentRow as HostRunRow,
+  ArknightsApkReleaseRow
+} from "../../db/schema";
 import { countRunsByReleaseIds, getHostRun, listRunsForRelease } from "../../repositories/watcher/host-runs";
-import { getRelease, listReleases, type ReleaseRow } from "../../repositories/watcher/releases";
+import { getRelease, listReleases } from "../../repositories/watcher/releases";
 
-function toReleaseListItem(release: ReleaseRow, statusCounts: Record<string, number>): ReleaseListItem {
+function toReleaseListItem(
+  release: ArknightsApkReleaseRow,
+  statusCounts: Record<string, number>
+): ReleaseListItem {
   return {
     id: release.id,
     apkFilename: release.apk_filename,

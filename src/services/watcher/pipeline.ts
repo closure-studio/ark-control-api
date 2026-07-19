@@ -14,7 +14,7 @@ import {
   updateHostRunStatus,
 } from "../../repositories/watcher/host-runs";
 import { getLatestReleaseApkFilename, getOrCreateRelease, getReleaseApkFilename } from "../../repositories/watcher/releases";
-import type { WatcherDeploymentRow as HostRunRow } from "../../db/schema";
+import type { ArknightsApkDeploymentRow as HostRunRow } from "../../db/schema";
 import type { Env } from "../../schemas/env";
 import type { ServiceVpsHost } from "../../schemas/vps/hosts";
 import type { ExecuteHostCommandResult } from "../../schemas/vps/ssh-command";
@@ -53,7 +53,6 @@ export interface PipelineDependencies {
     now: string;
     errorMessage: string | null;
     nextCheckAt?: string | null;
-    failureStage?: HostRunRow["failure_stage"];
   }) => Promise<void>;
   updateHostRunExecution: (input: {
     id: number;
@@ -145,8 +144,8 @@ export function createPipelineDependencies(env: Env): PipelineDependencies {
     executeHostCommand: ({ hostId, command }) => executeHostCommand(env, hostId, command),
     markHostRunStarted: ({ id, startedAt, nextCheckAt, deadlineAt }) =>
       markHostRunStarted(env.DB, id, startedAt, nextCheckAt, deadlineAt),
-    updateHostRunStatus: ({ id, status, now, errorMessage, nextCheckAt, failureStage }) =>
-      updateHostRunStatus(env.DB, id, status, now, errorMessage, nextCheckAt ?? null, failureStage),
+    updateHostRunStatus: ({ id, status, now, errorMessage, nextCheckAt }) =>
+      updateHostRunStatus(env.DB, id, status, now, errorMessage, nextCheckAt ?? null),
     updateHostRunExecution: ({ id, status, now, logTail, nextCheckAt, errorMessage }) =>
       updateHostRunExecution(env.DB, id, { status, now, logTail, nextCheckAt, errorMessage }),
     getReleaseApkFilename: (releaseId) => getReleaseApkFilename(env.DB, releaseId),
@@ -196,8 +195,7 @@ async function advanceDueRuns(deps: PipelineDependencies, nowDate: Date): Promis
             id: run.id,
             status: "failed",
             now,
-            errorMessage: "VPS host was deleted.",
-            failureStage: "ssh"
+            errorMessage: "VPS host was deleted."
           });
           return;
         }
@@ -208,7 +206,6 @@ async function advanceDueRuns(deps: PipelineDependencies, nowDate: Date): Promis
             status: "timed_out",
             now,
             errorMessage: result,
-            failureStage: "deadline",
           });
           await runNotification("helper_deploy_terminal", async () => {
             const apkFilename = await deps.getReleaseApkFilename(run.release_id);
@@ -236,7 +233,6 @@ async function advanceDueRuns(deps: PipelineDependencies, nowDate: Date): Promis
             now,
             errorMessage: formatCommandError(logResult),
             nextCheckAt: retryAt,
-            failureStage: "ssh",
           });
           return;
         }
@@ -342,8 +338,7 @@ async function startPendingHostRuns(
           id: run.id,
           status: "failed",
           now,
-          errorMessage: "VPS host was deleted.",
-          failureStage: "start"
+            errorMessage: "VPS host was deleted."
         });
         return;
       }
@@ -371,7 +366,6 @@ async function startPendingHostRuns(
           status: "failed",
           now,
           errorMessage: result,
-          failureStage: "start",
         });
         await runNotification("helper_deploy_terminal", () =>
           deps.notifyHelperDeployTerminal({

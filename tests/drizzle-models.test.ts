@@ -51,10 +51,10 @@ describe("Drizzle D1 models", () => {
 
   beforeEach(async () => {
     await db.exec(`
-      DELETE FROM watcher_deployments;
-      DELETE FROM watcher_releases;
-      DELETE FROM maintenance_announcements;
-      DELETE FROM gcp_instance_operations;
+      DELETE FROM arknights_apk_deployments;
+      DELETE FROM arknights_apk_releases;
+      DELETE FROM arknights_maintenance_announcements;
+      DELETE FROM gcp_operation_logs;
       DELETE FROM gcp_accounts;
       DELETE FROM vps_hosts;
       DELETE FROM control_job_locks;
@@ -259,7 +259,7 @@ describe("Drizzle D1 models", () => {
     ).toBe(false);
     expect(
       await db
-        .prepare("SELECT processing_state FROM maintenance_announcements WHERE news_id = ?")
+        .prepare("SELECT processing_state FROM arknights_maintenance_announcements WHERE news_id = ?")
         .bind(staleLink.id)
         .first()
     ).toEqual({ processing_state: "failed" });
@@ -272,15 +272,12 @@ describe("Drizzle D1 models", () => {
       maintenanceStart: "2026年05月01日06:00",
       maintenanceEnd: "12:00",
       notified: true,
-      notifyChannel: "qqbot",
-      reason: "标题包含停机维护关键词",
-      summary: "服务器将在指定时间停机维护。",
-      notifyError: null
+      errorMessage: null
     });
 
     const row = await db.prepare(
-        "SELECT processing_state, notified, notify_channel FROM maintenance_announcements WHERE news_id = ?"
+        "SELECT processing_state, notified, error_message FROM arknights_maintenance_announcements WHERE news_id = ?"
       ).bind(link.id).first();
-    expect(row).toEqual({ processing_state: "completed", notified: 1, notify_channel: "qqbot" });
+    expect(row).toEqual({ processing_state: "completed", notified: 1, error_message: null });
   });
 });

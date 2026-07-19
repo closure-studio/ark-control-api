@@ -1,7 +1,7 @@
 import { and, eq, lte } from "drizzle-orm";
 
 import { createDatabase } from "../../db/client";
-import { maintenanceAnnouncements } from "../../db/schema";
+import { arknightsMaintenanceAnnouncements } from "../../db/schema";
 import type {
   MaintenanceAnnouncementOutcome,
   NewsLink
@@ -14,37 +14,34 @@ export async function claimMaintenanceAnnouncement(
   claimExpiresAt: string
 ): Promise<boolean> {
   const inserted = await createDatabase(db)
-    .insert(maintenanceAnnouncements)
+    .insert(arknightsMaintenanceAnnouncements)
     .values({
       news_id: link.id,
       url: link.url,
       processing_state: "processing",
-      claimed_at: now,
       claim_expires_at: claimExpiresAt,
       first_seen_at: now
     })
-    .onConflictDoNothing({ target: maintenanceAnnouncements.news_id })
-    .returning({ newsId: maintenanceAnnouncements.news_id })
+    .onConflictDoNothing({ target: arknightsMaintenanceAnnouncements.news_id })
+    .returning({ newsId: arknightsMaintenanceAnnouncements.news_id })
     .get();
 
   if (inserted) return true;
 
   await createDatabase(db)
-    .update(maintenanceAnnouncements)
+    .update(arknightsMaintenanceAnnouncements)
     .set({
       processing_state: "failed",
       processed_at: now,
       title: "Announcement processing claim expired",
       is_maintenance: false,
-      reason: "Previous processing claim expired before it reached a terminal state.",
-      summary: "公告处理任务未完成，已跳过以避免重复外部通知。",
-      notify_error: "Previous processing claim expired."
+      error_message: "Previous processing claim expired before it reached a terminal state."
     })
     .where(
       and(
-        eq(maintenanceAnnouncements.news_id, link.id),
-        eq(maintenanceAnnouncements.processing_state, "processing"),
-        lte(maintenanceAnnouncements.claim_expires_at, now)
+        eq(arknightsMaintenanceAnnouncements.news_id, link.id),
+        eq(arknightsMaintenanceAnnouncements.processing_state, "processing"),
+        lte(arknightsMaintenanceAnnouncements.claim_expires_at, now)
       )
     )
     .run();
@@ -74,7 +71,7 @@ async function updateAnnouncement(
   outcome: MaintenanceAnnouncementOutcome
 ): Promise<void> {
   const updated = await createDatabase(db)
-    .update(maintenanceAnnouncements)
+    .update(arknightsMaintenanceAnnouncements)
     .set({
       processing_state: outcome.processingState,
       processed_at: outcome.processedAt,
@@ -83,18 +80,15 @@ async function updateAnnouncement(
       maintenance_start: outcome.maintenanceStart,
       maintenance_end: outcome.maintenanceEnd,
       notified: outcome.notified,
-      notify_channel: outcome.notifyChannel,
-      reason: outcome.reason,
-      summary: outcome.summary,
-      notify_error: outcome.notifyError
+      error_message: outcome.errorMessage
     })
     .where(
       and(
-        eq(maintenanceAnnouncements.news_id, newsId),
-        eq(maintenanceAnnouncements.processing_state, "processing")
+        eq(arknightsMaintenanceAnnouncements.news_id, newsId),
+        eq(arknightsMaintenanceAnnouncements.processing_state, "processing")
       )
     )
-    .returning({ newsId: maintenanceAnnouncements.news_id })
+    .returning({ newsId: arknightsMaintenanceAnnouncements.news_id })
     .get();
 
   if (!updated) {

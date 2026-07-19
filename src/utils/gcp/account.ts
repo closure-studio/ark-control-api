@@ -1,7 +1,7 @@
-import type { GcpAccountRow, GcpVmOperationRow } from "../../db/schema";
+import type { GcpAccountRow } from "../../db/schema";
 import type { GcpAccount } from "../../schemas/gcp/accounts";
 
-export type { GcpAccountRow, GcpVmOperationRow } from "../../db/schema";
+export type { GcpAccountRow } from "../../db/schema";
 
 export function toGcpAccount(row: GcpAccountRow): GcpAccount {
   return {

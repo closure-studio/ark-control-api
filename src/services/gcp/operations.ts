@@ -1,7 +1,7 @@
 import { desc } from "drizzle-orm";
 
 import { createDatabase } from "../../db/client";
-import { gcpInstanceOperations } from "../../db/schema";
+import { gcpOperationLogs } from "../../db/schema";
 import type {
   GcpInstanceLifecycleTarget,
   GcpInstanceLifecycleAction,
@@ -28,7 +28,7 @@ export async function recordOperation(
 ): Promise<void> {
   const createdAt = new Date().toISOString();
   await createDatabase(env.DB)
-    .insert(gcpInstanceOperations)
+    .insert(gcpOperationLogs)
     .values({
       batch_id: context.batchId,
       account_id: context.accountId,
@@ -49,8 +49,8 @@ export async function listRecentOperations(env: Env, limit = 10) {
   const safeLimit = Math.max(1, Math.min(50, Math.trunc(limit)));
   const rows = await createDatabase(env.DB)
     .select()
-    .from(gcpInstanceOperations)
-    .orderBy(desc(gcpInstanceOperations.created_at), desc(gcpInstanceOperations.id))
+    .from(gcpOperationLogs)
+    .orderBy(desc(gcpOperationLogs.created_at), desc(gcpOperationLogs.id))
     .limit(safeLimit)
     .all();
   return rows.map((row) => ({

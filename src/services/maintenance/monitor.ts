@@ -108,10 +108,7 @@ export async function runMaintenanceMonitorWithDependencies(
         maintenanceStart: classification.maintenanceStart,
         maintenanceEnd: classification.maintenanceEnd,
         notified: notification.notified,
-        notifyChannel: notification.notifyChannel,
-        reason: classification.reason,
-        summary: classification.summary,
-        notifyError: notification.notifyError
+        errorMessage: notification.notifyError
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "announcement processing failed";
@@ -127,10 +124,7 @@ export async function runMaintenanceMonitorWithDependencies(
         maintenanceStart: null,
         maintenanceEnd: null,
         notified: false,
-        notifyChannel: null,
-        reason: `Announcement processing failed: ${message}`,
-        summary: "单条公告处理失败，已跳过以避免阻塞整体监控。",
-        notifyError: null
+        errorMessage: `Announcement processing failed: ${message}`
       });
     }
 

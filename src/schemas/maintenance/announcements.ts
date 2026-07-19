@@ -52,10 +52,7 @@ export const MaintenanceAnnouncementOutcomeSchema = v.object({
   maintenanceStart: v.nullable(v.string()),
   maintenanceEnd: v.nullable(v.string()),
   notified: v.boolean(),
-  notifyChannel: v.nullable(MaintenanceNotificationChannelSchema),
-  reason: v.pipe(v.string(), v.trim(), v.nonEmpty()),
-  summary: v.string(),
-  notifyError: v.nullable(v.string())
+  errorMessage: v.nullable(v.string())
 });
 
 export const MaintenanceNotificationResultSchema = v.object({

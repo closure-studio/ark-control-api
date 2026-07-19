@@ -4,20 +4,19 @@ import { describe, expect, it } from "vitest";
 import { applySqliteMigrations, migrationFiles } from "./helpers/migrations";
 
 const businessTables = [
+  "arknights_apk_deployments",
+  "arknights_apk_releases",
+  "arknights_maintenance_announcements",
   "control_job_locks",
   "gcp_accounts",
-  "gcp_instance_operations",
-  "maintenance_announcements",
-  "vps_hosts",
-  "watcher_deployments",
-  "watcher_releases"
+  "gcp_operation_logs",
+  "vps_hosts"
 ];
 
 describe("control database baseline", () => {
-  it("contains the baseline and maintenance migrations", () => {
-    expect(migrationFiles).toHaveLength(2);
+  it("contains the single clean baseline migration", () => {
+    expect(migrationFiles).toHaveLength(1);
     expect(migrationFiles[0]).toMatch(/^\d{14}_initial\.sql$/);
-    expect(migrationFiles[1]).toMatch(/^\d{14}_maintenance_announcements\.sql$/);
   });
 
   it("creates the current tables, columns, and indexes", () => {
@@ -34,12 +33,11 @@ describe("control database baseline", () => {
 
       const columns = (table: string) =>
         db.prepare(`PRAGMA table_info(${table})`).all().map((row) => String(row.name));
-      expect(tables.reduce((total, table) => total + columns(table).length, 0)).toBe(72);
-      expect(columns("maintenance_announcements")).toEqual([
+      expect(tables.reduce((total, table) => total + columns(table).length, 0)).toBe(66);
+      expect(columns("arknights_maintenance_announcements")).toEqual([
         "news_id",
         "url",
         "processing_state",
-        "claimed_at",
         "claim_expires_at",
         "first_seen_at",
         "processed_at",
@@ -48,14 +46,11 @@ describe("control database baseline", () => {
         "maintenance_start",
         "maintenance_end",
         "notified",
-        "notify_channel",
-        "reason",
-        "summary",
-        "notify_error"
+        "error_message"
       ]);
       expect(columns("gcp_accounts")).not.toContain("project_number");
-      expect(columns("gcp_instance_operations")).not.toContain("completed_at");
-      expect(columns("watcher_deployments")).not.toEqual(
+      expect(columns("gcp_operation_logs")).not.toContain("completed_at");
+      expect(columns("arknights_apk_deployments")).not.toEqual(
         expect.arrayContaining(["host_port_snapshot", "host_username_snapshot", "attempt_count"])
       );
 
@@ -65,17 +60,17 @@ describe("control database baseline", () => {
         .map((row) => String(row.name));
       expect(indexes).toEqual(
         expect.arrayContaining([
-          "idx_gcp_instance_operations_created",
-          "idx_maintenance_announcements_state_claim",
-          "idx_watcher_deployments_status_next_check",
-          "idx_watcher_deployments_status_created",
-          "watcher_deployments_release_id_host_id_unique"
+          "idx_gcp_operation_logs_created",
+          "idx_arknights_apk_deployments_status_next_check",
+          "idx_arknights_apk_deployments_status_created",
+          "arknights_apk_deployments_release_id_host_id_unique"
         ])
       );
       expect(indexes).not.toEqual(
         expect.arrayContaining([
-          "idx_gcp_instance_operations_batch",
-          "idx_gcp_instance_operations_host_created"
+          "idx_gcp_operation_logs_batch",
+          "idx_gcp_operation_logs_host_created",
+          "idx_maintenance_announcements_state_claim"
         ])
       );
     } finally {
@@ -99,17 +94,17 @@ describe("control database baseline", () => {
         INSERT INTO vps_hosts (
           id, name, address, port, username, password_ciphertext
         ) VALUES (1, 'Host', '192.0.2.1', 22, 'root', 'ciphertext');
-        INSERT INTO watcher_releases (
+        INSERT INTO arknights_apk_releases (
           id, apk_filename, final_url, detected_at
         ) VALUES (1, 'release.apk', 'https://example.com/release.apk', '2026-01-01T00:00:00.000Z');
-        INSERT INTO watcher_deployments (
+        INSERT INTO arknights_apk_deployments (
           id, release_id, host_id, host_name_snapshot, host_address_snapshot,
           status, created_at, updated_at
         ) VALUES (
           1, 1, 1, 'Host', '192.0.2.1', 'running',
           '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'
         );
-        INSERT INTO gcp_instance_operations (
+        INSERT INTO gcp_operation_logs (
           id, batch_id, account_id, account_name_snapshot, project_id, zone,
           instance_name, action, status, created_at
         ) VALUES (
@@ -127,14 +122,14 @@ describe("control database baseline", () => {
 
       db.exec("DELETE FROM gcp_accounts WHERE id = 1; DELETE FROM vps_hosts WHERE id = 1;");
       expect(
-        db.prepare("SELECT account_id FROM gcp_instance_operations WHERE id = 1").get()
+        db.prepare("SELECT account_id FROM gcp_operation_logs WHERE id = 1").get()
       ).toMatchObject({ account_id: null });
       expect(
-        db.prepare("SELECT host_id FROM watcher_deployments WHERE id = 1").get()
+        db.prepare("SELECT host_id FROM arknights_apk_deployments WHERE id = 1").get()
       ).toMatchObject({ host_id: null });
 
-      db.exec("DELETE FROM watcher_releases WHERE id = 1");
-      expect(db.prepare("SELECT id FROM watcher_deployments WHERE id = 1").get()).toBeUndefined();
+      db.exec("DELETE FROM arknights_apk_releases WHERE id = 1");
+      expect(db.prepare("SELECT id FROM arknights_apk_deployments WHERE id = 1").get()).toBeUndefined();
     } finally {
       db.close();
     }
