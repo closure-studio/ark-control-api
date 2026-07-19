@@ -10,7 +10,8 @@ import {
   updateAccount
 } from "../src/services/gcp/accounts";
 import {
-  listRecentOperations,
+  countOperations,
+  listOperations,
   recordOperation
 } from "../src/services/gcp/operations";
 import { runRetentionCleanup } from "../src/services/retention";
@@ -21,11 +22,12 @@ import {
 import { VpsHostRepository } from "../src/repositories/vps/vps-hosts";
 import { acquireAppStateLock, releaseAppStateLock } from "../src/repositories/watcher/app-state";
 import {
-  countNonTerminalHostRuns,
+  countHostRuns,
   countRunsByReleaseIds,
   getHostRun,
   getOrCreateHostRun,
   listDueRunningHostRuns,
+  listHostRuns,
   markHostRunStarted,
   updateHostRunReview
 } from "../src/repositories/watcher/host-runs";
@@ -100,15 +102,17 @@ describe("Drizzle D1 models", () => {
       },
       { batchId: "batch-one", accountId: account.id, accountName: "Renamed" }
     );
-    expect(await listRecentOperations(env)).toMatchObject([
+    expect(await listOperations(env, 10, 0)).toMatchObject([
       { batchId: "batch-one", accountName: "Renamed", status: "succeeded" }
     ]);
+    expect(await countOperations(env)).toBe(1);
 
     await deleteAccount(env, account.id);
-    expect(await listRecentOperations(env)).toMatchObject([{ accountId: null }]);
+    expect(await listOperations(env, 10, 0)).toMatchObject([{ accountId: null }]);
 
     await runRetentionCleanup(env, new Date(Date.now() + 366 * 24 * 60 * 60 * 1000));
-    expect(await listRecentOperations(env)).toEqual([]);
+    expect(await listOperations(env, 10, 0)).toEqual([]);
+    expect(await countOperations(env)).toBe(0);
   });
 
   it("maps VPS booleans and dynamic updates", async () => {
@@ -151,7 +155,8 @@ describe("Drizzle D1 models", () => {
     const run = await getOrCreateHostRun(db, release.id, host!, "2026-07-16T00:00:00.000Z");
     const duplicate = await getOrCreateHostRun(db, release.id, host!, "2026-07-16T00:01:00.000Z");
     expect(duplicate.id).toBe(run.id);
-    expect(await countNonTerminalHostRuns(db)).toBe(1);
+    expect(await countHostRuns(db, ["pending", "running"])).toBe(1);
+    expect(await listHostRuns(db, ["pending", "running"], 10, 0)).toHaveLength(1);
     expect(await countRunsByReleaseIds(db, [release.id])).toEqual({
       [release.id]: { pending: 1 }
     });
@@ -179,6 +184,8 @@ describe("Drizzle D1 models", () => {
       last_ai_status: "success",
       last_ai_reason: "completed"
     });
+    expect(await countHostRuns(db, ["pending", "running"])).toBe(0);
+    expect(await countHostRuns(db, undefined)).toBe(1);
   });
 
   it("atomically acquires, rejects, replaces, and releases locks", async () => {

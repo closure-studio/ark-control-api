@@ -4,6 +4,7 @@ import {
   createGcpAccount,
   deleteGcpAccount,
   listGcpAccounts,
+  listGcpOperations,
   registerMachineGcpAccount,
   toGcpControlError,
   updateGcpAccount
@@ -15,6 +16,7 @@ import {
   UpdateGcpAccountRequestSchema
 } from "../../schemas/gcp/accounts";
 import { IdParamSchema } from "../../schemas/params";
+import { PaginationQuerySchema } from "../../schemas/pagination";
 import type { Env } from "../../schemas/env";
 import type {
   GcpAccountDeleteResponse,
@@ -49,6 +51,14 @@ export function createGcpRouter() {
     const response: GcpAccountsResponse = { accounts: await listGcpAccounts(c.env) };
     return jsonData(c, response);
   });
+  router.get(
+    "/operations",
+    sValidator("query", PaginationQuerySchema, validationErrorHook),
+    async (c) => {
+      const { limit, offset } = c.req.valid("query");
+      return jsonData(c, await listGcpOperations(c.env, limit, offset));
+    }
+  );
   router.post(
     "/accounts",
     sValidator("json", CreateGcpAccountRequestSchema, validationErrorHook),

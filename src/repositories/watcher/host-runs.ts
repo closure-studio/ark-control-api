@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, isNotNull, lte } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, lte } from "drizzle-orm";
 
 import { createDatabase } from "../../db/client";
 import { arknightsApkDeployments } from "../../db/schema";
@@ -64,15 +64,6 @@ export async function hasNonTerminalHostRuns(db: D1Database): Promise<boolean> {
   return Boolean(row);
 }
 
-export async function countNonTerminalHostRuns(db: D1Database): Promise<number> {
-  const row = await createDatabase(db)
-    .select({ value: count() })
-    .from(arknightsApkDeployments)
-    .where(inArray(arknightsApkDeployments.status, [...NON_TERMINAL_HOST_RUN_STATUSES]))
-    .get();
-  return row?.value ?? 0;
-}
-
 export async function countRunsByReleaseIds(
   db: D1Database,
   releaseIds: number[]
@@ -94,6 +85,42 @@ export async function countRunsByReleaseIds(
     releaseCounts[row.status] = row.count;
     return acc;
   }, {});
+}
+
+export async function listHostRuns(
+  db: D1Database,
+  statuses: readonly HostRunStatus[] | undefined,
+  limit: number,
+  offset: number
+): Promise<HostRunRow[]> {
+  return createDatabase(db)
+    .select()
+    .from(arknightsApkDeployments)
+    .where(
+      statuses === undefined
+        ? undefined
+        : inArray(arknightsApkDeployments.status, [...statuses])
+    )
+    .orderBy(desc(arknightsApkDeployments.created_at), desc(arknightsApkDeployments.id))
+    .limit(limit)
+    .offset(offset)
+    .all();
+}
+
+export async function countHostRuns(
+  db: D1Database,
+  statuses: readonly HostRunStatus[] | undefined
+): Promise<number> {
+  const row = await createDatabase(db)
+    .select({ value: count() })
+    .from(arknightsApkDeployments)
+    .where(
+      statuses === undefined
+        ? undefined
+        : inArray(arknightsApkDeployments.status, [...statuses])
+    )
+    .get();
+  return row?.value ?? 0;
 }
 
 export async function listDueRunningHostRuns(

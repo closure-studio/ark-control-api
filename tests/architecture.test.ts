@@ -132,7 +132,6 @@ describe("router to controller architecture", () => {
       "utils/maintenance",
       "utils/oidc",
       "utils/watcher",
-      "schemas/dashboard",
       "schemas/env.ts",
       "schemas/maintenance",
       "schemas/gcp",

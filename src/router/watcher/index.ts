@@ -3,11 +3,13 @@ import { Hono } from "hono";
 import { API_ERROR_CODES } from "../../constants/api/error-codes";
 import {
   getRunLog,
+  listHostRuns,
   listReleaseRuns,
   listReleaseSummaries
 } from "../../controller/watcher";
 import { PaginationQuerySchema } from "../../schemas/pagination";
 import { IdParamSchema } from "../../schemas/params";
+import { HostRunListQuerySchema } from "../../schemas/watcher/requests";
 import type { Env } from "../../schemas/env";
 import { jsonData, jsonError, validationErrorHook } from "../../utils/http";
 
@@ -33,6 +35,14 @@ export function createWatcherRouter() {
       return result
         ? jsonData(c, result)
         : jsonError(c, API_ERROR_CODES.NOT_FOUND, "Release was not found.", 404);
+    }
+  );
+  router.get(
+    "/runs",
+    sValidator("query", HostRunListQuerySchema, validationErrorHook),
+    async (c) => {
+      c.header("cache-control", "no-store");
+      return jsonData(c, await listHostRuns(c.env, c.req.valid("query")));
     }
   );
   router.get(

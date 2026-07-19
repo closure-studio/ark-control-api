@@ -3,7 +3,6 @@ import { API_ERROR_CODES } from "../constants/api/error-codes";
 import type { Env } from "../schemas/env";
 import { ControlApiError } from "../errors/control-api";
 import { jsonError } from "../utils/http";
-import { createDashboardRouter } from "./dashboard";
 import { createGcpRouter } from "./gcp";
 import { createPyHelperRouter } from "./pyhelper";
 import { createHealthRouter } from "./health";
@@ -27,7 +26,6 @@ export function createRouter() {
     await next();
   });
 
-  app.route("/api", createDashboardRouter());
   app.route("/api", createGcpRouter());
   app.route("/api", createVpsRouter());
   app.route("/api", createWatcherRouter());

@@ -1,4 +1,4 @@
-import { desc } from "drizzle-orm";
+import { count, desc } from "drizzle-orm";
 
 import { createDatabase } from "../../db/client";
 import { gcpOperationLogs } from "../../db/schema";
@@ -45,13 +45,13 @@ export async function recordOperation(
     .run();
 }
 
-export async function listRecentOperations(env: Env, limit = 10) {
-  const safeLimit = Math.max(1, Math.min(50, Math.trunc(limit)));
+export async function listOperations(env: Env, limit: number, offset: number) {
   const rows = await createDatabase(env.DB)
     .select()
     .from(gcpOperationLogs)
     .orderBy(desc(gcpOperationLogs.created_at), desc(gcpOperationLogs.id))
-    .limit(safeLimit)
+    .limit(limit)
+    .offset(offset)
     .all();
   return rows.map((row) => ({
     id: row.id,
@@ -67,6 +67,14 @@ export async function listRecentOperations(env: Env, limit = 10) {
     googleOperationName: row.google_operation_name,
     createdAt: row.created_at
   }));
+}
+
+export async function countOperations(env: Env): Promise<number> {
+  const row = await createDatabase(env.DB)
+    .select({ value: count() })
+    .from(gcpOperationLogs)
+    .get();
+  return row?.value ?? 0;
 }
 
 export async function submitBatchInstanceAction(

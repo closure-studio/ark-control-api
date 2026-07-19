@@ -7,13 +7,15 @@ const NonNegativeIntegerStringSchema = v.pipe(
   v.safeInteger()
 );
 
+export const PaginationQueryEntries = {
+  limit: v.exactOptional(
+    v.pipe(NonNegativeIntegerStringSchema, v.transform((value) => Math.min(value, 100)))
+  ),
+  offset: v.exactOptional(NonNegativeIntegerStringSchema)
+};
+
 export const PaginationQuerySchema = v.pipe(
-  v.object({
-    limit: v.exactOptional(
-      v.pipe(NonNegativeIntegerStringSchema, v.transform((value) => Math.min(value, 100)))
-    ),
-    offset: v.exactOptional(NonNegativeIntegerStringSchema)
-  }),
+  v.object(PaginationQueryEntries),
   v.transform(({ limit, offset }) => ({
     limit: limit ?? 50,
     offset: offset ?? 0

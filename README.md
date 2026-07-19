@@ -64,8 +64,8 @@ Deploy `ark-ssh` before the first deployment of this Worker. Update
 `OIDC_ISSUER` and the Google WIF provider together when moving to a custom
 OIDC domain.
 
-The authenticated control surface is exposed under `/api/dashboard`,
-`/api/vps`, `/api/accounts`, `/api/releases`, and `/api/runs`. The migrations
+The authenticated control surface is exposed under `/api/vps`, `/api/accounts`,
+`/api/operations`, `/api/releases`, and `/api/runs`. The migrations
 create the seven-table schema, including the `arknights_maintenance_announcements` table
 used by the scheduled Arknights maintenance monitor.
 
@@ -88,8 +88,8 @@ src/
 ```
 
 The HTTP dependency direction is `router -> controller -> service/repository`.
-The current router and controller domains are `dashboard`, `gcp`, `health`,
-`oidc`, `pyhelper`, `vps`, and `watcher`. Cross-cutting HTTP helpers stay in
+The current router and controller domains are `gcp`, `health`, `oidc`,
+`pyhelper`, `vps`, and `watcher`. Cross-cutting HTTP helpers stay in
 `src/utils/http`; request, response, environment, and domain data contracts stay
 under `src/schemas` and export types inferred with Valibot. Shared and
 domain-specific constants stay under `src/constants/<domain>`.

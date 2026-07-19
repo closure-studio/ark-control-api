@@ -24,7 +24,7 @@ describe("control API health", () => {
 
   it("protects the unified control routes with the admin token", async () => {
     const response = await api.request(
-      "https://control.example.com/api/dashboard",
+      "https://control.example.com/api/operations",
       undefined,
       { ADMIN_TOKEN: "secret" } as Env
     );

@@ -12,10 +12,27 @@ import {
   upsertAccountByProjectId,
   updateAccount
 } from "../../services/gcp/accounts";
+import { countOperations, listOperations } from "../../services/gcp/operations";
+import type { GcpOperationsResponse } from "../../schemas/gcp/responses";
 import { GcpError } from "../../errors/gcp";
 
 export async function listGcpAccounts(env: Env) {
   return listAccounts(env);
+}
+
+export async function listGcpOperations(
+  env: Env,
+  limit: number,
+  offset: number
+): Promise<GcpOperationsResponse> {
+  const [operations, total] = await Promise.all([
+    listOperations(env, limit, offset),
+    countOperations(env)
+  ]);
+  return {
+    operations,
+    pagination: { limit, offset, count: operations.length, total }
+  };
 }
 
 export async function createGcpAccount(env: Env, body: CreateGcpAccountRequest) {
