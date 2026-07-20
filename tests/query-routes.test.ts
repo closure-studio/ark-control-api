@@ -97,7 +97,7 @@ describe("atomic query routes", () => {
     await getOrCreateHostRun(db, release.id, host!, "2026-07-19T00:00:00.000Z");
 
     const response = await api.request(
-      "https://control.example.com/api/runs?state=active&limit=1&offset=0",
+      "https://control.example.com/api/host-runs?state=active&limit=1&offset=0",
       { headers: AUTHORIZATION_HEADERS },
       env
     );
@@ -117,11 +117,18 @@ describe("atomic query routes", () => {
 
   it("rejects invalid run filters and no longer exposes dashboard", async () => {
     const invalid = await api.request(
-      "https://control.example.com/api/runs?state=busy",
+      "https://control.example.com/api/host-runs?state=busy",
       { headers: AUTHORIZATION_HEADERS },
       env
     );
     expect(invalid.status).toBe(400);
+
+    const legacy = await api.request(
+      "https://control.example.com/api/runs?state=active",
+      { headers: AUTHORIZATION_HEADERS },
+      env
+    );
+    expect(legacy.status).toBe(404);
 
     const dashboard = await api.request(
       "https://control.example.com/api/dashboard",

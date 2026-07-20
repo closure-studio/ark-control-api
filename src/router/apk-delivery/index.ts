@@ -26,7 +26,7 @@ export function createApkDeliveryRouter() {
     }
   );
   router.get(
-    "/releases/:id/runs",
+    "/releases/:id/host-runs",
     sValidator("param", IdParamSchema, validationErrorHook),
     async (c) => {
       const { id } = c.req.valid("param");
@@ -38,7 +38,7 @@ export function createApkDeliveryRouter() {
     }
   );
   router.get(
-    "/runs",
+    "/host-runs",
     sValidator("query", HostRunListQuerySchema, validationErrorHook),
     async (c) => {
       c.header("cache-control", "no-store");
@@ -46,7 +46,7 @@ export function createApkDeliveryRouter() {
     }
   );
   router.get(
-    "/runs/:id/log",
+    "/host-runs/:id/log",
     sValidator("param", IdParamSchema, validationErrorHook),
     async (c) => {
       const { id } = c.req.valid("param");

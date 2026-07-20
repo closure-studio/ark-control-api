@@ -65,7 +65,8 @@ Deploy `ark-ssh` before the first deployment of this Worker. Update
 OIDC domain.
 
 The authenticated control surface is exposed under `/api/vps`, `/api/accounts`,
-`/api/operations`, `/api/releases`, and `/api/runs`. The migrations create the
+`/api/operations`, `/api/releases`, and `/api/host-runs`. A release's Host Runs
+are available under `/api/releases/:id/host-runs`. The migrations create the
 seven-table schema, including `arknights_apk_host_runs` for per-VPS Helper
 execution history and `arknights_maintenance_announcements` for the scheduled
 Arknights maintenance monitor.
