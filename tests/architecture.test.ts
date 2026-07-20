@@ -5,7 +5,7 @@ import * as ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const sourceRoot = fileURLToPath(new URL("../src/", import.meta.url));
-const domains = ["gcp", "health", "oidc", "pyhelper", "vps", "watcher"];
+const domains = ["apk-delivery", "gcp", "health", "oidc", "pyhelper", "vps"];
 const sourceLayers = [
   "constants",
   "controller",
@@ -27,6 +27,14 @@ const legacySourceLocations = [
   "oidc/controller",
   "oidc/router",
   "retention.ts",
+  "constants/watcher",
+  "controller/watcher",
+  "repositories/watcher",
+  "router/watcher",
+  "schemas/watcher",
+  "services/watcher",
+  "services/watcher/pipeline.ts",
+  "utils/watcher",
   "types",
   "vps/worker/routes",
   "vps",
@@ -113,10 +121,10 @@ describe("router to controller architecture", () => {
       "constants/notifications",
       "constants/oidc",
       "constants/vps",
-      "constants/watcher",
+      "constants/apk-delivery",
       "errors",
       "repositories/vps",
-      "repositories/watcher",
+      "repositories/apk-delivery",
       "repositories/control-job-locks.ts",
       "repositories/maintenance",
       "services/gcp",
@@ -126,12 +134,13 @@ describe("router to controller architecture", () => {
       "services/pyhelper",
       "services/task-server",
       "services/vps",
-      "services/watcher",
+      "services/apk-delivery",
+      "services/apk-delivery/deployment-lifecycle.ts",
       "utils/gcp",
       "utils/http",
       "utils/maintenance",
       "utils/oidc",
-      "utils/watcher",
+      "utils/apk-delivery",
       "schemas/env.ts",
       "schemas/maintenance",
       "schemas/gcp",
@@ -139,7 +148,7 @@ describe("router to controller architecture", () => {
       "schemas/oidc",
       "schemas/task-server",
       "schemas/vps",
-      "schemas/watcher"
+      "schemas/apk-delivery"
     ];
     for (const path of expectedLocations) {
       expect(existsSync(join(sourceRoot, path))).toBe(true);

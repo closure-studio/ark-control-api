@@ -1,4 +1,4 @@
-CREATE TABLE `arknights_apk_deployments` (
+CREATE TABLE `arknights_apk_host_runs` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`release_id` integer NOT NULL,
 	`host_id` integer,
@@ -17,13 +17,13 @@ CREATE TABLE `arknights_apk_deployments` (
 	`updated_at` text NOT NULL,
 	FOREIGN KEY (`release_id`) REFERENCES `arknights_apk_releases`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`host_id`) REFERENCES `vps_hosts`(`id`) ON UPDATE no action ON DELETE set null,
-	CONSTRAINT "arknights_apk_deployments_status_check" CHECK("arknights_apk_deployments"."status" IN ('pending', 'running', 'succeeded', 'failed', 'timed_out')),
-	CONSTRAINT "arknights_apk_deployments_last_ai_status_check" CHECK("arknights_apk_deployments"."last_ai_status" IS NULL OR "arknights_apk_deployments"."last_ai_status" IN ('success', 'running', 'failed', 'unknown'))
+	CONSTRAINT "arknights_apk_host_runs_status_check" CHECK("arknights_apk_host_runs"."status" IN ('pending', 'running', 'succeeded', 'failed', 'timed_out')),
+	CONSTRAINT "arknights_apk_host_runs_last_ai_status_check" CHECK("arknights_apk_host_runs"."last_ai_status" IS NULL OR "arknights_apk_host_runs"."last_ai_status" IN ('success', 'running', 'failed', 'unknown'))
 );
 --> statement-breakpoint
-CREATE INDEX `idx_arknights_apk_deployments_status_next_check` ON `arknights_apk_deployments` (`status`,`next_check_at`);--> statement-breakpoint
-CREATE INDEX `idx_arknights_apk_deployments_status_created` ON `arknights_apk_deployments` (`status`,`created_at`,`id`);--> statement-breakpoint
-CREATE UNIQUE INDEX `arknights_apk_deployments_release_id_host_id_unique` ON `arknights_apk_deployments` (`release_id`,`host_id`);--> statement-breakpoint
+CREATE INDEX `idx_arknights_apk_host_runs_status_next_check` ON `arknights_apk_host_runs` (`status`,`next_check_at`);--> statement-breakpoint
+CREATE INDEX `idx_arknights_apk_host_runs_status_created` ON `arknights_apk_host_runs` (`status`,`created_at`,`id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `arknights_apk_host_runs_release_id_host_id_unique` ON `arknights_apk_host_runs` (`release_id`,`host_id`);--> statement-breakpoint
 CREATE TABLE `arknights_apk_releases` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`apk_filename` text NOT NULL,

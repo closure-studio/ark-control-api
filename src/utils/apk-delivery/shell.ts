@@ -1,6 +1,7 @@
-import { LOG_READ_BYTES } from "../../constants/watcher/config";
+import { LOG_READ_BYTES } from "../../constants/apk-delivery/config";
 import { isSafeApkFilename } from "./apk";
 
+// These on-host protocol values stay stable so existing Helper runs remain observable.
 export const HOST_PROCESS_META_MARKER = "__ARK_WATCHER_PROCESS_META__";
 
 function assertSafeApkFilename(apkFilename: string): void {

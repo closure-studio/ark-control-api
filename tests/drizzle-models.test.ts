@@ -19,8 +19,11 @@ import {
   claimMaintenanceAnnouncement,
   completeMaintenanceAnnouncement
 } from "../src/repositories/maintenance/announcements";
+import {
+  acquireControlJobLock,
+  releaseControlJobLock
+} from "../src/repositories/control-job-locks";
 import { VpsHostRepository } from "../src/repositories/vps/vps-hosts";
-import { acquireAppStateLock, releaseAppStateLock } from "../src/repositories/watcher/app-state";
 import {
   countHostRuns,
   countRunsByReleaseIds,
@@ -30,8 +33,8 @@ import {
   listHostRuns,
   markHostRunStarted,
   updateHostRunReview
-} from "../src/repositories/watcher/host-runs";
-import { getOrCreateRelease } from "../src/repositories/watcher/releases";
+} from "../src/repositories/apk-delivery/host-runs";
+import { getOrCreateRelease } from "../src/repositories/apk-delivery/releases";
 import { applyD1Migrations } from "./helpers/migrations";
 
 describe("Drizzle D1 models", () => {
@@ -53,7 +56,7 @@ describe("Drizzle D1 models", () => {
 
   beforeEach(async () => {
     await db.exec(`
-      DELETE FROM arknights_apk_deployments;
+      DELETE FROM arknights_apk_host_runs;
       DELETE FROM arknights_apk_releases;
       DELETE FROM arknights_maintenance_announcements;
       DELETE FROM gcp_operation_logs;
@@ -135,7 +138,7 @@ describe("Drizzle D1 models", () => {
     expect(await repository.listEnabled()).toEqual([updated]);
   });
 
-  it("runs deployment conflicts, scheduling, and aggregations", async () => {
+  it("runs host-run conflicts, scheduling, and aggregations", async () => {
     const host = await new VpsHostRepository(db).create(
       {
         name: "Deploy Host",
@@ -190,39 +193,39 @@ describe("Drizzle D1 models", () => {
 
   it("atomically acquires, rejects, replaces, and releases locks", async () => {
     expect(
-      await acquireAppStateLock(
+      await acquireControlJobLock(
         db,
-        "pipeline",
+        "apk-delivery",
         "owner-one",
         "2026-07-16T00:10:00.000Z",
         "2026-07-16T00:00:00.000Z"
       )
     ).toBe(true);
     expect(
-      await acquireAppStateLock(
+      await acquireControlJobLock(
         db,
-        "pipeline",
+        "apk-delivery",
         "owner-two",
         "2026-07-16T00:15:00.000Z",
         "2026-07-16T00:05:00.000Z"
       )
     ).toBe(false);
     expect(
-      await acquireAppStateLock(
+      await acquireControlJobLock(
         db,
-        "pipeline",
+        "apk-delivery",
         "owner-two",
         "2026-07-16T00:20:00.000Z",
         "2026-07-16T00:10:00.000Z"
       )
     ).toBe(true);
 
-    await releaseAppStateLock(db, "pipeline", "owner-one");
-    await releaseAppStateLock(db, "pipeline", "owner-two");
+    await releaseControlJobLock(db, "apk-delivery", "owner-one");
+    await releaseControlJobLock(db, "apk-delivery", "owner-two");
     expect(
-      await acquireAppStateLock(
+      await acquireControlJobLock(
         db,
-        "pipeline",
+        "apk-delivery",
         "owner-three",
         "2026-07-16T00:25:00.000Z",
         "2026-07-16T00:11:00.000Z"

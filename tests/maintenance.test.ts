@@ -235,7 +235,7 @@ describe("maintenance monitor contracts", () => {
 
 describe("scheduled cron routing", () => {
   it("routes only known schedules", () => {
-    expect(scheduledTaskForCron("*/10 * * * *")).toBe("watcher");
+    expect(scheduledTaskForCron("*/10 * * * *")).toBe("apk-delivery");
     expect(scheduledTaskForCron("17 * * * *")).toBe("maintenance");
     expect(scheduledTaskForCron("15 3 * * *")).toBe("retention");
     expect(scheduledTaskForCron("0 0 * * *")).toBeNull();

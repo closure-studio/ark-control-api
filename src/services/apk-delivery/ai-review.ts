@@ -1,16 +1,16 @@
-import { AI_REVIEW_MAX_TOKENS, DEFAULT_AI_MODEL } from "../../constants/watcher/config";
-import { AI_REVIEW_STATUSES } from "../../constants/watcher/status";
+import { AI_REVIEW_MAX_TOKENS, DEFAULT_AI_MODEL } from "../../constants/apk-delivery/config";
+import { AI_REVIEW_STATUSES } from "../../constants/apk-delivery/status";
 import type { Env } from "../../schemas/env";
 import * as v from "valibot";
 import {
   AiProviderResponseSchema,
   type AiReviewWithModel
-} from "../../schemas/watcher/ai";
-import { parseAiReviewJson } from "../../utils/watcher/ai";
+} from "../../schemas/apk-delivery/ai";
+import { parseAiReviewJson } from "../../utils/apk-delivery/ai";
 
 function buildPrompt(logTail: string): string {
   return [
-    "Review this Ark Watcher VPS deployment log.",
+    "Review this Ark APK delivery VPS deployment log.",
     "The Helper process has exited with code 0. Determine the final result of the complete deployment flow.",
     'Return only a JSON object with this exact schema: {"status":"success|running|failed|unknown","reason":"short explanation"}.',
     "Do not wrap the JSON in Markdown or add any extra text.",
@@ -73,7 +73,7 @@ export async function reviewLogWithAi(env: Env, logTail: string): Promise<AiRevi
     response_format: {
       type: "json_schema",
       json_schema: {
-        name: "ark_watcher_deployment_review",
+        name: "ark_apk_delivery_review",
         strict: true,
         schema: {
           type: "object",

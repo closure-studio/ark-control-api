@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import * as v from "valibot";
 
 import { PaginationQuerySchema } from "../src/schemas/pagination";
-import { HostRunListQuerySchema } from "../src/schemas/watcher/requests";
+import { HostRunListQuerySchema } from "../src/schemas/apk-delivery/requests";
 
 describe("pagination validation", () => {
   it("provides defaults in the validated output", () => {

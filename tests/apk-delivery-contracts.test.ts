@@ -4,21 +4,21 @@ import * as v from "valibot";
 import {
   HostLogSnapshotSchema,
   HostProcessStateSchema
-} from "../src/schemas/watcher/log";
+} from "../src/schemas/apk-delivery/log";
 import {
   NotificationEventSchema,
   NotificationMessageSchema
-} from "../src/schemas/watcher/notifications";
+} from "../src/schemas/apk-delivery/notifications";
 import {
   HostRunStatusSchema,
   TerminalHostRunStatusSchema,
   isTerminalHostRunStatus
-} from "../src/schemas/watcher/status";
-import { parseHostLogSnapshot } from "../src/utils/watcher/log";
-import { buildNotificationMessage } from "../src/utils/watcher/notification-message";
-import { HOST_PROCESS_META_MARKER } from "../src/utils/watcher/shell";
+} from "../src/schemas/apk-delivery/status";
+import { parseHostLogSnapshot } from "../src/utils/apk-delivery/log";
+import { buildNotificationMessage } from "../src/utils/apk-delivery/notification-message";
+import { HOST_PROCESS_META_MARKER } from "../src/utils/apk-delivery/shell";
 
-describe("watcher contracts", () => {
+describe("APK delivery contracts", () => {
   it("validates host run and terminal status values", () => {
     expect(v.safeParse(HostRunStatusSchema, "pending").success).toBe(true);
     expect(v.safeParse(HostRunStatusSchema, "invalid").success).toBe(false);
@@ -71,7 +71,7 @@ describe("watcher contracts", () => {
     ).toBe(false);
     expect(
       v.safeParse(NotificationEventSchema, {
-        type: "pipeline_started",
+        type: "deployment_started",
         hostId: 7
       }).success
     ).toBe(false);

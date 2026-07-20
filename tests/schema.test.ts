@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { applySqliteMigrations, migrationFiles } from "./helpers/migrations";
 
 const businessTables = [
-  "arknights_apk_deployments",
+  "arknights_apk_host_runs",
   "arknights_apk_releases",
   "arknights_maintenance_announcements",
   "control_job_locks",
@@ -50,7 +50,7 @@ describe("control database baseline", () => {
       ]);
       expect(columns("gcp_accounts")).not.toContain("project_number");
       expect(columns("gcp_operation_logs")).not.toContain("completed_at");
-      expect(columns("arknights_apk_deployments")).not.toEqual(
+      expect(columns("arknights_apk_host_runs")).not.toEqual(
         expect.arrayContaining(["host_port_snapshot", "host_username_snapshot", "attempt_count"])
       );
 
@@ -61,9 +61,9 @@ describe("control database baseline", () => {
       expect(indexes).toEqual(
         expect.arrayContaining([
           "idx_gcp_operation_logs_created",
-          "idx_arknights_apk_deployments_status_next_check",
-          "idx_arknights_apk_deployments_status_created",
-          "arknights_apk_deployments_release_id_host_id_unique"
+          "idx_arknights_apk_host_runs_status_next_check",
+          "idx_arknights_apk_host_runs_status_created",
+          "arknights_apk_host_runs_release_id_host_id_unique"
         ])
       );
       expect(indexes).not.toEqual(
@@ -78,7 +78,7 @@ describe("control database baseline", () => {
     }
   });
 
-  it("enforces keys and preserves operation and deployment history", () => {
+  it("enforces keys and preserves operation and host-run history", () => {
     const db = new DatabaseSync(":memory:");
     try {
       db.exec("PRAGMA foreign_keys = ON");
@@ -97,7 +97,7 @@ describe("control database baseline", () => {
         INSERT INTO arknights_apk_releases (
           id, apk_filename, final_url, detected_at
         ) VALUES (1, 'release.apk', 'https://example.com/release.apk', '2026-01-01T00:00:00.000Z');
-        INSERT INTO arknights_apk_deployments (
+        INSERT INTO arknights_apk_host_runs (
           id, release_id, host_id, host_name_snapshot, host_address_snapshot,
           status, created_at, updated_at
         ) VALUES (
@@ -125,11 +125,11 @@ describe("control database baseline", () => {
         db.prepare("SELECT account_id FROM gcp_operation_logs WHERE id = 1").get()
       ).toMatchObject({ account_id: null });
       expect(
-        db.prepare("SELECT host_id FROM arknights_apk_deployments WHERE id = 1").get()
+        db.prepare("SELECT host_id FROM arknights_apk_host_runs WHERE id = 1").get()
       ).toMatchObject({ host_id: null });
 
       db.exec("DELETE FROM arknights_apk_releases WHERE id = 1");
-      expect(db.prepare("SELECT id FROM arknights_apk_deployments WHERE id = 1").get()).toBeUndefined();
+      expect(db.prepare("SELECT id FROM arknights_apk_host_runs WHERE id = 1").get()).toBeUndefined();
     } finally {
       db.close();
     }

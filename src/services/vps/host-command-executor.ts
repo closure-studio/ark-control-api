@@ -21,6 +21,19 @@ interface HostCommandDependencies {
   executeSshCommand: SshCommandExecutor;
 }
 
+const MAX_SSH_CONNECTION_ATTEMPTS = 3;
+
+async function executeSshCommandWithRetries(
+  executeSshCommand: SshCommandExecutor,
+  request: NormalizedExecuteSshCommandRequest,
+  attemptsRemaining = MAX_SSH_CONNECTION_ATTEMPTS
+): Promise<ExecuteHostCommandResult> {
+  const validation = v.safeParse(ExecuteHostCommandResultSchema, await executeSshCommand(request));
+  if (!validation.success) throw new Error("ssh_response_invalid");
+  if (validation.output.connected || attemptsRemaining === 1) return validation.output;
+  return executeSshCommandWithRetries(executeSshCommand, request, attemptsRemaining - 1);
+}
+
 export function createHostCommandExecutor(dependencies: HostCommandDependencies) {
   return async function executeHostCommandWithDependencies(
     env: Env,
@@ -37,7 +50,7 @@ export function createHostCommandExecutor(dependencies: HostCommandDependencies)
     const password = await crypto.decrypt(host.password_ciphertext);
     const command = selectCommand(validation.output);
 
-    const result = await dependencies.executeSshCommand({
+    return executeSshCommandWithRetries(dependencies.executeSshCommand, {
       hostname: host.address,
       port: host.port,
       username: host.username,
@@ -45,9 +58,6 @@ export function createHostCommandExecutor(dependencies: HostCommandDependencies)
       command,
       timeoutMs: validation.output.timeoutMs
     });
-    const resultValidation = v.safeParse(ExecuteHostCommandResultSchema, result);
-    if (!resultValidation.success) throw new Error("ssh_response_invalid");
-    return resultValidation.output;
   };
 }
 

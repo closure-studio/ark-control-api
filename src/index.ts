@@ -2,15 +2,15 @@ import { createRouter } from "./router";
 import { oidcRouter, shouldHandleOidcRequest } from "./router/oidc";
 import type { Env } from "./schemas/env";
 import { runMaintenanceMonitor } from "./services/maintenance/monitor";
-import { runPipelineForEnv } from "./services/watcher/pipeline";
+import { runApkDeliveryCycle } from "./services/apk-delivery/deployment-lifecycle";
 import { runRetentionCleanup } from "./services/retention";
 
 export const api = createRouter();
 
-export type ScheduledTask = "watcher" | "maintenance" | "retention";
+export type ScheduledTask = "apk-delivery" | "maintenance" | "retention";
 
 export function scheduledTaskForCron(cron: string): ScheduledTask | null {
-  if (cron === "*/10 * * * *") return "watcher";
+  if (cron === "*/10 * * * *") return "apk-delivery";
   if (cron === "17 * * * *") return "maintenance";
   if (cron === "15 3 * * *") return "retention";
   return null;
@@ -39,6 +39,6 @@ export default {
       ctx.waitUntil(runMaintenanceMonitor(env));
       return;
     }
-    ctx.waitUntil(runPipelineForEnv(env));
+    ctx.waitUntil(runApkDeliveryCycle(env));
   }
 } satisfies ExportedHandler<Env>;

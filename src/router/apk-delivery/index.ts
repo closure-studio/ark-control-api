@@ -6,14 +6,14 @@ import {
   listHostRuns,
   listReleaseRuns,
   listReleaseSummaries
-} from "../../controller/watcher";
+} from "../../controller/apk-delivery";
 import { PaginationQuerySchema } from "../../schemas/pagination";
 import { IdParamSchema } from "../../schemas/params";
-import { HostRunListQuerySchema } from "../../schemas/watcher/requests";
+import { HostRunListQuerySchema } from "../../schemas/apk-delivery/requests";
 import type { Env } from "../../schemas/env";
 import { jsonData, jsonError, validationErrorHook } from "../../utils/http";
 
-export function createWatcherRouter() {
+export function createApkDeliveryRouter() {
   const router = new Hono<{ Bindings: Env }>();
 
   router.get(

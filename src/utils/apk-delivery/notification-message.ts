@@ -1,8 +1,8 @@
 import type {
   NotificationEvent,
   NotificationMessage
-} from "../../schemas/watcher/notifications";
-import type { TerminalHostRunStatus } from "../../schemas/watcher/status";
+} from "../../schemas/apk-delivery/notifications";
+import type { TerminalHostRunStatus } from "../../schemas/apk-delivery/status";
 
 const TERMINAL_STATUS_MESSAGES: Record<TerminalHostRunStatus, { title: string; label: string }> = {
   succeeded: { title: "✅ Helper 部署完成", label: "成功" },
@@ -12,7 +12,7 @@ const TERMINAL_STATUS_MESSAGES: Record<TerminalHostRunStatus, { title: string; l
 
 export function buildNotificationMessage(event: NotificationEvent): NotificationMessage {
   switch (event.type) {
-    case "pipeline_started":
+    case "deployment_started":
       return {
         eventType: event.type,
         message: `📦 检测到新版本\n\nAPK：${event.apkFilename}\n状态：开始部署`,

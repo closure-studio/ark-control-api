@@ -1,4 +1,4 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import type { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
 
 import { createDatabase, type Database } from "../../db/client";
@@ -87,7 +87,7 @@ export class VpsHostRepository {
     };
 
     if (Object.keys(values).length === 0) return this.findById(id);
-    values.updated_at = sql`strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
+    values.updated_at = new Date().toISOString();
     await this.db.update(vpsHosts).set(values).where(eq(vpsHosts.id, id)).run();
     return this.findById(id);
   }

@@ -100,8 +100,8 @@ export const arknightsApkReleases = sqliteTable(
   (table) => [index("idx_arknights_apk_releases_detected").on(table.detected_at)]
 );
 
-export const arknightsApkDeployments = sqliteTable(
-  "arknights_apk_deployments",
+export const arknightsApkHostRuns = sqliteTable(
+  "arknights_apk_host_runs",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
     release_id: integer("release_id")
@@ -128,22 +128,22 @@ export const arknightsApkDeployments = sqliteTable(
   },
   (table) => [
     check(
-      "arknights_apk_deployments_status_check",
+      "arknights_apk_host_runs_status_check",
       sql`${table.status} IN ('pending', 'running', 'succeeded', 'failed', 'timed_out')`
     ),
     check(
-      "arknights_apk_deployments_last_ai_status_check",
+      "arknights_apk_host_runs_last_ai_status_check",
       sql`${table.last_ai_status} IS NULL OR ${table.last_ai_status} IN ('success', 'running', 'failed', 'unknown')`
     ),
-    unique("arknights_apk_deployments_release_id_host_id_unique").on(
+    unique("arknights_apk_host_runs_release_id_host_id_unique").on(
       table.release_id,
       table.host_id
     ),
-    index("idx_arknights_apk_deployments_status_next_check").on(
+    index("idx_arknights_apk_host_runs_status_next_check").on(
       table.status,
       table.next_check_at
     ),
-    index("idx_arknights_apk_deployments_status_created").on(
+    index("idx_arknights_apk_host_runs_status_created").on(
       table.status,
       table.created_at,
       table.id
@@ -184,4 +184,4 @@ export const arknightsMaintenanceAnnouncements = sqliteTable(
 export type GcpAccountRow = typeof gcpAccounts.$inferSelect;
 export type VpsHostRow = typeof vpsHosts.$inferSelect;
 export type ArknightsApkReleaseRow = typeof arknightsApkReleases.$inferSelect;
-export type ArknightsApkDeploymentRow = typeof arknightsApkDeployments.$inferSelect;
+export type ArknightsApkHostRunRow = typeof arknightsApkHostRuns.$inferSelect;

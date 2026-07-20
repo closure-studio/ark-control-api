@@ -1,8 +1,8 @@
-import { LOG_TAIL_BYTES } from "../../constants/watcher/config";
+import { LOG_TAIL_BYTES } from "../../constants/apk-delivery/config";
 import type {
   HostLogSnapshot,
   HostProcessState
-} from "../../schemas/watcher/log";
+} from "../../schemas/apk-delivery/log";
 import { HOST_PROCESS_META_MARKER } from "./shell";
 
 const ANSI_ESCAPE_PATTERN = /[\u001B\u009B][[\]()#;?]*(?:(?:(?:[a-zA-Z\d]*(?:;[-a-zA-Z\d/#&.:=?%@~_]+)*)?\u0007)|(?:(?:\d{1,4}(?:[;:]\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]))/g;

@@ -2,7 +2,7 @@ import * as v from "valibot";
 
 import { TerminalHostRunStatusSchema } from "./status";
 
-const NotifyPipelineStartedInputEntries = {
+const NotifyDeploymentStartedInputEntries = {
   apkFilename: v.string()
 };
 
@@ -15,21 +15,21 @@ const NotifyHelperDeployTerminalInputEntries = {
 };
 
 export const NotificationEventTypeSchema = v.picklist([
-  "pipeline_started",
+  "deployment_started",
   "helper_deploy_terminal"
 ]);
 
-export const NotifyPipelineStartedInputSchema = v.object(
-  NotifyPipelineStartedInputEntries
+export const NotifyDeploymentStartedInputSchema = v.object(
+  NotifyDeploymentStartedInputEntries
 );
 
 export const NotifyHelperDeployTerminalInputSchema = v.object(
   NotifyHelperDeployTerminalInputEntries
 );
 
-export const PipelineStartedNotificationSchema = v.object({
-  type: v.literal("pipeline_started"),
-  ...NotifyPipelineStartedInputEntries
+export const DeploymentStartedNotificationSchema = v.object({
+  type: v.literal("deployment_started"),
+  ...NotifyDeploymentStartedInputEntries
 });
 
 export const HelperDeployTerminalNotificationSchema = v.object({
@@ -38,7 +38,7 @@ export const HelperDeployTerminalNotificationSchema = v.object({
 });
 
 export const NotificationEventSchema = v.variant("type", [
-  PipelineStartedNotificationSchema,
+  DeploymentStartedNotificationSchema,
   HelperDeployTerminalNotificationSchema
 ]);
 
@@ -48,14 +48,14 @@ export const NotificationMessageSchema = v.object({
 });
 
 export type NotificationEventType = v.InferOutput<typeof NotificationEventTypeSchema>;
-export type NotifyPipelineStartedInput = v.InferOutput<
-  typeof NotifyPipelineStartedInputSchema
+export type NotifyDeploymentStartedInput = v.InferOutput<
+  typeof NotifyDeploymentStartedInputSchema
 >;
 export type NotifyHelperDeployTerminalInput = v.InferOutput<
   typeof NotifyHelperDeployTerminalInputSchema
 >;
-export type PipelineStartedNotification = v.InferOutput<
-  typeof PipelineStartedNotificationSchema
+export type DeploymentStartedNotification = v.InferOutput<
+  typeof DeploymentStartedNotificationSchema
 >;
 export type HelperDeployTerminalNotification = v.InferOutput<
   typeof HelperDeployTerminalNotificationSchema

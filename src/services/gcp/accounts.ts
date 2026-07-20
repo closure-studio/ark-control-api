@@ -1,4 +1,4 @@
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 
 import { createDatabase } from "../../db/client";
 import { gcpAccounts, type GcpAccountRow } from "../../db/schema";
@@ -100,7 +100,7 @@ export async function updateAccount(
       workload_identity_provider: workloadIdentityProvider,
       default_zone: defaultZone,
       enabled,
-      updated_at: sql`strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`
+      updated_at: new Date().toISOString()
     })
     .where(eq(gcpAccounts.id, accountId))
     .run();

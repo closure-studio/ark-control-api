@@ -2,9 +2,9 @@ import type { Env } from "../../schemas/env";
 import type {
   NotificationEvent,
   NotifyHelperDeployTerminalInput,
-  NotifyPipelineStartedInput
-} from "../../schemas/watcher/notifications";
-import { buildNotificationMessage } from "../../utils/watcher/notification-message";
+  NotifyDeploymentStartedInput
+} from "../../schemas/apk-delivery/notifications";
+import { buildNotificationMessage } from "../../utils/apk-delivery/notification-message";
 import { sendQqBotAutoMessage } from "../notifications/qq-bot";
 
 export interface NotificationRuntime {
@@ -77,15 +77,15 @@ async function notifyEvent(env: Env, event: NotificationEvent, runtime: Notifica
   }
 }
 
-export async function notifyPipelineStarted(
+export async function notifyDeploymentStarted(
   env: Env,
-  input: NotifyPipelineStartedInput,
+  input: NotifyDeploymentStartedInput,
   runtime: NotificationRuntime = {},
 ): Promise<void> {
   await notifyEvent(
     env,
     {
-      type: "pipeline_started",
+      type: "deployment_started",
       apkFilename: input.apkFilename,
     },
     runtime,

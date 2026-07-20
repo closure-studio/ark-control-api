@@ -1,7 +1,7 @@
 # ark-control-api
 
 Cloudflare Worker for the Ark control plane. It owns the single D1 database,
-GCP Workload Identity Federation, VPS configuration, Watcher automation,
+GCP Workload Identity Federation, VPS configuration, APK delivery automation,
 Workers AI, OIDC discovery/JWKS, and scheduled jobs.
 
 ## Setup
@@ -65,9 +65,10 @@ Deploy `ark-ssh` before the first deployment of this Worker. Update
 OIDC domain.
 
 The authenticated control surface is exposed under `/api/vps`, `/api/accounts`,
-`/api/operations`, `/api/releases`, and `/api/runs`. The migrations
-create the seven-table schema, including the `arknights_maintenance_announcements` table
-used by the scheduled Arknights maintenance monitor.
+`/api/operations`, `/api/releases`, and `/api/runs`. The migrations create the
+seven-table schema, including `arknights_apk_host_runs` for per-VPS Helper
+execution history and `arknights_maintenance_announcements` for the scheduled
+Arknights maintenance monitor.
 
 ## Architecture
 
@@ -88,11 +89,19 @@ src/
 ```
 
 The HTTP dependency direction is `router -> controller -> service/repository`.
-The current router and controller domains are `gcp`, `health`, `oidc`,
-`pyhelper`, `vps`, and `watcher`. Cross-cutting HTTP helpers stay in
+The current router and controller domains are `apk-delivery`, `gcp`, `health`,
+`oidc`, `pyhelper`, and `vps`. Cross-cutting HTTP helpers stay in
 `src/utils/http`; request, response, environment, and domain data contracts stay
 under `src/schemas` and export types inferred with Valibot. Shared and
 domain-specific constants stay under `src/constants/<domain>`.
+
+The APK delivery workflow is owned by
+`src/services/apk-delivery/deployment-lifecycle.ts`. One Deployment rolls an APK
+Release out to the VPS hosts enabled at detection time, while each Host Run is
+tracked independently in D1 until Helper finishes. The scheduled entrypoint and
+tests use the same lifecycle interface. All managed SSH commands retry
+immediately up to three total connection attempts only when the SSH adapter
+returns `connected: false`.
 
 The maintenance monitor runs at `17 * * * *`. It fetches the latest ten
 announcements from `https://ak.hypergryph.com/news`, applies deterministic

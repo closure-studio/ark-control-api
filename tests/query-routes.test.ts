@@ -5,11 +5,11 @@ import * as v from "valibot";
 import { api } from "../src";
 import type { Env } from "../src/schemas/env";
 import { GcpOperationsResponseSchema } from "../src/schemas/gcp/responses";
-import { RunListResponseSchema } from "../src/schemas/watcher/responses";
+import { RunListResponseSchema } from "../src/schemas/apk-delivery/responses";
 import { recordOperation } from "../src/services/gcp/operations";
 import { VpsHostRepository } from "../src/repositories/vps/vps-hosts";
-import { getOrCreateHostRun } from "../src/repositories/watcher/host-runs";
-import { getOrCreateRelease } from "../src/repositories/watcher/releases";
+import { getOrCreateHostRun } from "../src/repositories/apk-delivery/host-runs";
+import { getOrCreateRelease } from "../src/repositories/apk-delivery/releases";
 import { applyD1Migrations } from "./helpers/migrations";
 
 const AUTHORIZATION_HEADERS = { authorization: "Bearer secret" };
@@ -33,7 +33,7 @@ describe("atomic query routes", () => {
 
   beforeEach(async () => {
     await db.exec(`
-      DELETE FROM arknights_apk_deployments;
+      DELETE FROM arknights_apk_host_runs;
       DELETE FROM arknights_apk_releases;
       DELETE FROM gcp_operation_logs;
       DELETE FROM vps_hosts;

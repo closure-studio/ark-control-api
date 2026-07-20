@@ -1,26 +1,26 @@
 import { and, asc, count, desc, eq, inArray, isNotNull, lte } from "drizzle-orm";
 
 import { createDatabase } from "../../db/client";
-import { arknightsApkDeployments } from "../../db/schema";
-import { NON_TERMINAL_HOST_RUN_STATUSES } from "../../constants/watcher/status";
-import type { ArknightsApkDeploymentRow as HostRunRow } from "../../db/schema";
+import { arknightsApkHostRuns } from "../../db/schema";
+import { NON_TERMINAL_HOST_RUN_STATUSES } from "../../constants/apk-delivery/status";
+import type { ArknightsApkHostRunRow } from "../../db/schema";
 import type { ServiceVpsHost } from "../../schemas/vps/hosts";
-import type { AiReviewStatus } from "../../schemas/watcher/ai";
-import type { HostRunStatus } from "../../schemas/watcher/status";
+import type { AiReviewStatus } from "../../schemas/apk-delivery/ai";
+import type { HostRunStatus } from "../../schemas/apk-delivery/status";
 
 export async function getHostRunForReleaseHost(
   db: D1Database,
   releaseId: number,
   hostId: number
-): Promise<HostRunRow | null> {
+): Promise<ArknightsApkHostRunRow | null> {
   return (
     (await createDatabase(db)
       .select()
-      .from(arknightsApkDeployments)
+      .from(arknightsApkHostRuns)
       .where(
         and(
-          eq(arknightsApkDeployments.release_id, releaseId),
-          eq(arknightsApkDeployments.host_id, hostId)
+          eq(arknightsApkHostRuns.release_id, releaseId),
+          eq(arknightsApkHostRuns.host_id, hostId)
         )
       )
       .get()) ?? null
@@ -32,9 +32,9 @@ export async function getOrCreateHostRun(
   releaseId: number,
   host: ServiceVpsHost,
   now: string
-): Promise<HostRunRow> {
+): Promise<ArknightsApkHostRunRow> {
   await createDatabase(db)
-    .insert(arknightsApkDeployments)
+    .insert(arknightsApkHostRuns)
     .values({
       release_id: releaseId,
       host_id: host.id,
@@ -45,20 +45,20 @@ export async function getOrCreateHostRun(
       updated_at: now
     })
     .onConflictDoNothing({
-      target: [arknightsApkDeployments.release_id, arknightsApkDeployments.host_id]
+      target: [arknightsApkHostRuns.release_id, arknightsApkHostRuns.host_id]
     })
     .run();
 
   const row = await getHostRunForReleaseHost(db, releaseId, host.id);
-  if (!row) throw new Error("deployment_get_or_create_failed");
+  if (!row) throw new Error("host_run_get_or_create_failed");
   return row;
 }
 
 export async function hasNonTerminalHostRuns(db: D1Database): Promise<boolean> {
   const row = await createDatabase(db)
-    .select({ id: arknightsApkDeployments.id })
-    .from(arknightsApkDeployments)
-    .where(inArray(arknightsApkDeployments.status, [...NON_TERMINAL_HOST_RUN_STATUSES]))
+    .select({ id: arknightsApkHostRuns.id })
+    .from(arknightsApkHostRuns)
+    .where(inArray(arknightsApkHostRuns.status, [...NON_TERMINAL_HOST_RUN_STATUSES]))
     .limit(1)
     .get();
   return Boolean(row);
@@ -71,13 +71,13 @@ export async function countRunsByReleaseIds(
   if (releaseIds.length === 0) return {};
   const rows = await createDatabase(db)
     .select({
-      release_id: arknightsApkDeployments.release_id,
-      status: arknightsApkDeployments.status,
+      release_id: arknightsApkHostRuns.release_id,
+      status: arknightsApkHostRuns.status,
       count: count()
     })
-    .from(arknightsApkDeployments)
-    .where(inArray(arknightsApkDeployments.release_id, releaseIds))
-    .groupBy(arknightsApkDeployments.release_id, arknightsApkDeployments.status)
+    .from(arknightsApkHostRuns)
+    .where(inArray(arknightsApkHostRuns.release_id, releaseIds))
+    .groupBy(arknightsApkHostRuns.release_id, arknightsApkHostRuns.status)
     .all();
 
   return rows.reduce<Record<number, Record<string, number>>>((acc, row) => {
@@ -92,16 +92,16 @@ export async function listHostRuns(
   statuses: readonly HostRunStatus[] | undefined,
   limit: number,
   offset: number
-): Promise<HostRunRow[]> {
+): Promise<ArknightsApkHostRunRow[]> {
   return createDatabase(db)
     .select()
-    .from(arknightsApkDeployments)
+    .from(arknightsApkHostRuns)
     .where(
       statuses === undefined
         ? undefined
-        : inArray(arknightsApkDeployments.status, [...statuses])
+        : inArray(arknightsApkHostRuns.status, [...statuses])
     )
-    .orderBy(desc(arknightsApkDeployments.created_at), desc(arknightsApkDeployments.id))
+    .orderBy(desc(arknightsApkHostRuns.created_at), desc(arknightsApkHostRuns.id))
     .limit(limit)
     .offset(offset)
     .all();
@@ -113,11 +113,11 @@ export async function countHostRuns(
 ): Promise<number> {
   const row = await createDatabase(db)
     .select({ value: count() })
-    .from(arknightsApkDeployments)
+    .from(arknightsApkHostRuns)
     .where(
       statuses === undefined
         ? undefined
-        : inArray(arknightsApkDeployments.status, [...statuses])
+        : inArray(arknightsApkHostRuns.status, [...statuses])
     )
     .get();
   return row?.value ?? 0;
@@ -126,27 +126,27 @@ export async function countHostRuns(
 export async function listDueRunningHostRuns(
   db: D1Database,
   now: string
-): Promise<HostRunRow[]> {
+): Promise<ArknightsApkHostRunRow[]> {
   return createDatabase(db)
     .select()
-    .from(arknightsApkDeployments)
+    .from(arknightsApkHostRuns)
     .where(
       and(
-        eq(arknightsApkDeployments.status, "running"),
-        isNotNull(arknightsApkDeployments.next_check_at),
-        lte(arknightsApkDeployments.next_check_at, now)
+        eq(arknightsApkHostRuns.status, "running"),
+        isNotNull(arknightsApkHostRuns.next_check_at),
+        lte(arknightsApkHostRuns.next_check_at, now)
       )
     )
-    .orderBy(asc(arknightsApkDeployments.next_check_at))
+    .orderBy(asc(arknightsApkHostRuns.next_check_at))
     .all();
 }
 
-export async function listPendingStartHostRuns(db: D1Database): Promise<HostRunRow[]> {
+export async function listPendingStartHostRuns(db: D1Database): Promise<ArknightsApkHostRunRow[]> {
   return createDatabase(db)
     .select()
-    .from(arknightsApkDeployments)
-    .where(eq(arknightsApkDeployments.status, "pending"))
-    .orderBy(asc(arknightsApkDeployments.created_at), asc(arknightsApkDeployments.id))
+    .from(arknightsApkHostRuns)
+    .where(eq(arknightsApkHostRuns.status, "pending"))
+    .orderBy(asc(arknightsApkHostRuns.created_at), asc(arknightsApkHostRuns.id))
     .all();
 }
 
@@ -158,7 +158,7 @@ export async function markHostRunStarted(
   deadlineAt: string
 ): Promise<void> {
   await createDatabase(db)
-    .update(arknightsApkDeployments)
+    .update(arknightsApkHostRuns)
     .set({
       status: "running",
       started_at: startedAt,
@@ -167,7 +167,7 @@ export async function markHostRunStarted(
       error_message: null,
       updated_at: startedAt
     })
-    .where(eq(arknightsApkDeployments.id, id))
+    .where(eq(arknightsApkHostRuns.id, id))
     .run();
 }
 
@@ -180,14 +180,14 @@ export async function updateHostRunStatus(
   nextCheckAt: string | null = null
 ): Promise<void> {
   await createDatabase(db)
-    .update(arknightsApkDeployments)
+    .update(arknightsApkHostRuns)
     .set({
       status,
       error_message: errorMessage,
       next_check_at: nextCheckAt,
       updated_at: now
     })
-    .where(eq(arknightsApkDeployments.id, id))
+    .where(eq(arknightsApkHostRuns.id, id))
     .run();
 }
 
@@ -203,7 +203,7 @@ export async function updateHostRunExecution(
   }
 ): Promise<void> {
   await createDatabase(db)
-    .update(arknightsApkDeployments)
+    .update(arknightsApkHostRuns)
     .set({
       status: input.status,
       last_checked_at: input.now,
@@ -212,7 +212,7 @@ export async function updateHostRunExecution(
       error_message: input.errorMessage,
       updated_at: input.now
     })
-    .where(eq(arknightsApkDeployments.id, id))
+    .where(eq(arknightsApkHostRuns.id, id))
     .run();
 }
 
@@ -230,7 +230,7 @@ export async function updateHostRunReview(
   }
 ): Promise<void> {
   await createDatabase(db)
-    .update(arknightsApkDeployments)
+    .update(arknightsApkHostRuns)
     .set({
       status: input.status,
       last_checked_at: input.now,
@@ -241,28 +241,28 @@ export async function updateHostRunReview(
       error_message: input.errorMessage,
       updated_at: input.now
     })
-    .where(eq(arknightsApkDeployments.id, id))
+    .where(eq(arknightsApkHostRuns.id, id))
     .run();
 }
 
 export async function listRunsForRelease(
   db: D1Database,
   releaseId: number
-): Promise<HostRunRow[]> {
+): Promise<ArknightsApkHostRunRow[]> {
   return createDatabase(db)
     .select()
-    .from(arknightsApkDeployments)
-    .where(eq(arknightsApkDeployments.release_id, releaseId))
-    .orderBy(asc(arknightsApkDeployments.host_id), asc(arknightsApkDeployments.id))
+    .from(arknightsApkHostRuns)
+    .where(eq(arknightsApkHostRuns.release_id, releaseId))
+    .orderBy(asc(arknightsApkHostRuns.host_id), asc(arknightsApkHostRuns.id))
     .all();
 }
 
-export async function getHostRun(db: D1Database, id: number): Promise<HostRunRow | null> {
+export async function getHostRun(db: D1Database, id: number): Promise<ArknightsApkHostRunRow | null> {
   return (
     (await createDatabase(db)
       .select()
-      .from(arknightsApkDeployments)
-      .where(eq(arknightsApkDeployments.id, id))
+      .from(arknightsApkHostRuns)
+      .where(eq(arknightsApkHostRuns.id, id))
       .get()) ?? null
   );
 }

@@ -1,4 +1,4 @@
-import { and, eq, lte, sql } from "drizzle-orm";
+import { and, eq, lte } from "drizzle-orm";
 
 import { createDatabase } from "../db/client";
 import { controlJobLocks } from "../db/schema";
@@ -16,11 +16,11 @@ export async function acquireControlJobLock(
     .onConflictDoUpdate({
       target: controlJobLocks.job_name,
       set: {
-        owner: sql`excluded.owner`,
-        acquired_at: sql`excluded.acquired_at`,
-        expires_at: sql`excluded.expires_at`
+        owner,
+        acquired_at: now,
+        expires_at: expiresAt
       },
-      setWhere: lte(controlJobLocks.expires_at, sql`excluded.acquired_at`)
+      setWhere: lte(controlJobLocks.expires_at, now)
     })
     .returning({ owner: controlJobLocks.owner })
     .get();

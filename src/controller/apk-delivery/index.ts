@@ -6,9 +6,9 @@ import type {
   ReleaseRunsResponse,
   RunListResponse,
   RunLogResponse
-} from "../../schemas/watcher/responses";
+} from "../../schemas/apk-delivery/responses";
 import type {
-  ArknightsApkDeploymentRow as HostRunRow,
+  ArknightsApkHostRunRow,
   ArknightsApkReleaseRow
 } from "../../db/schema";
 import {
@@ -17,11 +17,11 @@ import {
   getHostRun,
   listHostRuns as listHostRunRows,
   listRunsForRelease
-} from "../../repositories/watcher/host-runs";
-import { getRelease, listReleases } from "../../repositories/watcher/releases";
-import { NON_TERMINAL_HOST_RUN_STATUSES, TERMINAL_HOST_RUN_STATUSES } from "../../constants/watcher/status";
-import type { HostRunListQuery } from "../../schemas/watcher/requests";
-import type { HostRunStatus } from "../../schemas/watcher/status";
+} from "../../repositories/apk-delivery/host-runs";
+import { getRelease, listReleases } from "../../repositories/apk-delivery/releases";
+import { NON_TERMINAL_HOST_RUN_STATUSES, TERMINAL_HOST_RUN_STATUSES } from "../../constants/apk-delivery/status";
+import type { HostRunListQuery } from "../../schemas/apk-delivery/requests";
+import type { HostRunStatus } from "../../schemas/apk-delivery/status";
 
 function toReleaseListItem(
   release: ArknightsApkReleaseRow,
@@ -36,7 +36,7 @@ function toReleaseListItem(
   };
 }
 
-function toReleaseRun(run: HostRunRow): ReleaseRun {
+function toReleaseRun(run: ArknightsApkHostRunRow): ReleaseRun {
   return {
     id: run.id,
     releaseId: run.release_id,

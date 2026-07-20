@@ -1,11 +1,11 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "55463c3e-cc61-4be6-943f-cc93af627531",
+  "id": "45ae6c75-ad94-4854-88d0-35072b4156a0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
-    "arknights_apk_deployments": {
-      "name": "arknights_apk_deployments",
+    "arknights_apk_host_runs": {
+      "name": "arknights_apk_host_runs",
       "columns": {
         "id": {
           "name": "id",
@@ -121,16 +121,16 @@
         }
       },
       "indexes": {
-        "idx_arknights_apk_deployments_status_next_check": {
-          "name": "idx_arknights_apk_deployments_status_next_check",
+        "idx_arknights_apk_host_runs_status_next_check": {
+          "name": "idx_arknights_apk_host_runs_status_next_check",
           "columns": [
             "status",
             "next_check_at"
           ],
           "isUnique": false
         },
-        "idx_arknights_apk_deployments_status_created": {
-          "name": "idx_arknights_apk_deployments_status_created",
+        "idx_arknights_apk_host_runs_status_created": {
+          "name": "idx_arknights_apk_host_runs_status_created",
           "columns": [
             "status",
             "created_at",
@@ -138,8 +138,8 @@
           ],
           "isUnique": false
         },
-        "arknights_apk_deployments_release_id_host_id_unique": {
-          "name": "arknights_apk_deployments_release_id_host_id_unique",
+        "arknights_apk_host_runs_release_id_host_id_unique": {
+          "name": "arknights_apk_host_runs_release_id_host_id_unique",
           "columns": [
             "release_id",
             "host_id"
@@ -148,9 +148,9 @@
         }
       },
       "foreignKeys": {
-        "arknights_apk_deployments_release_id_arknights_apk_releases_id_fk": {
-          "name": "arknights_apk_deployments_release_id_arknights_apk_releases_id_fk",
-          "tableFrom": "arknights_apk_deployments",
+        "arknights_apk_host_runs_release_id_arknights_apk_releases_id_fk": {
+          "name": "arknights_apk_host_runs_release_id_arknights_apk_releases_id_fk",
+          "tableFrom": "arknights_apk_host_runs",
           "tableTo": "arknights_apk_releases",
           "columnsFrom": [
             "release_id"
@@ -161,9 +161,9 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "arknights_apk_deployments_host_id_vps_hosts_id_fk": {
-          "name": "arknights_apk_deployments_host_id_vps_hosts_id_fk",
-          "tableFrom": "arknights_apk_deployments",
+        "arknights_apk_host_runs_host_id_vps_hosts_id_fk": {
+          "name": "arknights_apk_host_runs_host_id_vps_hosts_id_fk",
+          "tableFrom": "arknights_apk_host_runs",
           "tableTo": "vps_hosts",
           "columnsFrom": [
             "host_id"
@@ -178,13 +178,13 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {
-        "arknights_apk_deployments_status_check": {
-          "name": "arknights_apk_deployments_status_check",
-          "value": "\"arknights_apk_deployments\".\"status\" IN ('pending', 'running', 'succeeded', 'failed', 'timed_out')"
+        "arknights_apk_host_runs_status_check": {
+          "name": "arknights_apk_host_runs_status_check",
+          "value": "\"arknights_apk_host_runs\".\"status\" IN ('pending', 'running', 'succeeded', 'failed', 'timed_out')"
         },
-        "arknights_apk_deployments_last_ai_status_check": {
-          "name": "arknights_apk_deployments_last_ai_status_check",
-          "value": "\"arknights_apk_deployments\".\"last_ai_status\" IS NULL OR \"arknights_apk_deployments\".\"last_ai_status\" IN ('success', 'running', 'failed', 'unknown')"
+        "arknights_apk_host_runs_last_ai_status_check": {
+          "name": "arknights_apk_host_runs_last_ai_status_check",
+          "value": "\"arknights_apk_host_runs\".\"last_ai_status\" IS NULL OR \"arknights_apk_host_runs\".\"last_ai_status\" IN ('success', 'running', 'failed', 'unknown')"
         }
       }
     },

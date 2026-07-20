@@ -6,8 +6,8 @@ import { createTaskServerClient } from "../src/services/task-server/client";
 import {
   AiReviewParseResultSchema,
   AiReviewWithModelSchema
-} from "../src/schemas/watcher/ai";
-import { parseAiReviewJson } from "../src/utils/watcher/ai";
+} from "../src/schemas/apk-delivery/ai";
+import { parseAiReviewJson } from "../src/utils/apk-delivery/ai";
 
 describe("external response validation", () => {
   it("rejects malformed Google operation responses", async () => {

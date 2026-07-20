@@ -3,7 +3,7 @@ import * as v from "valibot";
 import {
   HOST_RUN_STATUSES,
   TERMINAL_HOST_RUN_STATUSES
-} from "../../constants/watcher/status";
+} from "../../constants/apk-delivery/status";
 
 export const HostRunStatusSchema = v.picklist(HOST_RUN_STATUSES);
 export const TerminalHostRunStatusSchema = v.picklist(TERMINAL_HOST_RUN_STATUSES);

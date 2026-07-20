@@ -7,7 +7,7 @@ import { createGcpRouter } from "./gcp";
 import { createPyHelperRouter } from "./pyhelper";
 import { createHealthRouter } from "./health";
 import { createVpsRouter } from "./vps";
-import { createWatcherRouter } from "./watcher";
+import { createApkDeliveryRouter } from "./apk-delivery";
 
 export function createRouter() {
   const app = new Hono<{ Bindings: Env }>();
@@ -28,7 +28,7 @@ export function createRouter() {
 
   app.route("/api", createGcpRouter());
   app.route("/api", createVpsRouter());
-  app.route("/api", createWatcherRouter());
+  app.route("/api", createApkDeliveryRouter());
   app.route("/api", createPyHelperRouter());
 
   app.all("/api/*", (c) =>

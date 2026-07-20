@@ -1,5 +1,5 @@
 import * as v from "valibot";
-import { AI_REVIEW_STATUSES } from "../../constants/watcher/status";
+import { AI_REVIEW_STATUSES } from "../../constants/apk-delivery/status";
 
 export const AiReviewStatusSchema = v.picklist(AI_REVIEW_STATUSES);
 export const AiReviewReasonSchema = v.pipe(v.string(), v.trim(), v.nonEmpty());

@@ -1,6 +1,6 @@
-import { MONITORED_APK_URL } from "../../constants/watcher/config";
-import type { ApkMetadata } from "../../schemas/watcher/apk";
-import { extractApkFilename } from "../../utils/watcher/apk";
+import { MONITORED_APK_URL } from "../../constants/apk-delivery/config";
+import type { ApkMetadata } from "../../schemas/apk-delivery/apk";
+import { extractApkFilename } from "../../utils/apk-delivery/apk";
 
 export async function fetchLatestApkMetadata(fetcher: typeof fetch = fetch): Promise<ApkMetadata> {
   const response = await fetcher(MONITORED_APK_URL, { redirect: "follow" });
