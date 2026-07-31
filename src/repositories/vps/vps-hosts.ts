@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import type { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
 
 import { createDatabase, type Database } from "../../db/client";
@@ -7,7 +7,8 @@ import type {
   AdminVpsHost,
   CreateVpsHost,
   PatchVpsHost,
-  ServiceVpsHost
+  ServiceVpsHost,
+  VpsRole
 } from "../../schemas/vps/hosts";
 
 export type VpsHostRecord = VpsHostRow;
@@ -19,6 +20,7 @@ export function sanitizeAdminHost(record: VpsHostRecord): AdminVpsHost {
     address: record.address,
     port: record.port,
     username: record.username,
+    role: record.role,
     enabled: record.enabled,
     created_at: record.created_at,
     updated_at: record.updated_at
@@ -43,11 +45,11 @@ export class VpsHostRepository {
     return this.db.select().from(vpsHosts).orderBy(asc(vpsHosts.id)).all();
   }
 
-  async listEnabled(): Promise<VpsHostRecord[]> {
+  async listEnabledByRole(role: VpsRole): Promise<VpsHostRecord[]> {
     return this.db
       .select()
       .from(vpsHosts)
-      .where(eq(vpsHosts.enabled, true))
+      .where(and(eq(vpsHosts.enabled, true), eq(vpsHosts.role, role)))
       .orderBy(asc(vpsHosts.id))
       .all();
   }
@@ -68,6 +70,7 @@ export class VpsHostRepository {
         address: input.address,
         port: input.port,
         username: input.username,
+        role: input.role,
         password_ciphertext: passwordCiphertext,
         enabled
       })

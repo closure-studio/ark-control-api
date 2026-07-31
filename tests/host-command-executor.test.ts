@@ -29,6 +29,7 @@ describe("managed host command execution", () => {
         port: 2222,
         username: "operator",
         password_ciphertext: "encrypted",
+        role: "redroid",
         enabled: true,
         created_at: "2026-07-14T00:00:00.000Z",
         updated_at: "2026-07-14T00:00:00.000Z"
@@ -68,6 +69,7 @@ describe("managed host command execution", () => {
         port: 22,
         username: "root",
         password_ciphertext: "encrypted",
+        role: "redroid",
         enabled: true,
         created_at: "2026-07-14T00:00:00.000Z",
         updated_at: "2026-07-14T00:00:00.000Z"
@@ -116,6 +118,7 @@ describe("managed host command execution", () => {
         port: 22,
         username: "root",
         password_ciphertext: "encrypted",
+        role: "redroid",
         enabled: true,
         created_at: "2026-07-14T00:00:00.000Z",
         updated_at: "2026-07-14T00:00:00.000Z"
@@ -156,6 +159,7 @@ describe("managed host command execution", () => {
         port: 22,
         username: "root",
         password_ciphertext: "encrypted",
+        role: "redroid",
         enabled: true,
         created_at: "2026-07-14T00:00:00.000Z",
         updated_at: "2026-07-14T00:00:00.000Z"

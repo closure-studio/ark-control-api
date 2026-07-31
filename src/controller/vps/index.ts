@@ -46,6 +46,7 @@ function toResource(host: VpsHostRecord): VpsResource {
     address: host.address,
     port: host.port,
     username: host.username,
+    role: host.role,
     watcherEnabled: host.enabled,
     createdAt: host.created_at,
     updatedAt: host.updated_at
@@ -187,7 +188,8 @@ export async function provisionGcpVps(
         address,
         port: 22,
         username: DEFAULT_VPS_SSH_USERNAME,
-        password: DEFAULT_VPS_SSH_PASSWORD
+        password: DEFAULT_VPS_SSH_PASSWORD,
+        role: "redroid"
       },
       passwordCiphertext
     );

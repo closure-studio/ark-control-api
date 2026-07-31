@@ -8,6 +8,13 @@
       "when": 1784427640202,
       "tag": "20260719022040_initial",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1785512190623,
+      "tag": "20260731153630_add_vps_role",
+      "breakpoints": true
     }
   ]
 }

@@ -7,17 +7,25 @@ export const migrationFiles = readdirSync(migrationsDirectory)
   .filter((name) => name.endsWith(".sql"))
   .sort();
 
-const migrationStatements = migrationFiles.flatMap((name) =>
-  readFileSync(new URL(name, migrationsDirectory), "utf8")
-    .split(statementBreakpoint)
-    .map((statement) => statement.trim())
-    .filter(Boolean)
-);
-
-export function applySqliteMigrations(db: { exec(sql: string): unknown }): void {
-  for (const statement of migrationStatements) db.exec(statement);
+function migrationStatements(files: readonly string[]): string[] {
+  return files.flatMap((name) =>
+    readFileSync(new URL(name, migrationsDirectory), "utf8")
+      .split(statementBreakpoint)
+      .map((statement) => statement.trim())
+      .filter(Boolean)
+  );
 }
 
-export async function applyD1Migrations(db: D1Database): Promise<void> {
-  for (const statement of migrationStatements) await db.prepare(statement).run();
+export function applySqliteMigrations(
+  db: { exec(sql: string): unknown },
+  files: readonly string[] = migrationFiles
+): void {
+  for (const statement of migrationStatements(files)) db.exec(statement);
+}
+
+export async function applyD1Migrations(
+  db: D1Database,
+  files: readonly string[] = migrationFiles
+): Promise<void> {
+  for (const statement of migrationStatements(files)) await db.prepare(statement).run();
 }

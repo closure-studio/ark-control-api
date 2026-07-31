@@ -84,7 +84,8 @@ describe("atomic query routes", () => {
         address: "192.0.2.50",
         port: 22,
         username: "root",
-        password: "secret"
+        password: "secret",
+        role: "redroid"
       },
       "ciphertext"
     );

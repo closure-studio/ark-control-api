@@ -126,16 +126,34 @@ describe("Drizzle D1 models", () => {
         address: "192.0.2.10",
         port: 22,
         username: "root",
-        password: "secret"
+        password: "secret",
+        role: "redroid"
       },
       "ciphertext",
       false
     );
-    expect(host).toMatchObject({ enabled: false, password_ciphertext: "ciphertext" });
+    expect(host).toMatchObject({
+      role: "redroid",
+      enabled: false,
+      password_ciphertext: "ciphertext"
+    });
+
+    const arkhost = await repository.create(
+      {
+        name: "Arkhost One",
+        address: "192.0.2.11",
+        port: 22,
+        username: "root",
+        password: "secret",
+        role: "arkhost"
+      },
+      "ciphertext"
+    );
 
     const updated = await repository.patch(host!.id, { name: "Host Renamed", enabled: true });
     expect(updated).toMatchObject({ name: "Host Renamed", enabled: true });
-    expect(await repository.listEnabled()).toEqual([updated]);
+    expect(await repository.listEnabledByRole("redroid")).toEqual([updated]);
+    expect(await repository.listEnabledByRole("arkhost")).toEqual([arkhost]);
   });
 
   it("runs host-run conflicts, scheduling, and aggregations", async () => {
@@ -145,7 +163,8 @@ describe("Drizzle D1 models", () => {
         address: "192.0.2.20",
         port: 22,
         username: "root",
-        password: "secret"
+        password: "secret",
+        role: "redroid"
       },
       "ciphertext"
     );

@@ -67,13 +67,16 @@ export const vpsHosts = sqliteTable(
     port: integer("port").notNull().default(22),
     username: text("username").notNull(),
     password_ciphertext: text("password_ciphertext").notNull(),
+    role: text("role", { enum: ["redroid", "arkhost"] }).notNull().default("redroid"),
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
     created_at: text("created_at").notNull().default(isoTimestampDefault),
     updated_at: text("updated_at").notNull().default(isoTimestampDefault)
   },
   (table) => [
     check("vps_hosts_port_check", sql`${table.port} BETWEEN 1 AND 65535`),
+    check("vps_hosts_role_check", sql`${table.role} IN ('redroid', 'arkhost')`),
     check("vps_hosts_enabled_check", sql`${table.enabled} IN (0, 1)`),
+    index("idx_vps_hosts_arkhost").on(table.id).where(sql`${table.role} = 'arkhost'`),
     unique("vps_hosts_address_port_username_unique").on(
       table.address,
       table.port,

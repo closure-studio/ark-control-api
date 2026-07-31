@@ -4,7 +4,8 @@ import {
   CreateVpsHostSchema,
   CreateVpsRequestSchema,
   PatchVpsHostSchema,
-  PatchVpsRequestSchema
+  PatchVpsRequestSchema,
+  VpsRoleSchema
 } from "../src/schemas/vps/hosts";
 
 describe("VPS host validation", () => {
@@ -23,9 +24,18 @@ describe("VPS host validation", () => {
         address: "vps.example.com",
         port: 22,
         username: "root",
-        password: "secret"
+        password: "secret",
+        role: "redroid"
       }
     });
+  });
+
+  it("accepts known VPS roles and rejects unknown roles", () => {
+    expect(v.safeParse(VpsRoleSchema, "arkhost")).toMatchObject({
+      success: true,
+      output: "arkhost"
+    });
+    expect(v.safeParse(VpsRoleSchema, "other").success).toBe(false);
   });
 
   it("validates enabled updates", () => {
@@ -53,6 +63,7 @@ describe("VPS host validation", () => {
         port: 22,
         username: "root",
         password: "secret",
+        role: "redroid",
         enabled: false
       }
     });
@@ -63,7 +74,25 @@ describe("VPS host validation", () => {
         username: "root",
         password: "secret"
       })
-    ).toMatchObject({ success: true, output: { enabled: true } });
+    ).toMatchObject({ success: true, output: { role: "redroid", enabled: true } });
+    expect(
+      v.safeParse(CreateVpsRequestSchema, {
+        name: "arkhost",
+        address: "arkhost.example.com",
+        username: "root",
+        password: "secret",
+        role: "arkhost"
+      })
+    ).toMatchObject({ success: true, output: { role: "arkhost" } });
+    expect(
+      v.safeParse(CreateVpsRequestSchema, {
+        name: "invalid",
+        address: "invalid.example.com",
+        username: "root",
+        password: "secret",
+        role: "other"
+      }).success
+    ).toBe(false);
   });
 
   it("normalizes patch request fields and rejects empty passwords", () => {

@@ -76,10 +76,11 @@ describe("APK delivery lifecycle", () => {
   it("runs hosts independently and retries each disconnected SSH command three times", async () => {
     const encryptedPassword = await new PasswordCrypto(PASSWORD_KEY).encrypt("password");
     const repository = new VpsHostRepository(db);
-    const hosts: Array<{ name: string; address: string }> = [
-      { name: "Host A", address: "192.0.2.10" },
-      { name: "Host B", address: "192.0.2.11" },
-      { name: "Host C", address: "192.0.2.12" }
+    const hosts: Array<{ name: string; address: string; role: "redroid" | "arkhost" }> = [
+      { name: "Host A", address: "192.0.2.10", role: "redroid" },
+      { name: "Host B", address: "192.0.2.11", role: "redroid" },
+      { name: "Host C", address: "192.0.2.12", role: "redroid" },
+      { name: "Host D", address: "192.0.2.13", role: "arkhost" }
     ];
     for (const host of hosts) {
       await repository.create(
@@ -88,7 +89,8 @@ describe("APK delivery lifecycle", () => {
           address: host.address,
           port: 22,
           username: "root",
-          password: "password"
+          password: "password",
+          role: host.role
         },
         encryptedPassword
       );
@@ -141,6 +143,7 @@ describe("APK delivery lifecycle", () => {
     expect(sshRequests.filter((request) => request.hostname === "192.0.2.10")).toHaveLength(1);
     expect(sshRequests.filter((request) => request.hostname === "192.0.2.11")).toHaveLength(3);
     expect(sshRequests.filter((request) => request.hostname === "192.0.2.12")).toHaveLength(1);
+    expect(sshRequests.filter((request) => request.hostname === "192.0.2.13")).toHaveLength(0);
     expect((await db.prepare("SELECT * FROM control_job_locks").all()).results).toEqual([]);
 
     await runApkDeliveryCycle(env, {
@@ -159,7 +162,8 @@ describe("APK delivery lifecycle", () => {
         address: "192.0.2.20",
         port: 22,
         username: "root",
-        password: "password"
+        password: "password",
+        role: "redroid"
       },
       encryptedPassword
     );

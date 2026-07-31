@@ -5,7 +5,7 @@ import type { ExecuteHostCommandResult } from "../../schemas/vps/ssh-command";
 import { executeHostCommand as executeManagedHostCommand } from "../vps/host-command-executor";
 
 export async function listVpsHosts(env: Env): Promise<ServiceVpsHost[]> {
-  return await new VpsHostRepository(env.DB).listEnabled();
+  return await new VpsHostRepository(env.DB).listEnabledByRole("redroid");
 }
 
 export async function executeHostCommand(

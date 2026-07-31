@@ -1,6 +1,8 @@
 import * as v from "valibot";
 import { VPS_HOST_FIELD_LIMITS } from "../../constants/vps/fields";
 
+export const VpsRoleSchema = v.picklist(["redroid", "arkhost"]);
+
 function requiredString(field: string) {
   return v.pipe(
     v.string(`${field} is required`),
@@ -32,7 +34,8 @@ const CreateVpsHostEntries = {
   address: requiredString("address"),
   port: v.optional(PortSchema, VPS_HOST_FIELD_LIMITS.defaultPort),
   username: requiredString("username"),
-  password: PasswordSchema
+  password: PasswordSchema,
+  role: v.optional(VpsRoleSchema, "redroid")
 };
 
 const PatchVpsHostEntries = {
@@ -50,6 +53,7 @@ const AdminVpsHostEntries = {
   address: v.string(),
   port: v.number(),
   username: v.string(),
+  role: VpsRoleSchema,
   enabled: v.boolean(),
   created_at: v.string(),
   updated_at: v.string()
@@ -69,6 +73,7 @@ export const VpsResourceSchema = v.object({
   address: v.string(),
   port: v.number(),
   username: v.string(),
+  role: VpsRoleSchema,
   watcherEnabled: v.boolean(),
   createdAt: v.string(),
   updatedAt: v.string()
@@ -107,6 +112,7 @@ export type CreateVpsHost = v.InferOutput<typeof CreateVpsHostSchema>;
 export type PatchVpsHost = v.InferOutput<typeof PatchVpsHostSchema>;
 export type AdminVpsHost = v.InferOutput<typeof AdminVpsHostSchema>;
 export type ServiceVpsHost = v.InferOutput<typeof ServiceVpsHostSchema>;
+export type VpsRole = v.InferOutput<typeof VpsRoleSchema>;
 export type CreateVpsRequest = v.InferOutput<typeof CreateVpsRequestSchema>;
 export type PatchVpsRequest = v.InferOutput<typeof PatchVpsRequestSchema>;
 export type VpsResource = v.InferOutput<typeof VpsResourceSchema>;
