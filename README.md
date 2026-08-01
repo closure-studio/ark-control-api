@@ -105,14 +105,15 @@ immediately up to three total connection attempts only when the SSH adapter
 returns `connected: false`.
 
 The maintenance monitor runs at `17 * * * *`. It fetches the latest ten
-announcements from `https://ak.hypergryph.com/news`, applies deterministic
-maintenance rules, and uses the existing Workers AI binding only when rules
-are uncertain. Confirmed maintenance announcements are sent through the
-existing QQBot binding and claimed in D1 before any external notification.
+announcements from the official site's paginated `/api/news` JSON endpoint,
+fetches each detail from `https://ak.hypergryph.com/news/:id`, applies
+deterministic maintenance rules, and uses the existing Workers AI binding only
+when rules are uncertain. Confirmed maintenance announcements are sent through
+the existing QQBot binding and claimed in D1 before any external notification.
 Claims transition to `completed` or `failed` and are never retried, which
 prevents duplicate QQ notifications when a scheduled invocation overlaps or
-crashes after sending. Expired claims are recorded as failed and skipped.
-No additional secret is required beyond `QQBOT_TOKEN` and `QQBOT_UID`.
+crashes after sending. Expired claims are recorded as failed and skipped. No
+additional secret is required beyond `QQBOT_TOKEN` and `QQBOT_UID`.
 
 External data is validated with Valibot schemas before services can use it.
 Hono JSON bodies, queries, and route parameters use the Standard Schema

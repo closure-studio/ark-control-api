@@ -2,53 +2,12 @@ import { parse, parseFragment } from "parse5";
 import type { DefaultTreeAdapterTypes } from "parse5";
 import * as v from "valibot";
 
-import { MAINTENANCE_NEWS_HOST } from "../../constants/maintenance/config";
-import {
-  NewsDetailSchema,
-  NewsLinkSchema,
-  type NewsDetail,
-  type NewsLink
-} from "../../schemas/maintenance/announcements";
+import { NewsDetailSchema, type NewsDetail } from "../../schemas/maintenance/announcements";
 
 type Node = DefaultTreeAdapterTypes.Node;
 type Element = DefaultTreeAdapterTypes.Element;
 
-const NEWS_ID_PATTERN = /^\/news\/(\d+)\/?$/;
-const EMBEDDED_NEWS_URL_PATTERN = /https?:\/\/ak\.hypergryph\.com\/news\/\d+/g;
 const IGNORED_TEXT_TAGS = new Set(["script", "style", "noscript"]);
-
-export function extractNewsLinks(
-  html: string,
-  baseUrl = "https://ak.hypergryph.com/news"
-): NewsLink[] {
-  const document = parse(html);
-  const seen = new Set<string>();
-  const links: NewsLink[] = [];
-
-  const addLink = (href: string): void => {
-    const url = normalizeNewsUrl(href, baseUrl);
-    if (!url) return;
-
-    const id = extractNewsId(url);
-    if (!id || seen.has(id)) return;
-
-    seen.add(id);
-    links.push(v.parse(NewsLinkSchema, { id, url }));
-  };
-
-  for (const element of collectElements(document)) {
-    if (element.tagName !== "a") continue;
-    const href = getAttribute(element, "href");
-    if (href) addLink(href);
-  }
-
-  for (const match of html.matchAll(EMBEDDED_NEWS_URL_PATTERN)) {
-    const [url] = match;
-    if (url) addLink(url);
-  }
-
-  return links;
-}
 
 export function parseNewsDetail(id: string, url: string, html: string): NewsDetail {
   const document = parse(html);
@@ -69,27 +28,6 @@ export function parseNewsDetail(id: string, url: string, html: string): NewsDeta
   const content = normalizeText(rawContent || embeddedContent || textContent(document));
 
   return v.parse(NewsDetailSchema, { id, url, title, content });
-}
-
-export function extractNewsId(url: string): string | null {
-  let pathname = url;
-  try {
-    pathname = new URL(url).pathname;
-  } catch {
-    // Relative paths are matched directly.
-  }
-  return NEWS_ID_PATTERN.exec(pathname)?.[1] ?? null;
-}
-
-function normalizeNewsUrl(href: string, baseUrl: string): string | null {
-  try {
-    const url = new URL(href, baseUrl);
-    if (url.protocol !== "https:" || url.hostname !== MAINTENANCE_NEWS_HOST) return null;
-    const id = extractNewsId(url.pathname);
-    return id ? `https://${MAINTENANCE_NEWS_HOST}/news/${id}` : null;
-  } catch {
-    return null;
-  }
 }
 
 function extractEmbeddedParagraphText(html: string): string {

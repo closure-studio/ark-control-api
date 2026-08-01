@@ -1,34 +1,103 @@
 import { describe, expect, it, vi } from "vitest";
+import * as v from "valibot";
 
 import { scheduledTaskForCron } from "../src/index";
+import { MaintenanceNewsListResponseSchema } from "../src/schemas/maintenance/announcements";
+import { fetchMaintenanceNewsLinks } from "../src/services/maintenance/news";
 import { buildMaintenanceMessage } from "../src/services/maintenance/notification";
 import { parseMaintenanceAiJson } from "../src/services/maintenance/ai";
 import { runMaintenanceMonitorWithDependencies } from "../src/services/maintenance/monitor";
 import { sendQqBotAutoMessage } from "../src/services/notifications/qq-bot";
-import {
-  extractNewsLinks,
-  extractNewsId,
-  parseNewsDetail
-} from "../src/utils/maintenance/news-html";
+import { parseNewsDetail } from "../src/utils/maintenance/news-html";
 import { classifyByRules, extractMaintenanceTime } from "../src/utils/maintenance/rules";
 
 describe("maintenance monitor contracts", () => {
-  it("extracts unique numeric links and parses detail fallbacks", () => {
-    const html = `
-      <a href="/news/9692">maintenance</a>
-      <a href="https://ak.hypergryph.com/news/9692?from=list">duplicate</a>
-      <a href="https://example.com/news/1234">external</a>
-      <script>window.__NEWS__ = [{"url":"https://ak.hypergryph.com/news/3044"}]</script>
-    `;
-
-    expect(extractNewsLinks(html)).toEqual([
-      { id: "9692", url: "https://ak.hypergryph.com/news/9692" },
-      { id: "3044", url: "https://ak.hypergryph.com/news/3044" }
+  it("fetches, validates, deduplicates, and limits paginated news API results", async () => {
+    const pageIds = new Map([
+      ["1", ["1459", "8571", "6247", "4926", "9683", "9684"]],
+      ["2", ["9684", "0795", "5107", "0796", "4929", "8573"]]
     ]);
-    expect(extractNewsId("https://ak.hypergryph.com/news/9692")).toBe("9692");
-    expect(extractNewsId("https://ak.hypergryph.com/foo/news/9692")).toBeNull();
-    expect(extractNewsId("https://ak.hypergryph.com/news/9692abc")).toBeNull();
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
+      const url = new URL(String(input));
+      const page = url.searchParams.get("page") ?? "";
+      const ids = pageIds.get(page) ?? [];
+      expect(url.searchParams.get("category")).toBe("LATEST");
+      expect(init?.headers).toMatchObject({ Accept: "application/json" });
+      return new Response(
+        JSON.stringify({
+          code: 0,
+          data: {
+            list: ids.map((cid) => ({ cid, ignored: "upstream field" })),
+            end: page === "2"
+          }
+        })
+      );
+    });
 
+    await expect(fetchMaintenanceNewsLinks({ fetcher })).resolves.toEqual([
+      { id: "1459", url: "https://ak.hypergryph.com/news/1459" },
+      { id: "8571", url: "https://ak.hypergryph.com/news/8571" },
+      { id: "6247", url: "https://ak.hypergryph.com/news/6247" },
+      { id: "4926", url: "https://ak.hypergryph.com/news/4926" },
+      { id: "9683", url: "https://ak.hypergryph.com/news/9683" },
+      { id: "9684", url: "https://ak.hypergryph.com/news/9684" },
+      { id: "0795", url: "https://ak.hypergryph.com/news/0795" },
+      { id: "5107", url: "https://ak.hypergryph.com/news/5107" },
+      { id: "0796", url: "https://ak.hypergryph.com/news/0796" },
+      { id: "4929", url: "https://ak.hypergryph.com/news/4929" }
+    ]);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects invalid news API contracts and empty results", async () => {
+    expect(
+      v.safeParse(MaintenanceNewsListResponseSchema, {
+        code: 0,
+        data: { list: [{ cid: "0795" }], end: true }
+      }).success
+    ).toBe(true);
+    expect(
+      v.safeParse(MaintenanceNewsListResponseSchema, {
+        code: 1,
+        data: { list: [{ cid: "not-numeric" }], end: "yes" }
+      }).success
+    ).toBe(false);
+
+    const invalidJsonFetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response("not json"));
+    await expect(fetchMaintenanceNewsLinks({ fetcher: invalidJsonFetcher })).rejects.toThrow(
+      "page 1 returned an invalid response"
+    );
+
+    const emptyFetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ code: 0, data: { list: [], end: true } }))
+    );
+    await expect(fetchMaintenanceNewsLinks({ fetcher: emptyFetcher })).rejects.toThrow(
+      "returned no announcements"
+    );
+  });
+
+  it("rejects failed news API requests and pagination without progress", async () => {
+    const failedFetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(null, { status: 502 }));
+    await expect(fetchMaintenanceNewsLinks({ fetcher: failedFetcher })).rejects.toThrow(
+      "request failed with status 502"
+    );
+
+    const stalledFetcher = vi.fn<typeof fetch>().mockImplementation(
+      async () =>
+        new Response(
+          JSON.stringify({ code: 0, data: { list: [{ cid: "9692" }], end: false } })
+        )
+    );
+    await expect(fetchMaintenanceNewsLinks({ fetcher: stalledFetcher })).rejects.toThrow(
+      "page 2 did not contain any new announcements"
+    );
+  });
+
+  it("parses detail fallbacks", () => {
     const detail = parseNewsDetail(
       "9692",
       "https://ak.hypergryph.com/news/9692",

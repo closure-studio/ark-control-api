@@ -7,6 +7,18 @@ export const NewsLinkSchema = v.object({
   url: v.pipe(v.string(), v.url())
 });
 
+export const MaintenanceNewsListItemSchema = v.object({
+  cid: NewsIdSchema
+});
+
+export const MaintenanceNewsListResponseSchema = v.object({
+  code: v.literal(0),
+  data: v.object({
+    list: v.array(MaintenanceNewsListItemSchema),
+    end: v.boolean()
+  })
+});
+
 export const NewsDetailSchema = v.object({
   id: NewsIdSchema,
   url: v.pipe(v.string(), v.url()),
@@ -63,6 +75,12 @@ export const MaintenanceNotificationResultSchema = v.object({
 
 export type NewsId = v.InferOutput<typeof NewsIdSchema>;
 export type NewsLink = v.InferOutput<typeof NewsLinkSchema>;
+export type MaintenanceNewsListItem = v.InferOutput<
+  typeof MaintenanceNewsListItemSchema
+>;
+export type MaintenanceNewsListResponse = v.InferOutput<
+  typeof MaintenanceNewsListResponseSchema
+>;
 export type NewsDetail = v.InferOutput<typeof NewsDetailSchema>;
 export type MaintenanceTime = v.InferOutput<typeof MaintenanceTimeSchema>;
 export type ClassificationStatus = v.InferOutput<typeof ClassificationStatusSchema>;

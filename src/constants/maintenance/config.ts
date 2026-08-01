@@ -1,5 +1,5 @@
-export const MAINTENANCE_NEWS_URL = "https://ak.hypergryph.com/news";
-export const MAINTENANCE_NEWS_HOST = "ak.hypergryph.com";
+export const MAINTENANCE_NEWS_API_URL = "https://ak.hypergryph.com/api/news";
+export const MAINTENANCE_NEWS_DETAIL_BASE_URL = "https://ak.hypergryph.com/news";
 export const MAINTENANCE_NEWS_LIMIT = 10;
 export const MAINTENANCE_REQUEST_TIMEOUT_MS = 15_000;
 export const MAINTENANCE_CLAIM_TTL_MS = 2 * 60 * 60 * 1000;
