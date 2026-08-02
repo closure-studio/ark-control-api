@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "45ae6c75-ad94-4854-88d0-35072b4156a0",
+  "id": "460e48df-0372-4590-97db-53f5ec237bbe",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "arknights_apk_host_runs": {
@@ -265,13 +265,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "claim_expires_at": {
-          "name": "claim_expires_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
         "first_seen_at": {
           "name": "first_seen_at",
           "type": "text",
@@ -314,6 +307,56 @@
           "notNull": false,
           "autoincrement": false
         },
+        "maintenance_start_at": {
+          "name": "maintenance_start_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pre_action_at": {
+          "name": "pre_action_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pre_action_state": {
+          "name": "pre_action_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'unschedulable'"
+        },
+        "pre_action_started_at": {
+          "name": "pre_action_started_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pre_action_completed_at": {
+          "name": "pre_action_completed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pre_action_failed_step": {
+          "name": "pre_action_failed_step",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pre_action_error_message": {
+          "name": "pre_action_error_message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "notified": {
           "name": "notified",
           "type": "integer",
@@ -330,7 +373,17 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_maintenance_pre_action_due": {
+          "name": "idx_maintenance_pre_action_due",
+          "columns": [
+            "processing_state",
+            "pre_action_state",
+            "pre_action_at"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -342,46 +395,165 @@
         "arknights_maintenance_announcements_notified_check": {
           "name": "arknights_maintenance_announcements_notified_check",
           "value": "\"arknights_maintenance_announcements\".\"notified\" IN (0, 1)"
+        },
+        "arknights_maintenance_announcements_pre_action_state_check": {
+          "name": "arknights_maintenance_announcements_pre_action_state_check",
+          "value": "\"arknights_maintenance_announcements\".\"pre_action_state\" IN ('pending', 'processing', 'completed', 'failed', 'unschedulable')"
+        },
+        "arknights_maintenance_announcements_pre_action_failed_step_check": {
+          "name": "arknights_maintenance_announcements_pre_action_failed_step_check",
+          "value": "\"arknights_maintenance_announcements\".\"pre_action_failed_step\" IS NULL OR \"arknights_maintenance_announcements\".\"pre_action_failed_step\" IN ('schedule', 'auth', 'config', 'host_inventory', 'ssh', 'missed', 'interrupted')"
         }
       }
     },
-    "control_job_locks": {
-      "name": "control_job_locks",
+    "arknights_maintenance_host_runs": {
+      "name": "arknights_maintenance_host_runs",
       "columns": {
-        "job_name": {
-          "name": "job_name",
-          "type": "text",
+        "id": {
+          "name": "id",
+          "type": "integer",
           "primaryKey": true,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": true
         },
-        "owner": {
-          "name": "owner",
+        "announcement_news_id": {
+          "name": "announcement_news_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "acquired_at": {
-          "name": "acquired_at",
+        "host_id": {
+          "name": "host_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "host_name_snapshot": {
+          "name": "host_name_snapshot",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "expires_at": {
-          "name": "expires_at",
+        "host_address_snapshot": {
+          "name": "host_address_snapshot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "connected": {
+          "name": "connected",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "timed_out": {
+          "name": "timed_out",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "exit_code": {
+          "name": "exit_code",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "error_message": {
+          "name": "error_message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         }
       },
-      "indexes": {},
-      "foreignKeys": {},
+      "indexes": {
+        "idx_maintenance_host_runs_announcement": {
+          "name": "idx_maintenance_host_runs_announcement",
+          "columns": [
+            "announcement_news_id"
+          ],
+          "isUnique": false
+        },
+        "idx_maintenance_host_runs_status": {
+          "name": "idx_maintenance_host_runs_status",
+          "columns": [
+            "status"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "arknights_maintenance_host_runs_announcement_news_id_arknights_maintenance_announcements_news_id_fk": {
+          "name": "arknights_maintenance_host_runs_announcement_news_id_arknights_maintenance_announcements_news_id_fk",
+          "tableFrom": "arknights_maintenance_host_runs",
+          "tableTo": "arknights_maintenance_announcements",
+          "columnsFrom": [
+            "announcement_news_id"
+          ],
+          "columnsTo": [
+            "news_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "arknights_maintenance_host_runs_host_id_vps_hosts_id_fk": {
+          "name": "arknights_maintenance_host_runs_host_id_vps_hosts_id_fk",
+          "tableFrom": "arknights_maintenance_host_runs",
+          "tableTo": "vps_hosts",
+          "columnsFrom": [
+            "host_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "arknights_maintenance_host_runs_status_check": {
+          "name": "arknights_maintenance_host_runs_status_check",
+          "value": "\"arknights_maintenance_host_runs\".\"status\" IN ('running', 'succeeded', 'failed', 'timed_out')"
+        },
+        "arknights_maintenance_host_runs_connected_check": {
+          "name": "arknights_maintenance_host_runs_connected_check",
+          "value": "\"arknights_maintenance_host_runs\".\"connected\" IS NULL OR \"arknights_maintenance_host_runs\".\"connected\" IN (0, 1)"
+        },
+        "arknights_maintenance_host_runs_timed_out_check": {
+          "name": "arknights_maintenance_host_runs_timed_out_check",
+          "value": "\"arknights_maintenance_host_runs\".\"timed_out\" IS NULL OR \"arknights_maintenance_host_runs\".\"timed_out\" IN (0, 1)"
+        }
+      }
     },
     "gcp_accounts": {
       "name": "gcp_accounts",
@@ -651,6 +823,14 @@
           "notNull": true,
           "autoincrement": false
         },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'redroid'"
+        },
         "enabled": {
           "name": "enabled",
           "type": "integer",
@@ -684,6 +864,14 @@
           ],
           "isUnique": true
         },
+        "idx_vps_hosts_arkhost": {
+          "name": "idx_vps_hosts_arkhost",
+          "columns": [
+            "id"
+          ],
+          "isUnique": false,
+          "where": "\"vps_hosts\".\"role\" = 'arkhost'"
+        },
         "vps_hosts_address_port_username_unique": {
           "name": "vps_hosts_address_port_username_unique",
           "columns": [
@@ -701,6 +889,10 @@
         "vps_hosts_port_check": {
           "name": "vps_hosts_port_check",
           "value": "\"vps_hosts\".\"port\" BETWEEN 1 AND 65535"
+        },
+        "vps_hosts_role_check": {
+          "name": "vps_hosts_role_check",
+          "value": "\"vps_hosts\".\"role\" IN ('redroid', 'arkhost')"
         },
         "vps_hosts_enabled_check": {
           "name": "vps_hosts_enabled_check",

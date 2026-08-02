@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import * as v from "valibot";
 
-import { scheduledTaskForCron } from "../src/index";
+import { nextUtcHour, nextUtcMidnight } from "../src/services/scheduler/time";
 import { MaintenanceNewsListResponseSchema } from "../src/schemas/maintenance/announcements";
 import { fetchMaintenanceNewsLinks } from "../src/services/maintenance/news";
 import { buildMaintenanceMessage } from "../src/services/maintenance/notification";
@@ -63,16 +63,14 @@ describe("maintenance monitor contracts", () => {
       }).success
     ).toBe(false);
 
-    const invalidJsonFetcher = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(new Response("not json"));
+    const invalidJsonFetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response("not json"));
     await expect(fetchMaintenanceNewsLinks({ fetcher: invalidJsonFetcher })).rejects.toThrow(
       "page 1 returned an invalid response"
     );
 
-    const emptyFetcher = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(JSON.stringify({ code: 0, data: { list: [], end: true } }))
-    );
+    const emptyFetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(JSON.stringify({ code: 0, data: { list: [], end: true } })));
     await expect(fetchMaintenanceNewsLinks({ fetcher: emptyFetcher })).rejects.toThrow(
       "returned no announcements"
     );
@@ -86,12 +84,12 @@ describe("maintenance monitor contracts", () => {
       "request failed with status 502"
     );
 
-    const stalledFetcher = vi.fn<typeof fetch>().mockImplementation(
-      async () =>
-        new Response(
-          JSON.stringify({ code: 0, data: { list: [{ cid: "9692" }], end: false } })
-        )
-    );
+    const stalledFetcher = vi
+      .fn<typeof fetch>()
+      .mockImplementation(
+        async () =>
+          new Response(JSON.stringify({ code: 0, data: { list: [{ cid: "9692" }], end: false } }))
+      );
     await expect(fetchMaintenanceNewsLinks({ fetcher: stalledFetcher })).rejects.toThrow(
       "page 2 did not contain any new announcements"
     );
@@ -192,13 +190,11 @@ describe("maintenance monitor contracts", () => {
   it("sends QQBot messages with an abortable request", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 }));
 
-    await sendQqBotAutoMessage({
-      token: "secret-token",
-      uid: 913468406,
-      msg: "maintenance",
-      fetcher,
-      timeoutMs: 1_000
-    });
+    await sendQqBotAutoMessage(
+      { QQBOT_TOKEN: "secret-token", QQBOT_UID: "913468406" },
+      "maintenance",
+      { fetcher, timeoutMs: 1_000 }
+    );
 
     expect(fetcher).toHaveBeenCalledWith(
       "http://qqbot.arknights.app/api/send_msg_auto",
@@ -215,6 +211,21 @@ describe("maintenance monitor contracts", () => {
     });
   });
 
+  it("validates QQBot configuration and never exposes its token in errors", async () => {
+    await expect(
+      sendQqBotAutoMessage({ QQBOT_TOKEN: "secret-token", QQBOT_UID: "invalid" }, "message")
+    ).rejects.toThrow("QQBOT_UID must be a positive integer");
+
+    const fetcher = vi.fn<typeof fetch>().mockRejectedValue(new Error("secret-token leaked"));
+    const operation = sendQqBotAutoMessage(
+      { QQBOT_TOKEN: "secret-token", QQBOT_UID: "913468406" },
+      "message",
+      { fetcher }
+    );
+    await expect(operation).rejects.toThrow("[redacted] leaked");
+    await expect(operation).rejects.not.toThrow("secret-token");
+  });
+
   it("claims, processes, and finalizes one announcement", async () => {
     const link = { id: "9692", url: "https://ak.hypergryph.com/news/9692" };
     const classification = classifyByRules({
@@ -223,6 +234,11 @@ describe("maintenance monitor contracts", () => {
     });
     const complete = vi.fn(async () => undefined);
     const fail = vi.fn(async () => undefined);
+    const refreshPreActionAlarm = vi.fn(async () => undefined);
+    const events: string[] = [];
+    const recordClassification = vi.fn(async () => {
+      events.push("persisted");
+    });
 
     await runMaintenanceMonitorWithDependencies({
       now: () => new Date("2026-07-18T15:00:00.000Z"),
@@ -230,16 +246,34 @@ describe("maintenance monitor contracts", () => {
       fetchDetail: async () => ({ ...link, title: "版本更新停机维护公告", content: "维护时间" }),
       classifyRules: () => classification,
       classifyAi: async () => classification,
-      notify: async () => ({ notified: true, notifyChannel: "qqbot", notifyError: null }),
+      notify: async () => {
+        events.push("notified");
+        return { notified: true, notifyChannel: "qqbot", notifyError: null };
+      },
       claim: async () => true,
+      recordClassification,
       complete,
       fail,
+      refreshPreActionAlarm,
       logger: { info: () => undefined, warn: () => undefined, error: () => undefined }
     });
 
     expect(complete).toHaveBeenCalledOnce();
-    expect(complete).toHaveBeenCalledWith("9692", expect.objectContaining({ processingState: "completed" }));
+    expect(events).toEqual(["persisted", "notified"]);
+    expect(recordClassification).toHaveBeenCalledWith(
+      "9692",
+      expect.objectContaining({
+        maintenanceStartAt: "2026-04-30T22:00:00.000Z",
+        preActionAt: "2026-04-30T20:00:00.000Z",
+        preActionState: "pending"
+      })
+    );
+    expect(complete).toHaveBeenCalledWith(
+      "9692",
+      expect.objectContaining({ processingState: "completed" })
+    );
     expect(fail).not.toHaveBeenCalled();
+    expect(refreshPreActionAlarm).toHaveBeenCalledOnce();
   });
 
   it("records a terminal failure without stopping the monitor", async () => {
@@ -258,13 +292,17 @@ describe("maintenance monitor contracts", () => {
       classifyAi: async () => classifyByRules({ title: "普通公告", content: "活动公告" }),
       notify: async () => ({ notified: false, notifyChannel: null, notifyError: null }),
       claim: async () => true,
+      recordClassification: async () => undefined,
       complete: async () => undefined,
       fail,
       logger: { info: () => undefined, warn: () => undefined, error: () => undefined }
     });
 
     expect(fail).toHaveBeenCalledOnce();
-    expect(fail).toHaveBeenCalledWith("9692", expect.objectContaining({ processingState: "failed" }));
+    expect(fail).toHaveBeenCalledWith(
+      "9692",
+      expect.objectContaining({ processingState: "failed" })
+    );
   });
 
   it("records AI provider failures as failed announcements", async () => {
@@ -272,9 +310,7 @@ describe("maintenance monitor contracts", () => {
     const complete = vi.fn(async () => undefined);
     await runMaintenanceMonitorWithDependencies({
       now: () => new Date("2026-07-18T15:00:00.000Z"),
-      fetchLinks: async () => [
-        { id: "9694", url: "https://ak.hypergryph.com/news/9694" }
-      ],
+      fetchLinks: async () => [{ id: "9694", url: "https://ak.hypergryph.com/news/9694" }],
       fetchDetail: async (link) => ({
         ...link,
         title: "无法确定的公告",
@@ -286,6 +322,7 @@ describe("maintenance monitor contracts", () => {
       },
       notify: async () => ({ notified: false, notifyChannel: null, notifyError: null }),
       claim: async () => true,
+      recordClassification: async () => undefined,
       complete,
       fail,
       logger: { info: () => undefined, warn: () => undefined, error: () => undefined }
@@ -300,13 +337,59 @@ describe("maintenance monitor contracts", () => {
       })
     );
   });
+
+  it("never schedules maintenance that was identified only by AI", async () => {
+    const recordClassification = vi.fn(async () => undefined);
+    await runMaintenanceMonitorWithDependencies({
+      now: () => new Date("2026-07-18T15:00:00.000Z"),
+      fetchLinks: async () => [{ id: "9695", url: "https://ak.hypergryph.com/news/9695" }],
+      fetchDetail: async (link) => ({ ...link, title: "版本更新公告", content: "公告正文" }),
+      classifyRules: () => ({
+        status: "uncertain",
+        isMaintenance: false,
+        reason: "规则无法确定公告类型",
+        summary: "公告正文",
+        maintenanceStart: null,
+        maintenanceEnd: null
+      }),
+      classifyAi: async () => ({
+        status: "maintenance",
+        isMaintenance: true,
+        reason: "AI 判断为维护",
+        summary: "维护",
+        maintenanceStart: "2026年08月01日06:00",
+        maintenanceEnd: "12:00"
+      }),
+      notify: async () => ({ notified: true, notifyChannel: "qqbot", notifyError: null }),
+      claim: async () => true,
+      recordClassification,
+      complete: async () => undefined,
+      fail: async () => undefined,
+      logger: { info: () => undefined, warn: () => undefined, error: () => undefined }
+    });
+
+    expect(recordClassification).toHaveBeenCalledWith(
+      "9695",
+      expect.objectContaining({
+        isMaintenance: true,
+        maintenanceStartAt: null,
+        preActionAt: null,
+        preActionState: "unschedulable"
+      })
+    );
+  });
 });
 
-describe("scheduled cron routing", () => {
-  it("routes only known schedules", () => {
-    expect(scheduledTaskForCron("*/10 * * * *")).toBe("apk-delivery");
-    expect(scheduledTaskForCron("17 * * * *")).toBe("maintenance");
-    expect(scheduledTaskForCron("15 3 * * *")).toBe("retention");
-    expect(scheduledTaskForCron("0 0 * * *")).toBeNull();
+describe("fixed alarm schedules", () => {
+  it("uses exact UTC hour and midnight boundaries", () => {
+    expect(nextUtcHour(new Date("2026-08-01T05:17:00.000Z"))).toEqual(
+      new Date("2026-08-01T06:00:00.000Z")
+    );
+    expect(nextUtcHour(new Date("2026-08-01T06:00:00.000Z"))).toEqual(
+      new Date("2026-08-01T07:00:00.000Z")
+    );
+    expect(nextUtcMidnight(new Date("2026-08-01T05:17:00.000Z"))).toEqual(
+      new Date("2026-08-02T00:00:00.000Z")
+    );
   });
 });

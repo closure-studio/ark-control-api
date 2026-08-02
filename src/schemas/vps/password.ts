@@ -7,10 +7,6 @@ export const PasswordEnvelopeSchema = v.strictObject({
   ciphertext: v.string()
 });
 
-export const PasswordEnvelopeJsonSchema = v.pipe(
-  v.string(),
-  v.parseJson(),
-  PasswordEnvelopeSchema
-);
+export const PasswordEnvelopeJsonSchema = v.pipe(v.string(), v.parseJson(), PasswordEnvelopeSchema);
 
 export type PasswordEnvelope = v.InferOutput<typeof PasswordEnvelopeSchema>;

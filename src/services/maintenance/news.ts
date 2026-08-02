@@ -61,9 +61,7 @@ export async function fetchMaintenanceNewsLinks(
     throw new Error("Maintenance news API returned no announcements");
   }
   if (links.length < MAINTENANCE_NEWS_LIMIT && !reachedEnd) {
-    throw new Error(
-      `Maintenance news API pagination exceeded ${MAINTENANCE_NEWS_LIMIT} pages`
-    );
+    throw new Error(`Maintenance news API pagination exceeded ${MAINTENANCE_NEWS_LIMIT} pages`);
   }
 
   return links.slice(0, MAINTENANCE_NEWS_LIMIT);

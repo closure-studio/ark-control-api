@@ -20,10 +20,7 @@ export async function listAccounts(env: Env): Promise<GcpAccount[]> {
   return (await listAccountRows(env)).map(toGcpAccount);
 }
 
-export async function createAccount(
-  env: Env,
-  input: CreateGcpAccountRequest
-): Promise<GcpAccount> {
+export async function createAccount(env: Env, input: CreateGcpAccountRequest): Promise<GcpAccount> {
   const inserted = await createDatabase(env.DB)
     .insert(gcpAccounts)
     .values({

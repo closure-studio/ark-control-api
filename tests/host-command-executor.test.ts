@@ -7,16 +7,17 @@ const TEST_ENV = v.parse(EnvSchema, {
   DB: { prepare: () => undefined },
   AI: { run: async () => undefined },
   ARK_SSH: { executeCommand: async () => undefined },
+  CONTROL_JOB_ALARMS: { getByName: vi.fn() },
   ADMIN_TOKEN: "admin",
   VPS_PASSWORD_KEY: "password-key",
   GITHUB_PYHELPER_TOKEN: "github",
-  TASK_SERVER_BASE_URL: "https://tasks.example.com",
-  TASK_SERVER_AUTHORIZATION: "Bearer tasks",
   OIDC_ISSUER: "https://control.example.com",
   OIDC_KEY_ID: "key-id",
   OIDC_PRIVATE_KEY_PEM: "private-key",
   OIDC_SUBJECT: "subject",
-  PUBLIC_TOKEN_BEARER_SECRET: "public-secret"
+  PUBLIC_TOKEN_BEARER_SECRET: "public-secret",
+  ARKHOST_PASSPORT_EMAIL: "admin@example.com",
+  ARKHOST_PASSPORT_PASSWORD: "passport-password"
 });
 
 describe("managed host command execution", () => {
@@ -171,8 +172,6 @@ describe("managed host command execution", () => {
       executeSshCommand: vi.fn().mockResolvedValue({ connected: "yes" })
     });
 
-    await expect(execute(TEST_ENV, { hostId: 7 })).rejects.toThrow(
-      "ssh_response_invalid"
-    );
+    await expect(execute(TEST_ENV, { hostId: 7 })).rejects.toThrow("ssh_response_invalid");
   });
 });

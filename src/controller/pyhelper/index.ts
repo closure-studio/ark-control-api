@@ -1,17 +1,11 @@
 import { API_ERROR_CODES, type ApiErrorCode } from "../../constants/api/error-codes";
-import type {
-  PyHelperAssetName,
-  PyHelperDownloadQuery
-} from "../../schemas/pyhelper/download";
+import type { PyHelperAssetName, PyHelperDownloadQuery } from "../../schemas/pyhelper/download";
 import type { Env } from "../../schemas/env";
 import {
   PyHelperDownloadUrlError,
   verifyPyHelperDownloadRequest
 } from "../../services/pyhelper/download-url";
-import {
-  downloadLatestPyHelperAsset,
-  PyHelperGitHubError
-} from "../../services/pyhelper/github";
+import { downloadLatestPyHelperAsset, PyHelperGitHubError } from "../../services/pyhelper/github";
 
 export class PyHelperControlError extends Error {
   constructor(

@@ -58,10 +58,7 @@ describe("VPS routes", () => {
       env
     );
     expect(redroidResponse.status).toBe(201);
-    const redroid = v.parse(
-      v.object({ data: VpsResponseSchema }),
-      await redroidResponse.json()
-    );
+    const redroid = v.parse(v.object({ data: VpsResponseSchema }), await redroidResponse.json());
     expect(redroid.data.vps.role).toBe("redroid");
 
     const arkhostResponse = await api.request(
@@ -81,10 +78,7 @@ describe("VPS routes", () => {
       env
     );
     expect(arkhostResponse.status).toBe(201);
-    const arkhost = v.parse(
-      v.object({ data: VpsResponseSchema }),
-      await arkhostResponse.json()
-    );
+    const arkhost = v.parse(v.object({ data: VpsResponseSchema }), await arkhostResponse.json());
     expect(arkhost.data.vps).toMatchObject({ role: "arkhost", watcherEnabled: true });
 
     const patchResponse = await api.request(
@@ -97,10 +91,7 @@ describe("VPS routes", () => {
       env
     );
     expect(patchResponse.status).toBe(200);
-    const patched = v.parse(
-      v.object({ data: VpsResponseSchema }),
-      await patchResponse.json()
-    );
+    const patched = v.parse(v.object({ data: VpsResponseSchema }), await patchResponse.json());
     expect(patched.data.vps.role).toBe("arkhost");
 
     const listResponse = await api.request(

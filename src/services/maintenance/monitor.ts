@@ -1,33 +1,30 @@
 import * as v from "valibot";
 
 import {
-  MAINTENANCE_CLAIM_TTL_MS,
-  MAINTENANCE_LOCK_KEY,
-  MAINTENANCE_LOCK_TTL_MS
-} from "../../constants/maintenance/config";
-import {
-  acquireControlJobLock,
-  releaseControlJobLock
-} from "../../repositories/control-job-locks";
-import {
   claimMaintenanceAnnouncement,
   completeMaintenanceAnnouncement,
-  failMaintenanceAnnouncement
+  failInterruptedMaintenanceAnnouncements,
+  failMaintenanceAnnouncement,
+  recordMaintenanceAnnouncementClassification
 } from "../../repositories/maintenance/announcements";
 import type { Env } from "../../schemas/env";
 import {
   MaintenanceAnnouncementOutcomeSchema,
+  MaintenanceAnnouncementClassificationSchema,
   MaintenanceNotificationResultSchema,
   type ClassificationResult,
+  type MaintenanceAnnouncementClassification,
   type MaintenanceAnnouncementOutcome,
   type MaintenanceNotificationResult,
   type NewsDetail,
   type NewsLink
 } from "../../schemas/maintenance/announcements";
 import { classifyByRules } from "../../utils/maintenance/rules";
+import { buildMaintenancePreActionSchedule } from "../../utils/maintenance/pre-action-schedule";
 import { classifyMaintenanceWithAi } from "./ai";
 import { notifyMaintenance } from "./notification";
 import { fetchMaintenanceNewsDetail, fetchMaintenanceNewsLinks } from "./news";
+import { refreshMaintenancePreActionAlarm } from "../scheduler/client";
 
 type MaintenanceLogger = Pick<Console, "info" | "warn" | "error">;
 
@@ -41,34 +38,21 @@ type MaintenanceMonitorDependencies = {
     news: NewsDetail,
     classification: ClassificationResult
   ) => Promise<MaintenanceNotificationResult>;
-  claim: (link: NewsLink, now: string, claimExpiresAt: string) => Promise<boolean>;
+  claim: (link: NewsLink, now: string) => Promise<boolean>;
+  recordClassification: (
+    newsId: string,
+    classification: MaintenanceAnnouncementClassification
+  ) => Promise<void>;
   complete: (newsId: string, outcome: MaintenanceAnnouncementOutcome) => Promise<void>;
   fail: (newsId: string, outcome: MaintenanceAnnouncementOutcome) => Promise<void>;
+  refreshPreActionAlarm?: () => Promise<void>;
   logger: MaintenanceLogger;
 };
 
-type MaintenanceLockDependencies = MaintenanceMonitorDependencies & {
-  acquireLock: (input: { owner: string; expiresAt: string; now: string }) => Promise<boolean>;
-  releaseLock: (input: { owner: string }) => Promise<void>;
-};
-
 export async function runMaintenanceMonitor(env: Env): Promise<void> {
+  await failInterruptedMaintenanceAnnouncements(env.DB, new Date().toISOString());
   const dependencies = createMaintenanceMonitorDependencies(env);
-  const now = dependencies.now();
-  const nowIso = now.toISOString();
-  const owner = createLockOwner(now);
-  const lockExpiresAt = addMs(now, MAINTENANCE_LOCK_TTL_MS);
-
-  if (!(await dependencies.acquireLock({ owner, expiresAt: lockExpiresAt, now: nowIso }))) {
-    dependencies.logger.info("Maintenance monitor skipped because another run owns the lock");
-    return;
-  }
-
-  try {
-    await runMaintenanceMonitorWithDependencies(dependencies);
-  } finally {
-    await dependencies.releaseLock({ owner });
-  }
+  await runMaintenanceMonitorWithDependencies(dependencies);
 }
 
 export async function runMaintenanceMonitorWithDependencies(
@@ -79,9 +63,7 @@ export async function runMaintenanceMonitorWithDependencies(
 
   let processedCount = 0;
   for (const link of links) {
-    const now = dependencies.now();
-    const nowIso = now.toISOString();
-    const claimed = await dependencies.claim(link, nowIso, addMs(now, MAINTENANCE_CLAIM_TTL_MS));
+    const claimed = await dependencies.claim(link, dependencies.now().toISOString());
     if (!claimed) continue;
 
     processedCount += 1;
@@ -91,11 +73,19 @@ export async function runMaintenanceMonitorWithDependencies(
     });
 
     let outcome: MaintenanceAnnouncementOutcome;
+    let scheduledPreAction = false;
     try {
       const detail = await dependencies.fetchDetail(link);
       const rules = dependencies.classifyRules(detail);
       const classification =
         rules.status === "uncertain" ? await dependencies.classifyAi(detail) : rules;
+      const announcementClassification = buildAnnouncementClassification(
+        detail,
+        classification,
+        rules
+      );
+      scheduledPreAction = announcementClassification.preActionState === "pending";
+      await dependencies.recordClassification(link.id, announcementClassification);
       const notification = classification.isMaintenance
         ? await dependencies.notify(detail, classification)
         : emptyNotificationResult();
@@ -130,6 +120,16 @@ export async function runMaintenanceMonitorWithDependencies(
 
     if (outcome.processingState === "completed") {
       await dependencies.complete(link.id, outcome);
+      if (scheduledPreAction && dependencies.refreshPreActionAlarm !== undefined) {
+        try {
+          await dependencies.refreshPreActionAlarm();
+        } catch (error) {
+          dependencies.logger.warn("Maintenance pre-action alarm refresh failed", {
+            id: link.id,
+            error: error instanceof Error ? error.message : "alarm refresh failed"
+          });
+        }
+      }
     } else {
       await dependencies.fail(link.id, outcome);
     }
@@ -138,31 +138,47 @@ export async function runMaintenanceMonitorWithDependencies(
   dependencies.logger.info("Maintenance monitor completed", { processedCount });
 }
 
-function createMaintenanceMonitorDependencies(env: Env): MaintenanceLockDependencies {
+function createMaintenanceMonitorDependencies(env: Env): MaintenanceMonitorDependencies {
   return {
     now: () => new Date(),
-    acquireLock: ({ owner, expiresAt, now }) =>
-      acquireControlJobLock(env.DB, MAINTENANCE_LOCK_KEY, owner, expiresAt, now),
-    releaseLock: ({ owner }) => releaseControlJobLock(env.DB, MAINTENANCE_LOCK_KEY, owner),
     fetchLinks: () => fetchMaintenanceNewsLinks(),
     fetchDetail: (link) => fetchMaintenanceNewsDetail(link),
     classifyRules: (news) => classifyByRules(news),
     classifyAi: (news) => classifyMaintenanceWithAi(env, news),
     notify: (news, classification) => notifyMaintenance(env, news, classification),
-    claim: (link, now, claimExpiresAt) =>
-      claimMaintenanceAnnouncement(env.DB, link, now, claimExpiresAt),
+    claim: (link, now) => claimMaintenanceAnnouncement(env.DB, link, now),
+    recordClassification: (newsId, classification) =>
+      recordMaintenanceAnnouncementClassification(env.DB, newsId, classification),
     complete: (newsId, outcome) => completeMaintenanceAnnouncement(env.DB, newsId, outcome),
     fail: (newsId, outcome) => failMaintenanceAnnouncement(env.DB, newsId, outcome),
+    refreshPreActionAlarm: () => refreshMaintenancePreActionAlarm(env.CONTROL_JOB_ALARMS),
     logger: console
   };
 }
 
-function createLockOwner(now: Date): string {
-  return `maintenance:${now.getTime()}:${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function addMs(date: Date, milliseconds: number): string {
-  return new Date(date.getTime() + milliseconds).toISOString();
+function buildAnnouncementClassification(
+  detail: NewsDetail,
+  classification: ClassificationResult,
+  rules: ClassificationResult
+): MaintenanceAnnouncementClassification {
+  const schedule =
+    rules.status === "maintenance"
+      ? buildMaintenancePreActionSchedule(rules.maintenanceStart)
+      : null;
+  const deterministicScheduleFailed = rules.status === "maintenance" && schedule === null;
+  return v.parse(MaintenanceAnnouncementClassificationSchema, {
+    title: detail.title,
+    isMaintenance: classification.isMaintenance,
+    maintenanceStart: classification.maintenanceStart,
+    maintenanceEnd: classification.maintenanceEnd,
+    maintenanceStartAt: schedule?.maintenanceStartAt ?? null,
+    preActionAt: schedule?.preActionAt ?? null,
+    preActionState: schedule === null ? "unschedulable" : "pending",
+    preActionFailureStep: deterministicScheduleFailed ? "schedule" : null,
+    preActionErrorMessage: deterministicScheduleFailed
+      ? "Deterministic maintenance announcement did not contain a complete valid start time."
+      : null
+  });
 }
 
 function emptyNotificationResult(): MaintenanceNotificationResult {

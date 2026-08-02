@@ -10,11 +10,7 @@ export const DEFAULT_VPS_BOOT_DISK = {
   provisionedThroughput: "230"
 } as const;
 
-export const DEFAULT_VPS_NETWORK_TAGS = [
-  "http-server",
-  "https-server",
-  "lb-health-check"
-] as const;
+export const DEFAULT_VPS_NETWORK_TAGS = ["http-server", "https-server", "lb-health-check"] as const;
 
 export const DEFAULT_VPS_SSH_USERNAME = "root";
 export const DEFAULT_VPS_SSH_PASSWORD = "GCP@2020.";
@@ -30,28 +26,26 @@ function pyHelperStartupLines(options: DefaultVpsStartupScriptOptions): string[]
   }
 
   return [
-    "case \"$(uname -m)\" in",
+    'case "$(uname -m)" in',
     `  aarch64|arm64) pyhelper_url="${options.pyHelperArm64DownloadUrl}" ;;`,
     `  x86_64|amd64) pyhelper_url="${options.pyHelperAmd64DownloadUrl}" ;;`,
-    "  *) echo \"Unsupported CPU architecture: $(uname -m)\" >&2; exit 1 ;;",
+    '  *) echo "Unsupported CPU architecture: $(uname -m)" >&2; exit 1 ;;',
     "esac",
-    "curl -fL \"${pyhelper_url}\" -o ~/Helper",
+    'curl -fL "${pyhelper_url}" -o ~/Helper',
     "chmod 777 ~/Helper",
-    "non_screenshot_count=\"$(nproc)\"",
-    "~/Helper --init --screenshot-count 0 --non-screenshot-count \"${non_screenshot_count}\" --no-gpu --redroid-version 12 2>&1 | tee /var/log/ark-pyhelper-init.log",
+    'non_screenshot_count="$(nproc)"',
+    '~/Helper --init --screenshot-count 0 --non-screenshot-count "${non_screenshot_count}" --no-gpu --redroid-version 12 2>&1 | tee /var/log/ark-pyhelper-init.log',
     "~/Helper -s 2>&1 | tee /var/log/ark-pyhelper-start.log",
     "install -d -m 0755 ~/redroid",
     "crontab -l > mycron || true",
-    "echo \"*/5 * * * *  ~/Helper --Surveillance >> ~/redroid/surveillance.log\" >> mycron",
-    "echo \"30 4 * * *  ~/Helper -r >> ~/redroid/restart.log\" >> mycron",
+    'echo "*/5 * * * *  ~/Helper --Surveillance >> ~/redroid/surveillance.log" >> mycron',
+    'echo "30 4 * * *  ~/Helper -r >> ~/redroid/restart.log" >> mycron',
     "crontab mycron",
     "rm mycron"
   ];
 }
 
-export function buildDefaultVpsStartupScript(
-  options: DefaultVpsStartupScriptOptions = {}
-): string {
+export function buildDefaultVpsStartupScript(options: DefaultVpsStartupScriptOptions = {}): string {
   return [
     "#!/usr/bin/env bash",
     "set -euxo pipefail",
@@ -75,16 +69,16 @@ export function buildDefaultVpsStartupScript(
     "systemctl restart ssh || systemctl restart sshd",
     "curl -fsSL https://get.docker.com -o /root/get-docker.sh",
     "sh /root/get-docker.sh",
-    "current_kernel=\"$(uname -r)\"",
-    "apt-get install -y \"linux-modules-extra-${current_kernel}\" || apt-get install -y linux-modules-extra-gcp || apt-get install -y linux-generic",
-    "case \"${current_kernel}\" in",
+    'current_kernel="$(uname -r)"',
+    'apt-get install -y "linux-modules-extra-${current_kernel}" || apt-get install -y linux-modules-extra-gcp || apt-get install -y linux-generic',
+    'case "${current_kernel}" in',
     "  *-gcp) apt-get install -y linux-modules-extra-gcp ;;",
     "  *-generic) apt-get install -y linux-generic ;;",
     "esac",
     "install -d -m 0755 /etc/modules-load.d /etc/modprobe.d /var/lib",
     "printf '%s\\n' binder_linux > /etc/modules-load.d/99-binder-linux.conf",
     "printf '%s\\n' 'options binder_linux devices=\"binder,hwbinder,vndbinder\"' > /etc/modprobe.d/99-binder-linux.conf",
-    "modprobe binder_linux devices=\"binder,hwbinder,vndbinder\"",
+    'modprobe binder_linux devices="binder,hwbinder,vndbinder"',
     "install -d -m 0755 /dev/binderfs",
     "cat > /etc/systemd/system/dev-binderfs.mount <<'BINDERFS_MOUNT'",
     "[Unit]",

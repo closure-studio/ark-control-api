@@ -7,10 +7,7 @@ import type {
   RunListResponse,
   RunLogResponse
 } from "../../schemas/apk-delivery/responses";
-import type {
-  ArknightsApkHostRunRow,
-  ArknightsApkReleaseRow
-} from "../../db/schema";
+import type { ArknightsApkHostRunRow, ArknightsApkReleaseRow } from "../../db/schema";
 import {
   countHostRuns,
   countRunsByReleaseIds,
@@ -19,7 +16,10 @@ import {
   listRunsForRelease
 } from "../../repositories/apk-delivery/host-runs";
 import { getRelease, listReleases } from "../../repositories/apk-delivery/releases";
-import { NON_TERMINAL_HOST_RUN_STATUSES, TERMINAL_HOST_RUN_STATUSES } from "../../constants/apk-delivery/status";
+import {
+  NON_TERMINAL_HOST_RUN_STATUSES,
+  TERMINAL_HOST_RUN_STATUSES
+} from "../../constants/apk-delivery/status";
 import type { HostRunListQuery } from "../../schemas/apk-delivery/requests";
 import type { HostRunStatus } from "../../schemas/apk-delivery/status";
 
@@ -62,10 +62,7 @@ function statusesForState(state: HostRunListQuery["state"]): readonly HostRunSta
   return undefined;
 }
 
-export async function listHostRuns(
-  env: Env,
-  query: HostRunListQuery
-): Promise<RunListResponse> {
+export async function listHostRuns(env: Env, query: HostRunListQuery): Promise<RunListResponse> {
   const statuses = statusesForState(query.state);
   const [rows, total] = await Promise.all([
     listHostRunRows(env.DB, statuses, query.limit, query.offset),

@@ -1,26 +1,22 @@
 import * as v from "valibot";
 
-import {
-  MAINTENANCE_AI_MAX_TOKENS
-} from "../../constants/maintenance/config";
+import { DEFAULT_AI_MODEL } from "../../constants/ai";
+import { MAINTENANCE_AI_MAX_TOKENS } from "../../constants/maintenance/config";
 import type { Env } from "../../schemas/env";
 import {
   ClassificationResultSchema,
   type ClassificationResult,
   type NewsDetail
 } from "../../schemas/maintenance/announcements";
-import {
-  MaintenanceAiJsonTextSchema,
-  MaintenanceAiProviderResponseSchema,
-  type MaintenanceAiJson
-} from "../../schemas/maintenance/ai";
+import { MaintenanceAiJsonTextSchema, type MaintenanceAiJson } from "../../schemas/maintenance/ai";
+import { normalizeWorkersAiTextResponse } from "../ai/provider-response";
 
 export async function classifyMaintenanceWithAi(
   env: Env,
   news: NewsDetail
 ): Promise<ClassificationResult> {
   try {
-    const model = env.AI_MODEL ?? "@cf/zai-org/glm-4.7-flash";
+    const model = env.AI_MODEL ?? DEFAULT_AI_MODEL;
     const response = await env.AI.run(model, {
       chat_template_kwargs: { enable_thinking: false },
       max_tokens: MAINTENANCE_AI_MAX_TOKENS,
@@ -55,12 +51,10 @@ export async function classifyMaintenanceWithAi(
       temperature: 0
     });
 
-    const rawResponse = normalizeProviderResponse(response);
-    if (!rawResponse) {
-      throw new Error("AI response did not include content");
-    }
+    const normalized = normalizeWorkersAiTextResponse(response);
+    if (normalized.status === "error") throw new Error(normalized.reason);
 
-    const parsed = parseMaintenanceAiJson(rawResponse);
+    const parsed = parseMaintenanceAiJson(normalized.text);
     return v.parse(ClassificationResultSchema, {
       status: parsed.is_maintenance ? "maintenance" : "not_maintenance",
       isMaintenance: parsed.is_maintenance,
@@ -88,31 +82,12 @@ export function parseMaintenanceAiJson(rawResponse: string): MaintenanceAiJson {
       end > start;
       end = rawResponse.lastIndexOf("}", end - 1)
     ) {
-      const embedded = v.safeParse(
-        MaintenanceAiJsonTextSchema,
-        rawResponse.slice(start, end + 1)
-      );
+      const embedded = v.safeParse(MaintenanceAiJsonTextSchema, rawResponse.slice(start, end + 1));
       if (embedded.success) return embedded.output;
     }
   }
 
   throw new Error("AI response was not valid maintenance JSON");
-}
-
-function normalizeProviderResponse(response: unknown): string | null {
-  if (typeof response === "string" && response.trim().length > 0) {
-    return response;
-  }
-
-  const parsed = v.safeParse(MaintenanceAiProviderResponseSchema, response);
-  if (!parsed.success) return null;
-
-  const directResponse = parsed.output.response ?? parsed.output.output_text;
-  if (directResponse?.trim()) return directResponse;
-
-  const firstChoice = parsed.output.choices?.[0];
-  const choiceText = firstChoice?.text ?? firstChoice?.message?.content;
-  return choiceText?.trim() ? choiceText : null;
 }
 
 function buildPrompt(news: NewsDetail): string {

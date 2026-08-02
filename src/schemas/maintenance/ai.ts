@@ -16,20 +16,4 @@ export const MaintenanceAiJsonTextSchema = v.pipe(
   MaintenanceAiJsonSchema
 );
 
-const MaintenanceAiChoiceSchema = v.object({
-  text: v.exactOptional(v.string()),
-  finish_reason: v.exactOptional(v.string()),
-  message: v.exactOptional(
-    v.object({
-      content: v.exactOptional(v.string())
-    })
-  )
-});
-
-export const MaintenanceAiProviderResponseSchema = v.object({
-  response: v.exactOptional(v.string()),
-  output_text: v.exactOptional(v.string()),
-  choices: v.exactOptional(v.array(MaintenanceAiChoiceSchema))
-});
-
 export type MaintenanceAiJson = v.InferOutput<typeof MaintenanceAiJsonSchema>;

@@ -62,10 +62,7 @@ export async function getRelease(
   );
 }
 
-export async function getReleaseApkFilename(
-  db: D1Database,
-  releaseId: number
-): Promise<string> {
+export async function getReleaseApkFilename(db: D1Database, releaseId: number): Promise<string> {
   const row = await createDatabase(db)
     .select({ apk_filename: arknightsApkReleases.apk_filename })
     .from(arknightsApkReleases)

@@ -6,13 +6,21 @@ workers_dev = true
 [[d1_databases]]
 binding = "DB"
 database_name = "ark_control"
-database_id = "6b72aad7-97ef-4c00-baeb-91d1bcae2d90"
+database_id = "d271b782-2dfb-4a3c-b898-2edc0a3b1c51"
 migrations_dir = "migrations"
 
 [[services]]
 binding = "ARK_SSH"
 service = "ark-ssh"
 entrypoint = "ArkSshRpc"
+
+[[durable_objects.bindings]]
+name = "CONTROL_JOB_ALARMS"
+class_name = "ControlJobAlarm"
+
+[exports.ControlJobAlarm]
+type = "durable-object"
+storage = "sqlite"
 
 [ai]
 binding = "AI"
@@ -26,7 +34,7 @@ OIDC_KEY_ID = "ark-oidc-key-1"
 OIDC_TOKEN_TTL_SECONDS = "300"
 
 [triggers]
-crons = ["*/10 * * * *", "17 * * * *", "15 3 * * *"]
+crons = ["0 12 * * *"]
 
 [observability.logs]
 enabled = true

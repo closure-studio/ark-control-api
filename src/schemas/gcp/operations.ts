@@ -2,12 +2,7 @@ import * as v from "valibot";
 
 export const GcpInstanceLifecycleActionSchema = v.picklist(["start", "stop", "delete"]);
 export const GcpOperationActionSchema = v.picklist(["create", "start", "stop", "delete"]);
-export const GcpOperationStatusSchema = v.picklist([
-  "submitted",
-  "succeeded",
-  "failed",
-  "skipped"
-]);
+export const GcpOperationStatusSchema = v.picklist(["submitted", "succeeded", "failed", "skipped"]);
 
 export const GcpInstanceLifecycleTargetSchema = v.object({
   accountId: v.number(),
@@ -43,11 +38,7 @@ export const GcpOperationSchema = v.object({
   createdAt: v.string()
 });
 
-export type GcpInstanceLifecycleAction = v.InferOutput<
-  typeof GcpInstanceLifecycleActionSchema
->;
-export type GcpInstanceLifecycleTarget = v.InferOutput<
-  typeof GcpInstanceLifecycleTargetSchema
->;
+export type GcpInstanceLifecycleAction = v.InferOutput<typeof GcpInstanceLifecycleActionSchema>;
+export type GcpInstanceLifecycleTarget = v.InferOutput<typeof GcpInstanceLifecycleTargetSchema>;
 export type GcpOperationResult = v.InferOutput<typeof GcpOperationResultSchema>;
 export type GcpOperation = v.InferOutput<typeof GcpOperationSchema>;

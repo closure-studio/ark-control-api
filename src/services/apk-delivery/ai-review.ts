@@ -1,11 +1,9 @@
-import { AI_REVIEW_MAX_TOKENS, DEFAULT_AI_MODEL } from "../../constants/apk-delivery/config";
+import { DEFAULT_AI_MODEL } from "../../constants/ai";
+import { AI_REVIEW_MAX_TOKENS } from "../../constants/apk-delivery/config";
 import { AI_REVIEW_STATUSES } from "../../constants/apk-delivery/status";
 import type { Env } from "../../schemas/env";
-import * as v from "valibot";
-import {
-  AiProviderResponseSchema,
-  type AiReviewWithModel
-} from "../../schemas/apk-delivery/ai";
+import type { AiReviewWithModel } from "../../schemas/apk-delivery/ai";
+import { normalizeWorkersAiTextResponse } from "../ai/provider-response";
 import { parseAiReviewJson } from "../../utils/apk-delivery/ai";
 
 function buildPrompt(logTail: string): string {
@@ -20,55 +18,22 @@ function buildPrompt(logTail: string): string {
     "Use status=unknown when the log is ambiguous or insufficient.",
     "Evaluate events in chronological order. Ignore transient ERROR lines when a later line confirms recovery or a successful check.",
     "Log tail:",
-    logTail,
+    logTail
   ].join("\n\n");
-}
-
-function normalizeAiResponse(response: unknown) {
-  if (typeof response === "string") {
-    return { rawResponse: response, protocolErrorReason: null };
-  }
-
-  const result = v.safeParse(AiProviderResponseSchema, response);
-  if (result.success) {
-    const directResponse = result.output.response ?? result.output.output_text;
-    if (directResponse !== undefined) {
-      return { rawResponse: directResponse, protocolErrorReason: null };
-    }
-
-    const [choice] = result.output.choices ?? [];
-    if (choice?.finish_reason === "length") {
-      return { rawResponse: JSON.stringify(response), protocolErrorReason: "AI response was truncated" };
-    }
-
-    if (choice) {
-      const choiceText = choice.text ?? choice.message?.content;
-      if (choiceText !== undefined && choiceText.trim().length > 0) {
-        return { rawResponse: choiceText, protocolErrorReason: null };
-      }
-    }
-
-    return { rawResponse: JSON.stringify(response), protocolErrorReason: "AI response did not include content" };
-  }
-
-  return {
-    rawResponse: JSON.stringify(response) ?? "",
-    protocolErrorReason: "AI response had an unsupported shape"
-  };
 }
 
 export async function reviewLogWithAi(env: Env, logTail: string): Promise<AiReviewWithModel> {
   const model = env.AI_MODEL || DEFAULT_AI_MODEL;
   const response = await env.AI.run(model, {
     chat_template_kwargs: {
-      enable_thinking: false,
+      enable_thinking: false
     },
     max_tokens: AI_REVIEW_MAX_TOKENS,
     messages: [
       {
         role: "user",
-        content: buildPrompt(logTail),
-      },
+        content: buildPrompt(logTail)
+      }
     ],
     response_format: {
       type: "json_schema",
@@ -79,29 +44,29 @@ export async function reviewLogWithAi(env: Env, logTail: string): Promise<AiRevi
           type: "object",
           properties: {
             status: { type: "string", enum: [...AI_REVIEW_STATUSES] },
-            reason: { type: "string" },
+            reason: { type: "string" }
           },
           required: ["status", "reason"],
-          additionalProperties: false,
-        },
-      },
+          additionalProperties: false
+        }
+      }
     },
-    temperature: 0,
+    temperature: 0
   });
-  const normalized = normalizeAiResponse(response);
+  const normalized = normalizeWorkersAiTextResponse(response);
 
-  if (normalized.protocolErrorReason) {
+  if (normalized.status === "error") {
     return {
       model,
       status: "unknown",
-      reason: normalized.protocolErrorReason,
+      reason: normalized.reason,
       rawResponse: normalized.rawResponse,
-      protocolError: true,
+      protocolError: true
     };
   }
 
   return {
     model,
-    ...parseAiReviewJson(normalized.rawResponse),
+    ...parseAiReviewJson(normalized.text)
   };
 }

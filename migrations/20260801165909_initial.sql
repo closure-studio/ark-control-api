@@ -37,26 +37,50 @@ CREATE TABLE `arknights_maintenance_announcements` (
 	`news_id` text PRIMARY KEY NOT NULL,
 	`url` text NOT NULL,
 	`processing_state` text NOT NULL,
-	`claim_expires_at` text NOT NULL,
 	`first_seen_at` text NOT NULL,
 	`processed_at` text,
 	`title` text,
 	`is_maintenance` integer,
 	`maintenance_start` text,
 	`maintenance_end` text,
+	`maintenance_start_at` text,
+	`pre_action_at` text,
+	`pre_action_state` text DEFAULT 'unschedulable' NOT NULL,
+	`pre_action_started_at` text,
+	`pre_action_completed_at` text,
+	`pre_action_failed_step` text,
+	`pre_action_error_message` text,
 	`notified` integer DEFAULT false NOT NULL,
 	`error_message` text,
 	CONSTRAINT "arknights_maintenance_announcements_state_check" CHECK("arknights_maintenance_announcements"."processing_state" IN ('processing', 'completed', 'failed')),
-	CONSTRAINT "arknights_maintenance_announcements_notified_check" CHECK("arknights_maintenance_announcements"."notified" IN (0, 1))
+	CONSTRAINT "arknights_maintenance_announcements_notified_check" CHECK("arknights_maintenance_announcements"."notified" IN (0, 1)),
+	CONSTRAINT "arknights_maintenance_announcements_pre_action_state_check" CHECK("arknights_maintenance_announcements"."pre_action_state" IN ('pending', 'processing', 'completed', 'failed', 'unschedulable')),
+	CONSTRAINT "arknights_maintenance_announcements_pre_action_failed_step_check" CHECK("arknights_maintenance_announcements"."pre_action_failed_step" IS NULL OR "arknights_maintenance_announcements"."pre_action_failed_step" IN ('schedule', 'auth', 'config', 'host_inventory', 'ssh', 'missed', 'interrupted'))
 );
 --> statement-breakpoint
-CREATE TABLE `control_job_locks` (
-	`job_name` text PRIMARY KEY NOT NULL,
-	`owner` text NOT NULL,
-	`acquired_at` text NOT NULL,
-	`expires_at` text NOT NULL
+CREATE INDEX `idx_maintenance_pre_action_due` ON `arknights_maintenance_announcements` (`processing_state`,`pre_action_state`,`pre_action_at`);--> statement-breakpoint
+CREATE TABLE `arknights_maintenance_host_runs` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`announcement_news_id` text NOT NULL,
+	`host_id` integer,
+	`host_name_snapshot` text NOT NULL,
+	`host_address_snapshot` text NOT NULL,
+	`status` text NOT NULL,
+	`connected` integer,
+	`timed_out` integer,
+	`exit_code` integer,
+	`error_message` text,
+	`created_at` text NOT NULL,
+	`updated_at` text NOT NULL,
+	FOREIGN KEY (`announcement_news_id`) REFERENCES `arknights_maintenance_announcements`(`news_id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`host_id`) REFERENCES `vps_hosts`(`id`) ON UPDATE no action ON DELETE set null,
+	CONSTRAINT "arknights_maintenance_host_runs_status_check" CHECK("arknights_maintenance_host_runs"."status" IN ('running', 'succeeded', 'failed', 'timed_out')),
+	CONSTRAINT "arknights_maintenance_host_runs_connected_check" CHECK("arknights_maintenance_host_runs"."connected" IS NULL OR "arknights_maintenance_host_runs"."connected" IN (0, 1)),
+	CONSTRAINT "arknights_maintenance_host_runs_timed_out_check" CHECK("arknights_maintenance_host_runs"."timed_out" IS NULL OR "arknights_maintenance_host_runs"."timed_out" IN (0, 1))
 );
 --> statement-breakpoint
+CREATE INDEX `idx_maintenance_host_runs_announcement` ON `arknights_maintenance_host_runs` (`announcement_news_id`);--> statement-breakpoint
+CREATE INDEX `idx_maintenance_host_runs_status` ON `arknights_maintenance_host_runs` (`status`);--> statement-breakpoint
 CREATE TABLE `gcp_accounts` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`name` text NOT NULL,
@@ -98,12 +122,15 @@ CREATE TABLE `vps_hosts` (
 	`port` integer DEFAULT 22 NOT NULL,
 	`username` text NOT NULL,
 	`password_ciphertext` text NOT NULL,
+	`role` text DEFAULT 'redroid' NOT NULL,
 	`enabled` integer DEFAULT true NOT NULL,
 	`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
 	`updated_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,
 	CONSTRAINT "vps_hosts_port_check" CHECK("vps_hosts"."port" BETWEEN 1 AND 65535),
+	CONSTRAINT "vps_hosts_role_check" CHECK("vps_hosts"."role" IN ('redroid', 'arkhost')),
 	CONSTRAINT "vps_hosts_enabled_check" CHECK("vps_hosts"."enabled" IN (0, 1))
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `vps_hosts_name_unique` ON `vps_hosts` (`name`);--> statement-breakpoint
+CREATE INDEX `idx_vps_hosts_arkhost` ON `vps_hosts` (`id`) WHERE "vps_hosts"."role" = 'arkhost';--> statement-breakpoint
 CREATE UNIQUE INDEX `vps_hosts_address_port_username_unique` ON `vps_hosts` (`address`,`port`,`username`);

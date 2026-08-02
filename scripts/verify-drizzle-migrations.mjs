@@ -3,6 +3,11 @@ import { spawnSync } from "node:child_process";
 
 const migrationsDirectory = new URL("../migrations/", import.meta.url);
 
+/**
+ * @param {URL} directory
+ * @param {string} prefix
+ * @returns {Map<string, string>}
+ */
 function snapshot(directory, prefix = "") {
   const files = new Map();
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -17,6 +22,10 @@ function snapshot(directory, prefix = "") {
   return files;
 }
 
+/**
+ * @param {Map<string, string>} before
+ * @param {Map<string, string>} after
+ */
 function changesBetween(before, after) {
   const paths = new Set([...before.keys(), ...after.keys()]);
   return [...paths].filter((path) => before.get(path) !== after.get(path)).sort();

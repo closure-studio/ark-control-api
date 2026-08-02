@@ -8,6 +8,7 @@ import { createPyHelperRouter } from "./pyhelper";
 import { createHealthRouter } from "./health";
 import { createVpsRouter } from "./vps";
 import { createApkDeliveryRouter } from "./apk-delivery";
+import { createSchedulerRouter } from "./scheduler";
 
 export function createRouter() {
   const app = new Hono<{ Bindings: Env }>();
@@ -17,19 +18,19 @@ export function createRouter() {
   app.use("/api/*", async (c, next) => {
     const path = new URL(c.req.url).pathname;
     if (path.startsWith("/api/pyhelper/assets/")) {
-      await next();
-      return;
+      return next();
     }
     if (!c.env.ADMIN_TOKEN || c.req.header("authorization") !== `Bearer ${c.env.ADMIN_TOKEN}`) {
       return jsonError(c, API_ERROR_CODES.UNAUTHORIZED, "Unauthorized", 401);
     }
-    await next();
+    return next();
   });
 
   app.route("/api", createGcpRouter());
   app.route("/api", createVpsRouter());
   app.route("/api", createApkDeliveryRouter());
   app.route("/api", createPyHelperRouter());
+  app.route("/api", createSchedulerRouter());
 
   app.all("/api/*", (c) =>
     jsonError(c, API_ERROR_CODES.NOT_FOUND, "API route was not found.", 404)

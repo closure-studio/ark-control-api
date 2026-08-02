@@ -7,7 +7,10 @@ import { listHostRuns } from "../src/repositories/apk-delivery/host-runs";
 import { EnvSchema, type Env } from "../src/schemas/env";
 import type { ExecuteSshCommandRequest } from "../src/schemas/vps/ssh-command";
 import { PasswordCrypto } from "../src/services/vps/password-crypto";
-import { runApkDeliveryCycle } from "../src/services/apk-delivery/deployment-lifecycle";
+import {
+  getNextApkDeliveryAlarmAt,
+  runApkDeliveryCycle
+} from "../src/services/apk-delivery/deployment-lifecycle";
 import { HOST_PROCESS_META_MARKER } from "../src/utils/apk-delivery/shell";
 import { applyD1Migrations } from "./helpers/migrations";
 
@@ -24,16 +27,17 @@ function createEnv(
       run: vi.fn().mockResolvedValue({ response: '{"status":"success","reason":"done"}' })
     },
     ARK_SSH: { executeCommand },
+    CONTROL_JOB_ALARMS: { getByName: vi.fn() },
     ADMIN_TOKEN: "admin",
     VPS_PASSWORD_KEY: PASSWORD_KEY,
     GITHUB_PYHELPER_TOKEN: "github",
-    TASK_SERVER_BASE_URL: "https://tasks.example.com",
-    TASK_SERVER_AUTHORIZATION: "Bearer tasks",
     OIDC_ISSUER: "https://control.example.com",
     OIDC_KEY_ID: "key-id",
     OIDC_PRIVATE_KEY_PEM: "private-key",
     OIDC_SUBJECT: "subject",
-    PUBLIC_TOKEN_BEARER_SECRET: "public-secret"
+    PUBLIC_TOKEN_BEARER_SECRET: "public-secret",
+    ARKHOST_PASSPORT_EMAIL: "admin@example.com",
+    ARKHOST_PASSPORT_PASSWORD: "passport-password"
   });
 }
 
@@ -65,7 +69,6 @@ describe("APK delivery lifecycle", () => {
       DELETE FROM arknights_apk_host_runs;
       DELETE FROM arknights_apk_releases;
       DELETE FROM vps_hosts;
-      DELETE FROM control_job_locks;
     `);
   });
 
@@ -144,8 +147,6 @@ describe("APK delivery lifecycle", () => {
     expect(sshRequests.filter((request) => request.hostname === "192.0.2.11")).toHaveLength(3);
     expect(sshRequests.filter((request) => request.hostname === "192.0.2.12")).toHaveLength(1);
     expect(sshRequests.filter((request) => request.hostname === "192.0.2.13")).toHaveLength(0);
-    expect((await db.prepare("SELECT * FROM control_job_locks").all()).results).toEqual([]);
-
     await runApkDeliveryCycle(env, {
       now: () => new Date("2026-07-20T12:10:00.000Z"),
       fetcher,
@@ -200,5 +201,63 @@ describe("APK delivery lifecycle", () => {
       }
     ]);
     expect(executeCommand).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not let pending recovery delay an earlier running deadline", async () => {
+    await db.exec(`
+      INSERT INTO vps_hosts (id, name, address, port, username, password_ciphertext) VALUES (1, 'Pending Host', '192.0.2.30', 22, 'root', 'ciphertext'), (2, 'Running Host', '192.0.2.31', 22, 'root', 'ciphertext');
+      INSERT INTO arknights_apk_releases (id, apk_filename, final_url, detected_at) VALUES (1, 'release.apk', 'https://example.com/release.apk', '2026-07-20T11:00:00.000Z');
+      INSERT INTO arknights_apk_host_runs (release_id, host_id, host_name_snapshot, host_address_snapshot, status, next_check_at, deadline_at, created_at, updated_at) VALUES (1, 1, 'Pending Host', '192.0.2.30', 'pending', NULL, NULL, '2026-07-20T11:00:00.000Z', '2026-07-20T11:00:00.000Z'), (1, 2, 'Running Host', '192.0.2.31', 'running', '2026-07-20T12:20:00.000Z', '2026-07-20T12:01:00.000Z', '2026-07-20T11:00:00.000Z', '2026-07-20T11:00:00.000Z');
+    `);
+
+    await expect(getNextApkDeliveryAlarmAt(db, NOW)).resolves.toEqual(
+      new Date("2026-07-20T12:01:00.000Z")
+    );
+  });
+
+  it("fills a missing Host Run for an already persisted latest Release", async () => {
+    const encryptedPassword = await new PasswordCrypto(PASSWORD_KEY).encrypt("password");
+    await new VpsHostRepository(db).create(
+      {
+        name: "Recovered Host",
+        address: "192.0.2.40",
+        port: 22,
+        username: "root",
+        password: "password",
+        role: "redroid"
+      },
+      encryptedPassword
+    );
+    await db
+      .prepare(
+        `INSERT INTO arknights_apk_releases (apk_filename, final_url, detected_at)
+         VALUES (?, ?, ?)`
+      )
+      .bind(
+        "arknights-hg-1.0.0.apk",
+        "https://downloads.example.com/arknights-hg-1.0.0.apk",
+        NOW.toISOString()
+      )
+      .run();
+    const executeCommand = vi.fn(async () => ({
+      connected: true,
+      stdout: "started:123",
+      stderr: "",
+      exitCode: 0,
+      signal: null,
+      success: true,
+      timedOut: false
+    }));
+
+    await runApkDeliveryCycle(createEnv(db, executeCommand), {
+      now: () => NOW,
+      fetcher: async () => apkResponse(),
+      logger: { error: vi.fn() }
+    });
+
+    expect(await listHostRuns(db, undefined, 10, 0)).toMatchObject([
+      { host_name_snapshot: "Recovered Host", status: "running" }
+    ]);
+    expect(executeCommand).toHaveBeenCalledOnce();
   });
 });

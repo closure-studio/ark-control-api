@@ -32,22 +32,6 @@ export const AiReviewWithModelSchema = v.object({
 
 export const AiReviewJsonSchema = v.pipe(v.string(), v.parseJson(), AiReviewSchema);
 
-const AiChoiceSchema = v.object({
-  text: v.exactOptional(v.string()),
-  finish_reason: v.exactOptional(v.string()),
-  message: v.exactOptional(
-    v.object({
-      content: v.exactOptional(v.string())
-    })
-  )
-});
-
-export const AiProviderResponseSchema = v.object({
-  response: v.exactOptional(v.string()),
-  output_text: v.exactOptional(v.string()),
-  choices: v.exactOptional(v.array(AiChoiceSchema))
-});
-
 export type AiReviewStatus = v.InferOutput<typeof AiReviewStatusSchema>;
 export type AiReviewResult = v.InferOutput<typeof AiReviewResultSchema>;
 export type AiReviewParseResult = v.InferOutput<typeof AiReviewParseResultSchema>;

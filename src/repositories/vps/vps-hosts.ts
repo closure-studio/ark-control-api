@@ -79,7 +79,11 @@ export class VpsHostRepository {
     return this.findById(inserted.id);
   }
 
-  async patch(id: number, input: PatchVpsHost, passwordCiphertext?: string): Promise<VpsHostRecord | null> {
+  async patch(
+    id: number,
+    input: PatchVpsHost,
+    passwordCiphertext?: string
+  ): Promise<VpsHostRecord | null> {
     const values: SQLiteUpdateSetSource<typeof vpsHosts> = {
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.address !== undefined ? { address: input.address } : {}),

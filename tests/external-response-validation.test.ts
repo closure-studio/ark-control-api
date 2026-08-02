@@ -2,18 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 import * as v from "valibot";
 import { waitForZoneOperation } from "../src/services/gcp/compute";
 import { downloadLatestPyHelperAsset } from "../src/services/pyhelper/github";
-import { createTaskServerClient } from "../src/services/task-server/client";
-import {
-  AiReviewParseResultSchema,
-  AiReviewWithModelSchema
-} from "../src/schemas/apk-delivery/ai";
+import { AiReviewParseResultSchema, AiReviewWithModelSchema } from "../src/schemas/apk-delivery/ai";
 import { parseAiReviewJson } from "../src/utils/apk-delivery/ai";
+import { normalizeWorkersAiTextResponse } from "../src/services/ai/provider-response";
 
 describe("external response validation", () => {
   it("rejects malformed Google operation responses", async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(JSON.stringify({ status: 123 }), { status: 200 })
-    );
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(JSON.stringify({ status: 123 }), { status: 200 }));
 
     await expect(
       waitForZoneOperation({
@@ -28,9 +25,9 @@ describe("external response validation", () => {
   });
 
   it("rejects malformed GitHub release responses", async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(JSON.stringify({ assets: "invalid" }), { status: 200 })
-    );
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(JSON.stringify({ assets: "invalid" }), { status: 200 }));
 
     await expect(
       downloadLatestPyHelperAsset({
@@ -41,54 +38,8 @@ describe("external response validation", () => {
     ).rejects.toThrow("GitHub release API returned an invalid response");
   });
 
-  it("validates Task Server endpoint data instead of trusting the envelope", async () => {
-    const client = createTaskServerClient(
-      {
-        TASK_SERVER_BASE_URL: "https://tasks.example.com",
-        TASK_SERVER_AUTHORIZATION: "Bearer token"
-      },
-      {
-        fetch: vi.fn<typeof fetch>().mockResolvedValue(
-          new Response(JSON.stringify({ errCode: 0, msg: "ok", data: "not-an-index" }))
-        )
-      }
-    );
-
-    await expect(
-      client.getIndex({ taskId: "task-1", queue: "shot" })
-    ).rejects.toThrow("invalid response envelope");
-  });
-
-  it("preserves valid JSON extension fields in Task Server payloads", async () => {
-    const task = {
-      task_id: "task-1",
-      needScreenshot: true,
-      task_status: 1,
-      expires: 2,
-      not_before: 0,
-      metadata: { labels: ["one", "two"] }
-    };
-    const client = createTaskServerClient(
-      {
-        TASK_SERVER_BASE_URL: "https://tasks.example.com",
-        TASK_SERVER_AUTHORIZATION: "Bearer token"
-      },
-      {
-        fetch: vi.fn<typeof fetch>().mockResolvedValue(
-          new Response(
-            JSON.stringify({ errCode: 0, msg: "ok", data: JSON.stringify(task) })
-          )
-        )
-      }
-    );
-
-    await expect(client.getTask({ taskId: "task-1" })).resolves.toEqual(task);
-  });
-
   it("rejects AI JSON with fields outside the declared protocol", () => {
-    expect(
-      parseAiReviewJson('{"status":"success","reason":"done","extra":true}')
-    ).toMatchObject({
+    expect(parseAiReviewJson('{"status":"success","reason":"done","extra":true}')).toMatchObject({
       status: "unknown",
       protocolError: true,
       reason: "AI response had unexpected fields"
@@ -100,7 +51,7 @@ describe("external response validation", () => {
       v.safeParse(AiReviewParseResultSchema, {
         status: "success",
         reason: "done",
-        rawResponse: "{\"status\":\"success\"}",
+        rawResponse: '{"status":"success"}',
         protocolError: false
       })
     ).toMatchObject({ success: true });
@@ -121,5 +72,35 @@ describe("external response validation", () => {
         protocolError: "false"
       }).success
     ).toBe(false);
+  });
+
+  it("normalizes every supported Workers AI text response shape", () => {
+    expect(normalizeWorkersAiTextResponse("direct response")).toEqual({
+      status: "ok",
+      text: "direct response"
+    });
+    expect(normalizeWorkersAiTextResponse({ output_text: "output text" })).toEqual({
+      status: "ok",
+      text: "output text"
+    });
+    expect(
+      normalizeWorkersAiTextResponse({
+        choices: [{ message: { content: "choice response" } }]
+      })
+    ).toEqual({ status: "ok", text: "choice response" });
+  });
+
+  it("distinguishes truncated, empty, and unsupported AI responses", () => {
+    expect(
+      normalizeWorkersAiTextResponse({ choices: [{ finish_reason: "length" }] })
+    ).toMatchObject({ status: "error", reason: "AI response was truncated" });
+    expect(normalizeWorkersAiTextResponse({ response: "" })).toMatchObject({
+      status: "error",
+      reason: "AI response did not include content"
+    });
+    expect(normalizeWorkersAiTextResponse(42)).toMatchObject({
+      status: "error",
+      reason: "AI response had an unsupported shape"
+    });
   });
 });

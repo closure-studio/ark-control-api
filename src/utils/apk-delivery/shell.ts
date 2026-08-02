@@ -23,7 +23,7 @@ export function buildStartCommand(apkFilename: string): string {
     `  nohup sh -c '$HOME/Helper -g; code=$?; printf "%s\\n" "$code" > "${homeBase}.exit.tmp"; mv "${homeBase}.exit.tmp" "${homeBase}.exit"; exit "$code"' > ${base}.log 2>&1 &`,
     `  echo $! > ${base}.pid`,
     "  echo started:$!",
-    "fi",
+    "fi"
   ].join("\n");
 }
 
@@ -42,6 +42,6 @@ export function buildLogTailCommand(apkFilename: string): string {
     "else",
     "  echo state=unknown",
     "  echo exit_code=unknown",
-    "fi",
+    "fi"
   ].join("\n");
 }

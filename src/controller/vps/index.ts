@@ -6,10 +6,7 @@ import type {
   VpsInventoryResponse,
   VpsResource
 } from "../../schemas/vps/hosts";
-import type {
-  VpsDeleteResponse,
-  VpsProvisionResponse
-} from "../../schemas/vps/responses";
+import type { VpsDeleteResponse, VpsProvisionResponse } from "../../schemas/vps/responses";
 import { loadAccountRow } from "../../services/gcp/accounts";
 import { fetchGoogleAccessToken } from "../../services/gcp/auth";
 import {
@@ -68,10 +65,7 @@ export async function verifyVps(env: Env, hostId: number) {
   return executeHostCommand(env, { hostId });
 }
 
-export async function createManualVps(
-  env: Env,
-  input: CreateVpsRequest
-): Promise<VpsResource> {
+export async function createManualVps(env: Env, input: CreateVpsRequest): Promise<VpsResource> {
   const { enabled, ...hostInput } = input;
   const password = await new PasswordCrypto(env.VPS_PASSWORD_KEY).encrypt(hostInput.password);
   const host = await new VpsHostRepository(env.DB).create(hostInput, password, enabled);
@@ -197,7 +191,8 @@ export async function provisionGcpVps(
     return { vps: toResource(host), operation };
   } catch (error) {
     const compensationError = await compensateCreatedInstance(env, identity, options);
-    if (compensationError) console.error("GCP VPS compensation failed", { identity, compensationError });
+    if (compensationError)
+      console.error("GCP VPS compensation failed", { identity, compensationError });
     throw new ControlApiError(
       API_ERROR_CODES.VPS_HOST_REGISTRATION_FAILED,
       error instanceof Error ? error.message : "Unable to register the new VPS host.",
@@ -207,10 +202,7 @@ export async function provisionGcpVps(
   }
 }
 
-export async function deleteVps(
-  env: Env,
-  hostId: number
-): Promise<VpsDeleteResponse> {
+export async function deleteVps(env: Env, hostId: number): Promise<VpsDeleteResponse> {
   const repository = new VpsHostRepository(env.DB);
   const host = await repository.findById(hostId);
   if (!host) return { id: hostId, name: `VPS ${hostId}`, deleted: true };

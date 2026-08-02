@@ -11,9 +11,7 @@ import {
 } from "../../schemas/vps/ssh-command";
 import { PasswordCrypto } from "./password-crypto";
 
-export type SshCommandExecutor = (
-  request: NormalizedExecuteSshCommandRequest
-) => Promise<unknown>;
+export type SshCommandExecutor = (request: NormalizedExecuteSshCommandRequest) => Promise<unknown>;
 
 interface HostCommandDependencies {
   repository?: Pick<VpsHostRepository, "findById">;
@@ -61,7 +59,10 @@ export function createHostCommandExecutor(dependencies: HostCommandDependencies)
   };
 }
 
-export async function executeHostCommand(env: Env, request: ExecuteHostCommandRequest): Promise<ExecuteHostCommandResult> {
+export async function executeHostCommand(
+  env: Env,
+  request: ExecuteHostCommandRequest
+): Promise<ExecuteHostCommandResult> {
   return createHostCommandExecutor({
     executeSshCommand: (input) => env.ARK_SSH.executeCommand(input)
   })(env, request);

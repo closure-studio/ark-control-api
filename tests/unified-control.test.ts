@@ -25,8 +25,8 @@ describe("unified control services", () => {
   it("fails when a Google operation never completes", async () => {
     const fetcher = vi
       .fn<typeof fetch>()
-      .mockImplementation(async () =>
-        new Response(JSON.stringify({ status: "RUNNING" }), { status: 200 })
+      .mockImplementation(
+        async () => new Response(JSON.stringify({ status: "RUNNING" }), { status: 200 })
       );
 
     await expect(

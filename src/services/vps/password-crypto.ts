@@ -1,8 +1,5 @@
 import * as v from "valibot";
-import {
-  PasswordEnvelopeJsonSchema,
-  type PasswordEnvelope
-} from "../../schemas/vps/password";
+import { PasswordEnvelopeJsonSchema, type PasswordEnvelope } from "../../schemas/vps/password";
 
 const ENCODER = new TextEncoder();
 const DECODER = new TextDecoder();
@@ -13,7 +10,11 @@ export class PasswordCrypto {
   async encrypt(password: string): Promise<string> {
     const key = await this.importKey(["encrypt"]);
     const iv = crypto.getRandomValues(new Uint8Array(12));
-    const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, ENCODER.encode(password));
+    const encrypted = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      ENCODER.encode(password)
+    );
     const envelope: PasswordEnvelope = {
       v: 1,
       alg: "AES-GCM",

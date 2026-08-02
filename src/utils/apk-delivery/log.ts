@@ -1,11 +1,9 @@
 import { LOG_TAIL_BYTES } from "../../constants/apk-delivery/config";
-import type {
-  HostLogSnapshot,
-  HostProcessState
-} from "../../schemas/apk-delivery/log";
+import type { HostLogSnapshot, HostProcessState } from "../../schemas/apk-delivery/log";
 import { HOST_PROCESS_META_MARKER } from "./shell";
 
-const ANSI_ESCAPE_PATTERN = /[\u001B\u009B][[\]()#;?]*(?:(?:(?:[a-zA-Z\d]*(?:;[-a-zA-Z\d/#&.:=?%@~_]+)*)?\u0007)|(?:(?:\d{1,4}(?:[;:]\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]))/g;
+const ANSI_ESCAPE_PATTERN =
+  /[\u001B\u009B][[\]()#;?]*(?:(?:(?:[a-zA-Z\d]*(?:;[-a-zA-Z\d/#&.:=?%@~_]+)*)?\u0007)|(?:(?:\d{1,4}(?:[;:]\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]))/g;
 const TIMESTAMP_PATTERN = /\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}/;
 
 function truncateUtf8Tail(value: string, maxBytes: number): string {
@@ -24,7 +22,10 @@ function truncateUtf8Tail(value: string, maxBytes: number): string {
 function compactLog(rawLog: string): string {
   const lines: string[] = [];
 
-  for (const rawLine of rawLog.replace(ANSI_ESCAPE_PATTERN, "").replaceAll("\r", "\n").split("\n")) {
+  for (const rawLine of rawLog
+    .replace(ANSI_ESCAPE_PATTERN, "")
+    .replaceAll("\r", "\n")
+    .split("\n")) {
     let line = rawLine.trimEnd();
     if (/\d{1,3}%\|/.test(line) || line.includes("Starting Redroid...:")) {
       const timestampIndex = line.search(TIMESTAMP_PATTERN);
@@ -59,7 +60,7 @@ export function parseHostLogSnapshot(stdout: string): HostLogSnapshot {
     return {
       logTail: compactLog(stdout),
       processState: "unknown",
-      exitCode: null,
+      exitCode: null
     };
   }
 
@@ -70,16 +71,19 @@ export function parseHostLogSnapshot(stdout: string): HostLogSnapshot {
       .split("\n")
       .map((line) => {
         const separatorIndex = line.indexOf("=");
-        return separatorIndex === -1 ? [line, ""] : [line.slice(0, separatorIndex), line.slice(separatorIndex + 1)];
-      }),
+        return separatorIndex === -1
+          ? [line, ""]
+          : [line.slice(0, separatorIndex), line.slice(separatorIndex + 1)];
+      })
   );
   const rawState = metadata.get("state");
-  const processState: HostProcessState = rawState === "running" || rawState === "exited" ? rawState : "unknown";
+  const processState: HostProcessState =
+    rawState === "running" || rawState === "exited" ? rawState : "unknown";
   const exitCode = processState === "exited" ? parseExitCode(metadata.get("exit_code")) : null;
 
   return {
     logTail: compactLog(stdout.slice(0, markerIndex)),
     processState: processState === "exited" && exitCode === null ? "unknown" : processState,
-    exitCode,
+    exitCode
   };
 }

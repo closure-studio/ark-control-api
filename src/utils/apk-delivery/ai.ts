@@ -1,8 +1,5 @@
 import * as v from "valibot";
-import {
-  AiReviewJsonSchema,
-  type AiReviewParseResult
-} from "../../schemas/apk-delivery/ai";
+import { AiReviewJsonSchema, type AiReviewParseResult } from "../../schemas/apk-delivery/ai";
 
 function parseEmbeddedReview(rawResponse: string): v.InferOutput<typeof AiReviewJsonSchema> | null {
   const start = rawResponse.indexOf("{");

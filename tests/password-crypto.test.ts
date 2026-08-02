@@ -11,8 +11,12 @@ describe("PasswordCrypto", () => {
   });
 
   it("requires a configured 256-bit key", async () => {
-    await expect(new PasswordCrypto(undefined).encrypt("secret")).rejects.toThrow("password_key_missing");
-    await expect(new PasswordCrypto(btoa("short")).encrypt("secret")).rejects.toThrow("password_key_invalid");
+    await expect(new PasswordCrypto(undefined).encrypt("secret")).rejects.toThrow(
+      "password_key_missing"
+    );
+    await expect(new PasswordCrypto(btoa("short")).encrypt("secret")).rejects.toThrow(
+      "password_key_invalid"
+    );
   });
 
   it("rejects malformed ciphertext envelopes", async () => {

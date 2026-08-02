@@ -3,7 +3,7 @@ export const HOST_RUN_STATUSES = [
   "running",
   "succeeded",
   "failed",
-  "timed_out",
+  "timed_out"
 ] as const;
 
 export const NON_TERMINAL_HOST_RUN_STATUSES = ["pending", "running"] as const;

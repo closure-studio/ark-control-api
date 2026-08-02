@@ -12,7 +12,7 @@ export async function executeHostCommand(
   env: Env,
   hostId: number,
   command: string,
-  timeoutMs = 60_000,
+  timeoutMs = 60_000
 ): Promise<ExecuteHostCommandResult> {
   return await executeManagedHostCommand(env, { hostId, command, timeoutMs });
 }

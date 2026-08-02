@@ -16,8 +16,7 @@ import { buildDefaultVpsStartupScript } from "./startup-script";
 
 export function shouldSkipAction(action: GcpInstanceLifecycleAction, status?: string): boolean {
   return (
-    (action === "start" && status === "RUNNING") ||
-    (action === "stop" && status === "TERMINATED")
+    (action === "start" && status === "RUNNING") || (action === "stop" && status === "TERMINATED")
   );
 }
 
@@ -70,10 +69,7 @@ export async function listOperations(env: Env, limit: number, offset: number) {
 }
 
 export async function countOperations(env: Env): Promise<number> {
-  const row = await createDatabase(env.DB)
-    .select({ value: count() })
-    .from(gcpOperationLogs)
-    .get();
+  const row = await createDatabase(env.DB).select({ value: count() }).from(gcpOperationLogs).get();
   return row?.value ?? 0;
 }
 
@@ -123,9 +119,14 @@ export async function submitBatchInstanceAction(
           instanceName: target.instanceName,
           action,
           status: "skipped",
-          message: action === "start" ? "Instance is already running." : "Instance is already stopped."
+          message:
+            action === "start" ? "Instance is already running." : "Instance is already stopped."
         };
-        await recordOperation(env, result, { batchId, accountId: account.id, accountName: account.name });
+        await recordOperation(env, result, {
+          batchId,
+          accountId: account.id,
+          accountName: account.name
+        });
         results.push(result);
       } else {
         actionTargets.push(target);
@@ -136,7 +137,7 @@ export async function submitBatchInstanceAction(
       continue;
     }
 
-    let accessToken: string | null = null;
+    let accessToken: string;
     try {
       accessToken = await fetchGoogleAccessToken(env, account, { fetch: fetcher });
     } catch (error) {
@@ -150,7 +151,11 @@ export async function submitBatchInstanceAction(
           status: "failed",
           message: error instanceof Error ? error.message : "Unable to authenticate account."
         };
-        await recordOperation(env, result, { batchId, accountId: account.id, accountName: account.name });
+        await recordOperation(env, result, {
+          batchId,
+          accountId: account.id,
+          accountName: account.name
+        });
         results.push(result);
       }
       continue;
@@ -175,7 +180,11 @@ export async function submitBatchInstanceAction(
           status: "submitted",
           ...(operationName !== undefined ? { googleOperationName: operationName } : {})
         };
-        await recordOperation(env, result, { batchId, accountId: account.id, accountName: account.name });
+        await recordOperation(env, result, {
+          batchId,
+          accountId: account.id,
+          accountName: account.name
+        });
         results.push(result);
       } catch (error) {
         const result: GcpOperationResult = {
@@ -187,7 +196,11 @@ export async function submitBatchInstanceAction(
           status: "failed",
           message: error instanceof Error ? error.message : "Unable to submit instance action."
         };
-        await recordOperation(env, result, { batchId, accountId: account.id, accountName: account.name });
+        await recordOperation(env, result, {
+          batchId,
+          accountId: account.id,
+          accountName: account.name
+        });
         results.push(result);
       }
     }
@@ -254,16 +267,14 @@ export async function createDefaultVps(
     projectId: account.project_id,
     zone: account.default_zone,
     instanceName,
-    action: "create",
+    action: "create"
   };
   let operationName: string | undefined;
 
   try {
     const startupScript = await buildPyHelperStartupScript({
       env,
-      ...(options.workerBaseUrl !== undefined
-        ? { workerBaseUrl: options.workerBaseUrl }
-        : {}),
+      ...(options.workerBaseUrl !== undefined ? { workerBaseUrl: options.workerBaseUrl } : {}),
       ...(nowMs !== undefined ? { nowMs } : {})
     });
     const accessToken = await fetchGoogleAccessToken(env, account, { fetch: fetcher });
@@ -290,7 +301,11 @@ export async function createDefaultVps(
       status: "succeeded",
       ...(operationName !== undefined ? { googleOperationName: operationName } : {})
     };
-    await recordOperation(env, result, { batchId, accountId: account.id, accountName: account.name });
+    await recordOperation(env, result, {
+      batchId,
+      accountId: account.id,
+      accountName: account.name
+    });
     return result;
   } catch (error) {
     const result: GcpOperationResult = {
@@ -299,7 +314,11 @@ export async function createDefaultVps(
       message: error instanceof Error ? error.message : "Unable to create VPS.",
       ...(operationName !== undefined ? { googleOperationName: operationName } : {})
     };
-    await recordOperation(env, result, { batchId, accountId: account.id, accountName: account.name });
+    await recordOperation(env, result, {
+      batchId,
+      accountId: account.id,
+      accountName: account.name
+    });
     return result;
   }
 }

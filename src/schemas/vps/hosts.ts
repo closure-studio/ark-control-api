@@ -4,11 +4,7 @@ import { VPS_HOST_FIELD_LIMITS } from "../../constants/vps/fields";
 export const VpsRoleSchema = v.picklist(["redroid", "arkhost"]);
 
 function requiredString(field: string) {
-  return v.pipe(
-    v.string(`${field} is required`),
-    v.trim(),
-    v.nonEmpty(`${field} is required`)
-  );
+  return v.pipe(v.string(`${field} is required`), v.trim(), v.nonEmpty(`${field} is required`));
 }
 
 const PasswordSchema = v.pipe(
@@ -19,14 +15,8 @@ const PasswordSchema = v.pipe(
 const PortSchema = v.pipe(
   v.number("port must be an integer between 1 and 65535"),
   v.integer("port must be an integer between 1 and 65535"),
-  v.minValue(
-    VPS_HOST_FIELD_LIMITS.minPort,
-    "port must be an integer between 1 and 65535"
-  ),
-  v.maxValue(
-    VPS_HOST_FIELD_LIMITS.maxPort,
-    "port must be an integer between 1 and 65535"
-  )
+  v.minValue(VPS_HOST_FIELD_LIMITS.minPort, "port must be an integer between 1 and 65535"),
+  v.maxValue(VPS_HOST_FIELD_LIMITS.maxPort, "port must be an integer between 1 and 65535")
 );
 
 const CreateVpsHostEntries = {

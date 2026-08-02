@@ -19,9 +19,7 @@ export const NotificationEventTypeSchema = v.picklist([
   "helper_deploy_terminal"
 ]);
 
-export const NotifyDeploymentStartedInputSchema = v.object(
-  NotifyDeploymentStartedInputEntries
-);
+export const NotifyDeploymentStartedInputSchema = v.object(NotifyDeploymentStartedInputEntries);
 
 export const NotifyHelperDeployTerminalInputSchema = v.object(
   NotifyHelperDeployTerminalInputEntries
@@ -48,9 +46,7 @@ export const NotificationMessageSchema = v.object({
 });
 
 export type NotificationEventType = v.InferOutput<typeof NotificationEventTypeSchema>;
-export type NotifyDeploymentStartedInput = v.InferOutput<
-  typeof NotifyDeploymentStartedInputSchema
->;
+export type NotifyDeploymentStartedInput = v.InferOutput<typeof NotifyDeploymentStartedInputSchema>;
 export type NotifyHelperDeployTerminalInput = v.InferOutput<
   typeof NotifyHelperDeployTerminalInputSchema
 >;

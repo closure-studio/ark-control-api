@@ -112,9 +112,7 @@ export function buildDefaultInstanceInsertRequest(input: {
       {
         subnetwork: `regions/${region}/subnetworks/default`,
         stackType: "IPV4_ONLY",
-        accessConfigs: [
-          { name: "External NAT", type: "ONE_TO_ONE_NAT", networkTier: "PREMIUM" }
-        ]
+        accessConfigs: [{ name: "External NAT", type: "ONE_TO_ONE_NAT", networkTier: "PREMIUM" }]
       }
     ],
     scheduling: {
@@ -173,7 +171,9 @@ export function normalizeComputeInstance(input: {
       networkInterface.networkIP ? [networkInterface.networkIP] : []
     ),
     externalIps: networkInterfaces.flatMap((networkInterface) =>
-      (networkInterface.accessConfigs ?? []).flatMap((config) => (config.natIP ? [config.natIP] : []))
+      (networkInterface.accessConfigs ?? []).flatMap((config) =>
+        config.natIP ? [config.natIP] : []
+      )
     ),
     labels: input.instance.labels ?? {}
   };
@@ -264,9 +264,7 @@ export async function submitInstanceAction(input: {
 }): Promise<string | undefined> {
   const instanceUrl = `https://compute.googleapis.com/compute/v1/projects/${encodeURIComponent(
     input.projectId
-  )}/zones/${encodeURIComponent(input.zone)}/instances/${encodeURIComponent(
-    input.instanceName
-  )}`;
+  )}/zones/${encodeURIComponent(input.zone)}/instances/${encodeURIComponent(input.instanceName)}`;
   const url = input.action === "delete" ? instanceUrl : `${instanceUrl}/${input.action}`;
   const method = input.action === "delete" ? "DELETE" : "POST";
   const response = await requestGoogleJson(
@@ -279,7 +277,9 @@ export async function submitInstanceAction(input: {
   return response.name;
 }
 
-export async function createDefaultInstance(input: CreateDefaultInstanceInput): Promise<string | undefined> {
+export async function createDefaultInstance(
+  input: CreateDefaultInstanceInput
+): Promise<string | undefined> {
   const url = `https://compute.googleapis.com/compute/beta/projects/${encodeURIComponent(
     input.projectId
   )}/zones/${encodeURIComponent(input.zone)}/instances`;
@@ -294,9 +294,7 @@ export async function createDefaultInstance(input: CreateDefaultInstanceInput): 
         buildDefaultInstanceInsertRequest({
           zone: input.zone,
           instanceName: input.instanceName,
-          ...(input.startupScript !== undefined
-            ? { startupScript: input.startupScript }
-            : {})
+          ...(input.startupScript !== undefined ? { startupScript: input.startupScript } : {})
         })
       )
     }

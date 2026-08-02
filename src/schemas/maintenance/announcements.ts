@@ -48,11 +48,42 @@ export const ClassificationResultSchema = v.object({
   confidence: v.exactOptional(v.number())
 });
 
-export const MaintenanceProcessingStateSchema = v.picklist([
+export const MaintenanceProcessingStateSchema = v.picklist(["processing", "completed", "failed"]);
+
+export const MaintenancePreActionStateSchema = v.picklist([
+  "pending",
   "processing",
   "completed",
-  "failed"
+  "failed",
+  "unschedulable"
 ]);
+
+export const MaintenancePreActionFailureStepSchema = v.picklist([
+  "schedule",
+  "auth",
+  "config",
+  "host_inventory",
+  "ssh",
+  "missed",
+  "interrupted"
+]);
+
+export const MaintenanceAnnouncementClassificationSchema = v.object({
+  title: v.string(),
+  isMaintenance: v.boolean(),
+  maintenanceStart: v.nullable(v.string()),
+  maintenanceEnd: v.nullable(v.string()),
+  maintenanceStartAt: v.nullable(v.pipe(v.string(), v.isoTimestamp())),
+  preActionAt: v.nullable(v.pipe(v.string(), v.isoTimestamp())),
+  preActionState: v.picklist(["pending", "unschedulable"]),
+  preActionFailureStep: v.nullable(v.literal("schedule")),
+  preActionErrorMessage: v.nullable(v.string())
+});
+
+export const MaintenancePreActionScheduleSchema = v.object({
+  maintenanceStartAt: v.pipe(v.string(), v.isoTimestamp()),
+  preActionAt: v.pipe(v.string(), v.isoTimestamp())
+});
 
 export const MaintenanceNotificationChannelSchema = v.literal("qqbot");
 
@@ -75,19 +106,21 @@ export const MaintenanceNotificationResultSchema = v.object({
 
 export type NewsId = v.InferOutput<typeof NewsIdSchema>;
 export type NewsLink = v.InferOutput<typeof NewsLinkSchema>;
-export type MaintenanceNewsListItem = v.InferOutput<
-  typeof MaintenanceNewsListItemSchema
->;
-export type MaintenanceNewsListResponse = v.InferOutput<
-  typeof MaintenanceNewsListResponseSchema
->;
+export type MaintenanceNewsListItem = v.InferOutput<typeof MaintenanceNewsListItemSchema>;
+export type MaintenanceNewsListResponse = v.InferOutput<typeof MaintenanceNewsListResponseSchema>;
 export type NewsDetail = v.InferOutput<typeof NewsDetailSchema>;
 export type MaintenanceTime = v.InferOutput<typeof MaintenanceTimeSchema>;
 export type ClassificationStatus = v.InferOutput<typeof ClassificationStatusSchema>;
 export type ClassificationResult = v.InferOutput<typeof ClassificationResultSchema>;
-export type MaintenanceProcessingState = v.InferOutput<
-  typeof MaintenanceProcessingStateSchema
+export type MaintenanceProcessingState = v.InferOutput<typeof MaintenanceProcessingStateSchema>;
+export type MaintenancePreActionState = v.InferOutput<typeof MaintenancePreActionStateSchema>;
+export type MaintenancePreActionFailureStep = v.InferOutput<
+  typeof MaintenancePreActionFailureStepSchema
 >;
+export type MaintenanceAnnouncementClassification = v.InferOutput<
+  typeof MaintenanceAnnouncementClassificationSchema
+>;
+export type MaintenancePreActionSchedule = v.InferOutput<typeof MaintenancePreActionScheduleSchema>;
 export type MaintenanceAnnouncementOutcome = v.InferOutput<
   typeof MaintenanceAnnouncementOutcomeSchema
 >;

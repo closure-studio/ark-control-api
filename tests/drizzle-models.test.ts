@@ -9,20 +9,12 @@ import {
   upsertAccountByProjectId,
   updateAccount
 } from "../src/services/gcp/accounts";
-import {
-  countOperations,
-  listOperations,
-  recordOperation
-} from "../src/services/gcp/operations";
+import { countOperations, listOperations, recordOperation } from "../src/services/gcp/operations";
 import { runRetentionCleanup } from "../src/services/retention";
 import {
   claimMaintenanceAnnouncement,
   completeMaintenanceAnnouncement
 } from "../src/repositories/maintenance/announcements";
-import {
-  acquireControlJobLock,
-  releaseControlJobLock
-} from "../src/repositories/control-job-locks";
 import { VpsHostRepository } from "../src/repositories/vps/vps-hosts";
 import {
   countHostRuns,
@@ -56,13 +48,13 @@ describe("Drizzle D1 models", () => {
 
   beforeEach(async () => {
     await db.exec(`
+      DELETE FROM arknights_maintenance_host_runs;
       DELETE FROM arknights_apk_host_runs;
       DELETE FROM arknights_apk_releases;
       DELETE FROM arknights_maintenance_announcements;
       DELETE FROM gcp_operation_logs;
       DELETE FROM gcp_accounts;
       DELETE FROM vps_hosts;
-      DELETE FROM control_job_locks;
     `);
   });
 
@@ -210,88 +202,24 @@ describe("Drizzle D1 models", () => {
     expect(await countHostRuns(db, undefined)).toBe(1);
   });
 
-  it("atomically acquires, rejects, replaces, and releases locks", async () => {
-    expect(
-      await acquireControlJobLock(
-        db,
-        "apk-delivery",
-        "owner-one",
-        "2026-07-16T00:10:00.000Z",
-        "2026-07-16T00:00:00.000Z"
-      )
-    ).toBe(true);
-    expect(
-      await acquireControlJobLock(
-        db,
-        "apk-delivery",
-        "owner-two",
-        "2026-07-16T00:15:00.000Z",
-        "2026-07-16T00:05:00.000Z"
-      )
-    ).toBe(false);
-    expect(
-      await acquireControlJobLock(
-        db,
-        "apk-delivery",
-        "owner-two",
-        "2026-07-16T00:20:00.000Z",
-        "2026-07-16T00:10:00.000Z"
-      )
-    ).toBe(true);
-
-    await releaseControlJobLock(db, "apk-delivery", "owner-one");
-    await releaseControlJobLock(db, "apk-delivery", "owner-two");
-    expect(
-      await acquireControlJobLock(
-        db,
-        "apk-delivery",
-        "owner-three",
-        "2026-07-16T00:25:00.000Z",
-        "2026-07-16T00:11:00.000Z"
-      )
-    ).toBe(true);
-  });
-
   it("claims maintenance announcements once and persists terminal outcomes", async () => {
     const link = { id: "009692", url: "https://ak.hypergryph.com/news/9692" };
-    expect(
-      await claimMaintenanceAnnouncement(
-        db,
-        link,
-        "2026-07-18T15:00:00.000Z",
-        "2026-07-18T17:00:00.000Z"
-      )
-    ).toBe(true);
-    expect(
-      await claimMaintenanceAnnouncement(
-        db,
-        link,
-        "2026-07-18T15:01:00.000Z",
-        "2026-07-18T17:01:00.000Z"
-      )
-    ).toBe(false);
+    expect(await claimMaintenanceAnnouncement(db, link, "2026-07-18T15:00:00.000Z")).toBe(true);
+    expect(await claimMaintenanceAnnouncement(db, link, "2026-07-18T15:01:00.000Z")).toBe(false);
 
     const staleLink = { id: "9693", url: "https://ak.hypergryph.com/news/9693" };
-    await claimMaintenanceAnnouncement(
-      db,
-      staleLink,
-      "2026-07-18T15:00:00.000Z",
-      "2026-07-18T15:01:00.000Z"
+    await claimMaintenanceAnnouncement(db, staleLink, "2026-07-18T15:00:00.000Z");
+    expect(await claimMaintenanceAnnouncement(db, staleLink, "2026-07-18T15:02:00.000Z")).toBe(
+      false
     );
     expect(
-      await claimMaintenanceAnnouncement(
-        db,
-        staleLink,
-        "2026-07-18T15:02:00.000Z",
-        "2026-07-18T17:02:00.000Z"
-      )
-    ).toBe(false);
-    expect(
       await db
-        .prepare("SELECT processing_state FROM arknights_maintenance_announcements WHERE news_id = ?")
+        .prepare(
+          "SELECT processing_state FROM arknights_maintenance_announcements WHERE news_id = ?"
+        )
         .bind(staleLink.id)
         .first()
-    ).toEqual({ processing_state: "failed" });
+    ).toEqual({ processing_state: "processing" });
 
     await completeMaintenanceAnnouncement(db, link.id, {
       processingState: "completed",
@@ -304,9 +232,12 @@ describe("Drizzle D1 models", () => {
       errorMessage: null
     });
 
-    const row = await db.prepare(
+    const row = await db
+      .prepare(
         "SELECT processing_state, notified, error_message FROM arknights_maintenance_announcements WHERE news_id = ?"
-      ).bind(link.id).first();
+      )
+      .bind(link.id)
+      .first();
     expect(row).toEqual({ processing_state: "completed", notified: 1, error_message: null });
   });
 });

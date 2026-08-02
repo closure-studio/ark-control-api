@@ -44,10 +44,7 @@ async function readGitHubRelease(
       `GitHub release API failed ${response.status}: ${await response.text()}`
     );
   }
-  const result = v.safeParse(
-    GitHubReleaseSchema,
-    await response.json().catch(() => undefined)
-  );
+  const result = v.safeParse(GitHubReleaseSchema, await response.json().catch(() => undefined));
   if (!result.success) {
     throw new PyHelperGitHubError("GitHub release API returned an invalid response.");
   }

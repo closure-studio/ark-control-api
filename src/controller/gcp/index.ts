@@ -39,11 +39,7 @@ export async function createGcpAccount(env: Env, body: CreateGcpAccountRequest) 
   return createAccount(env, body);
 }
 
-export async function updateGcpAccount(
-  env: Env,
-  accountId: number,
-  body: UpdateGcpAccountRequest
-) {
+export async function updateGcpAccount(env: Env, accountId: number, body: UpdateGcpAccountRequest) {
   return updateAccount(env, accountId, body);
 }
 

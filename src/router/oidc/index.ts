@@ -28,11 +28,7 @@ const OIDC_PATHS = new Set([
   "/jwks.json",
   "/token"
 ]);
-const LOCAL_OIDC_PATHS = new Set([
-  "/.well-known/openid-configuration",
-  "/jwks.json",
-  "/token"
-]);
+const LOCAL_OIDC_PATHS = new Set(["/.well-known/openid-configuration", "/jwks.json", "/token"]);
 
 function jsonHeaders(cacheControl: string): Record<string, string> {
   return { "Cache-Control": cacheControl };
@@ -51,21 +47,15 @@ function tokenFailure(c: OidcContext, status: 500 | 401, code?: string, message?
 }
 
 function oidcValidationErrorHook(
-  result:
-    | { success: true }
-    | { success: false; error: readonly { message: string }[] },
+  result: { success: true } | { success: false; error: readonly { message: string }[] },
   c: OidcContext
 ) {
-  if (!result.success) {
-    return c.json(
-      createTokenFailureResponse(
-        OIDC_ERROR_CODES.invalidRequest,
-        OIDC_ERROR_MESSAGES.invalidRequest
-      ),
-      400,
-      jsonHeaders(OIDC_TOKEN_CACHE_CONTROL)
-    );
-  }
+  if (result.success) return undefined;
+  return c.json(
+    createTokenFailureResponse(OIDC_ERROR_CODES.invalidRequest, OIDC_ERROR_MESSAGES.invalidRequest),
+    400,
+    jsonHeaders(OIDC_TOKEN_CACHE_CONTROL)
+  );
 }
 
 export const oidcRouter = new Hono<{ Bindings: Env }>();
@@ -89,11 +79,7 @@ oidcRouter.get("/.well-known/openid-configuration", (c) => {
 });
 oidcRouter.get("/jwks.json", async (c) => {
   try {
-    return c.json(
-      await createOidcJwks(c.env),
-      200,
-      jsonHeaders(OIDC_METADATA_CACHE_CONTROL)
-    );
+    return c.json(await createOidcJwks(c.env), 200, jsonHeaders(OIDC_METADATA_CACHE_CONTROL));
   } catch (error) {
     console.error(error);
     return tokenFailure(c, 500);
@@ -107,12 +93,7 @@ async function handleToken(c: OidcContext, audience: string) {
     return tokenFailure(c, 500);
   }
   if (c.req.header("authorization") !== `Bearer ${secret}`) {
-    return tokenFailure(
-      c,
-      401,
-      OIDC_ERROR_CODES.unauthorized,
-      OIDC_ERROR_MESSAGES.unauthorized
-    );
+    return tokenFailure(c, 401, OIDC_ERROR_CODES.unauthorized, OIDC_ERROR_MESSAGES.unauthorized);
   }
   try {
     return c.json(

@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as v from "valibot";
 
-import {
-  HostLogSnapshotSchema,
-  HostProcessStateSchema
-} from "../src/schemas/apk-delivery/log";
+import { HostLogSnapshotSchema, HostProcessStateSchema } from "../src/schemas/apk-delivery/log";
 import {
   NotificationEventSchema,
   NotificationMessageSchema

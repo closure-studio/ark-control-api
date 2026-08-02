@@ -1,12 +1,5 @@
-import {
-  OIDC_JWT_ALGORITHM,
-  OIDC_PUBLIC_KEY_USE,
-} from "../../constants/oidc";
-import type {
-  OidcJsonWebKey,
-  OidcJwtHeader,
-  OidcJwtPayload
-} from "../../schemas/oidc/protocol";
+import { OIDC_JWT_ALGORITHM, OIDC_PUBLIC_KEY_USE } from "../../constants/oidc";
+import type { OidcJsonWebKey, OidcJwtHeader, OidcJwtPayload } from "../../schemas/oidc/protocol";
 
 const textEncoder = new TextEncoder();
 
@@ -26,9 +19,7 @@ const binaryToBytes = (binary: string): Uint8Array => {
   return bytes;
 };
 
-export const base64UrlEncode = (
-  value: string | Uint8Array | ArrayBuffer,
-): string => {
+export const base64UrlEncode = (value: string | Uint8Array | ArrayBuffer): string => {
   const bytes =
     typeof value === "string"
       ? textEncoder.encode(value)
@@ -36,10 +27,7 @@ export const base64UrlEncode = (
         ? value
         : new Uint8Array(value);
 
-  return btoa(bytesToBinary(bytes))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
+  return btoa(bytesToBinary(bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 };
 
 const pemToArrayBuffer = (pem: string): ArrayBuffer => {
@@ -60,20 +48,17 @@ export const importPkcs8PrivateKey = (pem: string): Promise<CryptoKey> =>
     pemToArrayBuffer(pem),
     {
       name: "RSASSA-PKCS1-v1_5",
-      hash: "SHA-256",
+      hash: "SHA-256"
     },
     true,
-    ["sign"],
+    ["sign"]
   );
 
 export const exportPublicJwk = async (
   privateKey: CryptoKey,
-  keyId: string,
+  keyId: string
 ): Promise<OidcJsonWebKey> => {
-  const privateJwk = await crypto.subtle.exportKey(
-    "jwk",
-    privateKey,
-  );
+  const privateJwk = await crypto.subtle.exportKey("jwk", privateKey);
 
   if (privateJwk.kty !== "RSA" || !privateJwk.n || !privateJwk.e) {
     throw new Error("Signing key is not an RSA private key");
@@ -85,7 +70,7 @@ export const exportPublicJwk = async (
     kid: keyId,
     kty: privateJwk.kty,
     n: privateJwk.n,
-    use: OIDC_PUBLIC_KEY_USE,
+    use: OIDC_PUBLIC_KEY_USE
   };
   return publicJwk;
 };
@@ -93,7 +78,7 @@ export const exportPublicJwk = async (
 export const signJwt = async (
   header: OidcJwtHeader,
   payload: OidcJwtPayload,
-  privateKey: CryptoKey,
+  privateKey: CryptoKey
 ): Promise<string> => {
   const encodedHeader = base64UrlEncode(JSON.stringify(header));
   const encodedPayload = base64UrlEncode(JSON.stringify(payload));
@@ -101,7 +86,7 @@ export const signJwt = async (
   const signature = await crypto.subtle.sign(
     "RSASSA-PKCS1-v1_5",
     privateKey,
-    textEncoder.encode(signingInput),
+    textEncoder.encode(signingInput)
   );
 
   return `${signingInput}.${base64UrlEncode(signature)}`;

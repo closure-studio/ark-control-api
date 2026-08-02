@@ -45,9 +45,7 @@ export const RegisterGcpAccountRequestSchema = v.pipe(
 );
 
 export const UpdateGcpAccountRequestSchema = v.object({
-  name: v.exactOptional(
-    v.pipe(v.string(), v.trim(), v.nonEmpty("Account name is required."))
-  ),
+  name: v.exactOptional(v.pipe(v.string(), v.trim(), v.nonEmpty("Account name is required."))),
   projectId: v.exactOptional(RequiredAccountFields.projectId),
   serviceAccountEmail: v.exactOptional(RequiredAccountFields.serviceAccountEmail),
   workloadIdentityProvider: v.exactOptional(RequiredAccountFields.workloadIdentityProvider),

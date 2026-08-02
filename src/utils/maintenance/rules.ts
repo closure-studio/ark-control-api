@@ -10,9 +10,7 @@ import {
 
 const EXCLUSION_KEYWORDS = ["活动公告", "寻访公告", "时装", "组合包", "礼包", "通讯", "限时活动"];
 
-export function classifyByRules(
-  news: Pick<NewsDetail, "title" | "content">
-): ClassificationResult {
+export function classifyByRules(news: Pick<NewsDetail, "title" | "content">): ClassificationResult {
   const maintenanceTime = extractMaintenanceTime(news.content);
 
   if (news.title.includes("版本更新停机维护") || news.title.includes("停机维护")) {
@@ -20,11 +18,21 @@ export function classifyByRules(
   }
 
   if (news.content.includes("维护时间") && news.content.includes("无法登录")) {
-    return maintenanceResult("正文包含维护时间和无法登录", news.title, news.content, maintenanceTime);
+    return maintenanceResult(
+      "正文包含维护时间和无法登录",
+      news.title,
+      news.content,
+      maintenanceTime
+    );
   }
 
   if (news.content.includes("停机维护") && news.content.includes("维护期间")) {
-    return maintenanceResult("正文包含停机维护和维护期间", news.title, news.content, maintenanceTime);
+    return maintenanceResult(
+      "正文包含停机维护和维护期间",
+      news.title,
+      news.content,
+      maintenanceTime
+    );
   }
 
   const exclusion = EXCLUSION_KEYWORDS.find(
@@ -56,7 +64,10 @@ export function extractMaintenanceTime(content: string): MaintenanceTime {
   const labeled = /维护时间[:：]\s*([^。；;\n]+?)(?:更新说明|维护补偿|开服时间|$)/.exec(normalized);
   const source = labeled?.[1]?.trim() || normalized;
 
-  const fullDate = /(\d{4}年\s*\d{1,2}月\s*\d{1,2}日\s*\d{1,2}:\d{2})\s*(?:~|-|至|—|－)\s*(\d{1,2}:\d{2})/.exec(source);
+  const fullDate =
+    /(\d{4}年\s*\d{1,2}月\s*\d{1,2}日\s*\d{1,2}:\d{2})\s*(?:~|-|至|—|－)\s*(\d{1,2}:\d{2})/.exec(
+      source
+    );
   if (fullDate?.[1] && fullDate[2]) {
     return v.parse(MaintenanceTimeSchema, {
       start: compactChineseTime(fullDate[1]),
@@ -65,7 +76,8 @@ export function extractMaintenanceTime(content: string): MaintenanceTime {
     });
   }
 
-  const monthDate = /(\d{1,2}月\s*\d{1,2}日\s*\d{1,2}:\d{2})\s*(?:~|-|至|—|－)\s*(\d{1,2}:\d{2})/.exec(source);
+  const monthDate =
+    /(\d{1,2}月\s*\d{1,2}日\s*\d{1,2}:\d{2})\s*(?:~|-|至|—|－)\s*(\d{1,2}:\d{2})/.exec(source);
   if (monthDate?.[1] && monthDate[2]) {
     return v.parse(MaintenanceTimeSchema, {
       start: compactChineseTime(monthDate[1]),

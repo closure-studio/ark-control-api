@@ -1,10 +1,6 @@
 import * as v from "valibot";
 
-import {
-  OIDC_JWT_ALGORITHM,
-  OIDC_JWT_TYPE,
-  OIDC_PUBLIC_KEY_USE
-} from "../../constants/oidc";
+import { OIDC_JWT_ALGORITHM, OIDC_JWT_TYPE, OIDC_PUBLIC_KEY_USE } from "../../constants/oidc";
 
 export const OidcDiscoveryMetadataSchema = v.object({
   issuer: v.string(),
@@ -71,10 +67,6 @@ export type OidcJsonWebKey = v.InferOutput<typeof OidcJsonWebKeySchema>;
 export type JsonWebKeySet = v.InferOutput<typeof JsonWebKeySetSchema>;
 export type OidcJwtHeader = v.InferOutput<typeof OidcJwtHeaderSchema>;
 export type OidcJwtPayload = v.InferOutput<typeof OidcJwtPayloadSchema>;
-export type OidcTokenSuccessResponse = v.InferOutput<
-  typeof OidcTokenSuccessResponseSchema
->;
-export type OidcTokenFailureResponse = v.InferOutput<
-  typeof OidcTokenFailureResponseSchema
->;
+export type OidcTokenSuccessResponse = v.InferOutput<typeof OidcTokenSuccessResponseSchema>;
+export type OidcTokenFailureResponse = v.InferOutput<typeof OidcTokenFailureResponseSchema>;
 export type IssueOidcTokenOptions = v.InferOutput<typeof IssueOidcTokenOptionsSchema>;

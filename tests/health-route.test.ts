@@ -23,11 +23,9 @@ describe("control API health", () => {
   });
 
   it("protects the unified control routes with the admin token", async () => {
-    const response = await api.request(
-      "https://control.example.com/api/operations",
-      undefined,
-      { ADMIN_TOKEN: "secret" } as Env
-    );
+    const response = await api.request("https://control.example.com/api/operations", undefined, {
+      ADMIN_TOKEN: "secret"
+    } as Env);
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({
       error: { code: API_ERROR_CODES.UNAUTHORIZED, message: "Unauthorized" }

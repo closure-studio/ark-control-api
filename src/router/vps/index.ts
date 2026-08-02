@@ -27,15 +27,11 @@ export function createVpsRouter() {
       return jsonData(c, response, 201);
     }
   );
-  router.get(
-    "/vps/:id",
-    sValidator("param", IdParamSchema, validationErrorHook),
-    async (c) => {
-      const { id } = c.req.valid("param");
-      const response: VpsResponse = { vps: await getVpsResource(c.env, id) };
-      return jsonData(c, response);
-    }
-  );
+  router.get("/vps/:id", sValidator("param", IdParamSchema, validationErrorHook), async (c) => {
+    const { id } = c.req.valid("param");
+    const response: VpsResponse = { vps: await getVpsResource(c.env, id) };
+    return jsonData(c, response);
+  });
   router.patch(
     "/vps/:id",
     sValidator("param", IdParamSchema, validationErrorHook),
@@ -46,14 +42,10 @@ export function createVpsRouter() {
       return jsonData(c, response);
     }
   );
-  router.delete(
-    "/vps/:id",
-    sValidator("param", IdParamSchema, validationErrorHook),
-    async (c) => {
-      const { id } = c.req.valid("param");
-      return jsonData(c, await deleteVps(c.env, id));
-    }
-  );
+  router.delete("/vps/:id", sValidator("param", IdParamSchema, validationErrorHook), async (c) => {
+    const { id } = c.req.valid("param");
+    return jsonData(c, await deleteVps(c.env, id));
+  });
   router.post(
     "/vps/:id/verify",
     sValidator("param", IdParamSchema, validationErrorHook),

@@ -4,7 +4,7 @@ import type { ApiErrorCode } from "../../constants/api/error-codes";
 import { ControlApiError } from "../../errors/control-api";
 import type { Env } from "../../schemas/env";
 
-type ApiContext = Context<{ Bindings: Env }>;
+type ApiContext = Pick<Context<{ Bindings: Env }>, "res">;
 
 function jsonResponse(c: ApiContext, body: object, status: number) {
   const headers = new Headers(c.res.headers);
@@ -12,12 +12,7 @@ function jsonResponse(c: ApiContext, body: object, status: number) {
   return new Response(JSON.stringify(body), { headers, status });
 }
 
-export function jsonData<T, M = never>(
-  c: ApiContext,
-  data: T,
-  status = 200,
-  meta?: M
-) {
+export function jsonData<T, M = never>(c: ApiContext, data: T, status = 200, meta?: M) {
   const body = meta === undefined ? { data } : { data, meta };
   return jsonResponse(c, body, status);
 }
@@ -35,12 +30,16 @@ export function jsonError(
   return jsonResponse(c, body, status);
 }
 
-export function validationErrorHook(result: {
-  success: true;
-} | {
-  success: false;
-  error: readonly { message: string }[];
-}) {
+export function validationErrorHook(
+  result:
+    | {
+        success: true;
+      }
+    | {
+        success: false;
+        error: readonly { message: string }[];
+      }
+) {
   if (!result.success) {
     throw new ControlApiError(
       API_ERROR_CODES.BAD_REQUEST,

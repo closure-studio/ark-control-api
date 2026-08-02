@@ -17,14 +17,7 @@ export async function notifyMaintenance(
   fetcher?: typeof fetch
 ): Promise<MaintenanceNotificationResult> {
   try {
-    if (typeof env.QQBOT_TOKEN !== "string" || env.QQBOT_TOKEN.trim().length === 0) {
-      throw new Error("QQBOT_TOKEN is required");
-    }
-
-    await sendQqBotAutoMessage({
-      token: env.QQBOT_TOKEN,
-      uid: parseQqBotUid(env.QQBOT_UID),
-      msg: buildMaintenanceMessage(news, classification),
+    await sendQqBotAutoMessage(env, buildMaintenanceMessage(news, classification), {
       timeoutMs: MAINTENANCE_REQUEST_TIMEOUT_MS,
       ...(fetcher !== undefined ? { fetcher } : {})
     });
@@ -35,10 +28,7 @@ export async function notifyMaintenance(
       notifyError: null
     });
   } catch (error) {
-    const message = redactConfiguredToken(
-      error instanceof Error ? error.message : "notification failed",
-      env.QQBOT_TOKEN
-    );
+    const message = error instanceof Error ? error.message : "notification failed";
     console.warn("maintenance notification failed", { newsId: news.id, error: message });
     return v.parse(MaintenanceNotificationResultSchema, {
       notified: false,
@@ -72,29 +62,4 @@ export function buildMaintenanceMessage(
     "链接：",
     news.url
   ].join("\n");
-}
-
-function parseQqBotUid(value: string | undefined): number {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error("QQBOT_UID is required");
-  }
-
-  const uid = Number(value);
-  if (!Number.isInteger(uid) || uid <= 0) {
-    throw new Error("QQBOT_UID must be a positive integer");
-  }
-
-  return uid;
-}
-
-function redactConfiguredToken(message: string, token: string | undefined): string {
-  if (typeof token !== "string") return message;
-
-  const tokenValues = [token, token.trim()].filter(
-    (value, index, values) => value.length > 0 && values.indexOf(value) === index
-  );
-  return tokenValues.reduce(
-    (redactedMessage, tokenValue) => redactedMessage.split(tokenValue).join("[redacted]"),
-    message
-  );
 }

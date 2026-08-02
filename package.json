@@ -4,15 +4,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "ci": "npm run db:check && npm run db:verify && npm run typecheck && npm test && npm run build",
+    "ci": "npm run db:check && npm run db:verify && npm run typecheck && npm run lint && npm run format:check && npm test && npm run build",
     "db:check": "drizzle-kit check",
     "db:generate": "drizzle-kit generate",
     "db:verify": "node scripts/verify-drizzle-migrations.mjs",
     "dev": "wrangler dev",
     "build": "wrangler deploy --dry-run --outdir dist",
     "deploy": "wrangler deploy",
-    "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint . --max-warnings 0",
+    "test": "vitest run && vitest run --config vitest.worker.config.ts",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json && tsc -p tsconfig.tools.json"
   },
   "dependencies": {
     "@hono/standard-validator": "^0.3.0",
@@ -22,11 +25,17 @@
     "valibot": "^1.4.2"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.20.1",
     "@cloudflare/workers-types": "^5.20260708.1",
+    "@eslint/js": "^10.0.1",
     "@types/node": "^25.9.3",
     "drizzle-kit": "^0.31.10",
+    "eslint": "^10.8.0",
+    "globals": "^17.8.0",
     "miniflare": "^4.20260708.1",
+    "prettier": "^3.9.6",
     "typescript": "^6.0.3",
+    "typescript-eslint": "^8.65.0",
     "vitest": "^4.1.9",
     "wrangler": "^4.110.0"
   }

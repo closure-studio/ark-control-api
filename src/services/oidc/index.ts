@@ -19,15 +19,11 @@ import type {
   OidcDiscoveryMetadata,
   OidcJwtPayload,
   OidcTokenFailureResponse,
-  OidcTokenSuccessResponse,
+  OidcTokenSuccessResponse
 } from "../../schemas/oidc/protocol";
 import { exportPublicJwk, importPkcs8PrivateKey, signJwt } from "../../utils/oidc/jwt";
 
-type RequiredEnvKey =
-  | "OIDC_ISSUER"
-  | "OIDC_KEY_ID"
-  | "OIDC_PRIVATE_KEY_PEM"
-  | "OIDC_SUBJECT";
+type RequiredEnvKey = "OIDC_ISSUER" | "OIDC_KEY_ID" | "OIDC_PRIVATE_KEY_PEM" | "OIDC_SUBJECT";
 
 export class OidcConfigurationError extends Error {
   constructor(message: string) {
@@ -39,15 +35,12 @@ export class OidcConfigurationError extends Error {
 const requireConfig = (env: Env, key: RequiredEnvKey): string => {
   const value = env[key]?.trim();
   if (!value) {
-    throw new OidcConfigurationError(
-      `Missing required OIDC configuration: ${key}`,
-    );
+    throw new OidcConfigurationError(`Missing required OIDC configuration: ${key}`);
   }
   return value;
 };
 
-export const canonicalizeIssuer = (issuer: string): string =>
-  issuer.trim().replace(/\/+$/g, "");
+export const canonicalizeIssuer = (issuer: string): string => issuer.trim().replace(/\/+$/g, "");
 
 const requireAudience = (audience: string): string => {
   const value = audience.trim();
@@ -72,19 +65,16 @@ const parseTokenTtlSeconds = (value: string | undefined): number => {
 
 export const createTokenFailureResponse = (
   code: string,
-  message: string,
+  message: string
 ): OidcTokenFailureResponse => ({
   code,
   message,
   success: false,
-  version: 1,
+  version: 1
 });
 
 export const createGenericTokenFailureResponse = (): OidcTokenFailureResponse =>
-  createTokenFailureResponse(
-    OIDC_ERROR_CODES.serverError,
-    OIDC_ERROR_MESSAGES.unableToIssueToken,
-  );
+  createTokenFailureResponse(OIDC_ERROR_CODES.serverError, OIDC_ERROR_MESSAGES.unableToIssueToken);
 
 export const createOidcDiscoveryMetadata = (env: Env): OidcDiscoveryMetadata => {
   const issuer = canonicalizeIssuer(requireConfig(env, "OIDC_ISSUER"));
@@ -95,27 +85,22 @@ export const createOidcDiscoveryMetadata = (env: Env): OidcDiscoveryMetadata => 
     issuer,
     jwks_uri: `${issuer}/jwks.json`,
     response_types_supported: [...OIDC_RESPONSE_TYPES_SUPPORTED],
-    subject_types_supported: [...OIDC_SUBJECT_TYPES_SUPPORTED],
+    subject_types_supported: [...OIDC_SUBJECT_TYPES_SUPPORTED]
   };
 };
 
 export const createOidcJwks = async (env: Env): Promise<JsonWebKeySet> => {
-  const privateKey = await importPkcs8PrivateKey(
-    requireConfig(env, "OIDC_PRIVATE_KEY_PEM"),
-  );
-  const publicJwk = await exportPublicJwk(
-    privateKey,
-    requireConfig(env, "OIDC_KEY_ID"),
-  );
+  const privateKey = await importPkcs8PrivateKey(requireConfig(env, "OIDC_PRIVATE_KEY_PEM"));
+  const publicJwk = await exportPublicJwk(privateKey, requireConfig(env, "OIDC_KEY_ID"));
 
   return {
-    keys: [publicJwk],
+    keys: [publicJwk]
   };
 };
 
 export const issueOidcToken = async (
   env: Env,
-  options: IssueOidcTokenOptions,
+  options: IssueOidcTokenOptions
 ): Promise<OidcTokenSuccessResponse> => {
   const issuer = canonicalizeIssuer(requireConfig(env, "OIDC_ISSUER"));
   const audience = requireAudience(options.audience);
@@ -135,17 +120,17 @@ export const issueOidcToken = async (
     jti: options.jti ?? crypto.randomUUID(),
     nbf: issuedAt,
     purpose: OIDC_PURPOSE_CLAIM_VALUE,
-    sub: subject,
+    sub: subject
   };
 
   const idToken = await signJwt(
     {
       alg: OIDC_JWT_ALGORITHM,
       kid: keyId,
-      typ: OIDC_JWT_TYPE,
+      typ: OIDC_JWT_TYPE
     },
     payload,
-    privateKey,
+    privateKey
   );
 
   return {
@@ -153,6 +138,6 @@ export const issueOidcToken = async (
     id_token: idToken,
     success: true,
     token_type: GOOGLE_JWT_TOKEN_TYPE,
-    version: 1,
+    version: 1
   };
 };

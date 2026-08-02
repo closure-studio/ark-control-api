@@ -5,7 +5,7 @@ import * as ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const sourceRoot = fileURLToPath(new URL("../src/", import.meta.url));
-const domains = ["apk-delivery", "gcp", "health", "oidc", "pyhelper", "vps"];
+const domains = ["apk-delivery", "gcp", "health", "oidc", "pyhelper", "scheduler", "vps"];
 const sourceLayers = [
   "constants",
   "controller",
@@ -69,8 +69,11 @@ function lineNumber(sourceFile: ts.SourceFile, node: ts.Node): number {
 }
 
 function isExported(node: ts.Node): boolean {
-  return ts.canHaveModifiers(node) &&
-    ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true;
+  return (
+    ts.canHaveModifiers(node) &&
+    ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ===
+      true
+  );
 }
 
 describe("router to controller architecture", () => {
@@ -117,6 +120,7 @@ describe("router to controller architecture", () => {
   it("groups cross-cutting utilities and schemas by concern", () => {
     const expectedLocations = [
       "constants/api",
+      "constants/ai.ts",
       "constants/maintenance",
       "constants/notifications",
       "constants/oidc",
@@ -125,17 +129,17 @@ describe("router to controller architecture", () => {
       "errors",
       "repositories/vps",
       "repositories/apk-delivery",
-      "repositories/control-job-locks.ts",
       "repositories/maintenance",
       "services/gcp",
       "services/maintenance",
       "services/notifications",
       "services/oidc",
       "services/pyhelper",
-      "services/task-server",
+      "services/ai",
       "services/vps",
       "services/apk-delivery",
       "services/apk-delivery/deployment-lifecycle.ts",
+      "services/scheduler",
       "utils/gcp",
       "utils/http",
       "utils/maintenance",
@@ -146,9 +150,10 @@ describe("router to controller architecture", () => {
       "schemas/gcp",
       "schemas/health",
       "schemas/oidc",
-      "schemas/task-server",
+      "schemas/ai",
       "schemas/vps",
-      "schemas/apk-delivery"
+      "schemas/apk-delivery",
+      "schemas/scheduler"
     ];
     for (const path of expectedLocations) {
       expect(existsSync(join(sourceRoot, path))).toBe(true);
@@ -197,7 +202,9 @@ describe("router to controller architecture", () => {
       const sourceFile = parseTypescriptFile(path);
       for (const statement of sourceFile.statements) {
         if (ts.isInterfaceDeclaration(statement) && isExported(statement)) {
-          violations.push(`${path}:${lineNumber(sourceFile, statement)}: exported schema interface`);
+          violations.push(
+            `${path}:${lineNumber(sourceFile, statement)}: exported schema interface`
+          );
         }
         if (!ts.isTypeAliasDeclaration(statement) || !isExported(statement)) continue;
         schemaContractNames.add(statement.name.text);

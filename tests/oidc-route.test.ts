@@ -12,11 +12,7 @@ const env = {
 
 describe("OIDC router", () => {
   it("serves the Schema-defined health response", async () => {
-    const response = await oidcRouter.request(
-      "https://issuer.example.com/health",
-      undefined,
-      env
-    );
+    const response = await oidcRouter.request("https://issuer.example.com/health", undefined, env);
 
     expect(response.status).toBe(200);
     expect(v.safeParse(OidcHealthResponseSchema, await response.json())).toMatchObject({
@@ -52,11 +48,7 @@ describe("OIDC router", () => {
   });
 
   it("returns the OIDC failure format for invalid token requests", async () => {
-    const response = await oidcRouter.request(
-      "https://issuer.example.com/token",
-      undefined,
-      env
-    );
+    const response = await oidcRouter.request("https://issuer.example.com/token", undefined, env);
     expect(response.status).toBe(400);
     expect(response.headers.get("cache-control")).toBe("no-store");
     await expect(response.json()).resolves.toEqual({
@@ -74,6 +66,8 @@ describe("OIDC router", () => {
         env
       )
     ).toBe(true);
-    expect(shouldHandleOidcRequest(new Request("https://issuer.example.com/api/dashboard"), env)).toBe(false);
+    expect(
+      shouldHandleOidcRequest(new Request("https://issuer.example.com/api/dashboard"), env)
+    ).toBe(false);
   });
 });

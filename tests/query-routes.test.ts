@@ -70,10 +70,12 @@ describe("atomic query routes", () => {
     );
     expect(result).toMatchObject({
       success: true,
-      output: { data: {
-        operations: [{ batchId: "batch-one", status: "submitted" }],
-        pagination: { limit: 1, offset: 0, count: 1, total: 1 }
-      } }
+      output: {
+        data: {
+          operations: [{ batchId: "batch-one", status: "submitted" }],
+          pagination: { limit: 1, offset: 0, count: 1, total: 1 }
+        }
+      }
     });
   });
 
@@ -103,16 +105,15 @@ describe("atomic query routes", () => {
       env
     );
     expect(response.status).toBe(200);
-    const result = v.safeParse(
-      v.object({ data: RunListResponseSchema }),
-      await response.json()
-    );
+    const result = v.safeParse(v.object({ data: RunListResponseSchema }), await response.json());
     expect(result).toMatchObject({
       success: true,
-      output: { data: {
-        runs: [{ status: "pending", hostName: "Active Host" }],
-        pagination: { limit: 1, offset: 0, count: 1, total: 1 }
-      } }
+      output: {
+        data: {
+          runs: [{ status: "pending", hostName: "Active Host" }],
+          pagination: { limit: 1, offset: 0, count: 1, total: 1 }
+        }
+      }
     });
   });
 

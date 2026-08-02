@@ -58,7 +58,10 @@ export async function createPyHelperDownloadUrl(input: {
   const expires = String(now() + (input.ttlSeconds ?? PYHELPER_DOWNLOAD_TTL_SECONDS));
   const url = new URL(`/api/pyhelper/assets/${encodeURIComponent(input.assetName)}`, input.baseUrl);
   url.searchParams.set("expires", expires);
-  url.searchParams.set("signature", await hmacHex(token, signaturePayload(input.assetName, expires)));
+  url.searchParams.set(
+    "signature",
+    await hmacHex(token, signaturePayload(input.assetName, expires))
+  );
   return url;
 }
 
