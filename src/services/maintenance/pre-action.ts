@@ -17,10 +17,13 @@ import {
   finishMaintenanceHostRun
 } from "../../repositories/maintenance/pre-actions";
 import { VpsHostRepository, type VpsHostRecord } from "../../repositories/vps/vps-hosts";
+import type { ArknightsMaintenanceAnnouncementRow } from "../../db/schema";
 import type { Env } from "../../schemas/env";
 import type { MaintenancePreActionFailureStep } from "../../schemas/maintenance/announcements";
+import type { MaintenancePreActionNotification } from "../../schemas/maintenance/pre-action-notifications";
 import { PassportLoginResponseSchema } from "../../schemas/maintenance/pre-action";
 import { executeHostCommand } from "../vps/host-command-executor";
+import { notifyMaintenancePreAction } from "./notification";
 
 class PreActionExecutionError extends Error {
   readonly step: MaintenancePreActionFailureStep;
@@ -34,8 +37,28 @@ class PreActionExecutionError extends Error {
 
 export async function runDueMaintenancePreActions(env: Env, now: Date = new Date()): Promise<void> {
   const nowIso = now.toISOString();
-  await failInterruptedMaintenancePreActions(env.DB, nowIso);
-  await failMissedMaintenancePreActions(env.DB, nowIso);
+  const interrupted = await failInterruptedMaintenancePreActions(env.DB, nowIso);
+  const missed = await failMissedMaintenancePreActions(env.DB, nowIso);
+  await Promise.all([
+    ...interrupted.map((announcement) =>
+      notifyPreActionFailure(
+        env,
+        announcement,
+        [],
+        "interrupted",
+        "Maintenance pre-action was interrupted before completion."
+      )
+    ),
+    ...missed.map((announcement) =>
+      notifyPreActionFailure(
+        env,
+        announcement,
+        [],
+        "missed",
+        "Maintenance started before its pre-action could run."
+      )
+    )
+  ]);
   await runClaimedMaintenancePreAction(env, nowIso);
 }
 
@@ -43,6 +66,7 @@ async function runClaimedMaintenancePreAction(env: Env, nowIso: string): Promise
   const claim = await claimDueMaintenancePreAction(env.DB, nowIso);
   if (claim === null) return;
 
+  let hostNames: string[] = [];
   try {
     const hosts = await listArkHosts(env);
     if (hosts.length === 0) {
@@ -51,6 +75,11 @@ async function runClaimedMaintenancePreAction(env: Env, nowIso: string): Promise
         "No enabled ArkHost hosts were available for restart."
       );
     }
+    hostNames = hosts.map((host) => host.name);
+    await notifyPreActionBestEffort(env, {
+      type: "pre_action_started",
+      ...notificationContext(claim, hostNames)
+    });
     const token = await loginToArkHostPassport(env);
     await disableGameLogin(token);
 
@@ -62,6 +91,13 @@ async function runClaimedMaintenancePreAction(env: Env, nowIso: string): Promise
     }
 
     await completeMaintenancePreAction(env.DB, claim.news_id, new Date().toISOString());
+    await notifyPreActionBestEffort(env, {
+      type: "pre_action_terminal",
+      ...notificationContext(claim, hostNames),
+      outcome: "completed",
+      failureStep: null,
+      errorMessage: null
+    });
     console.info("Maintenance pre-action completed", {
       newsId: claim.news_id,
       hostCount: hosts.length
@@ -75,10 +111,55 @@ async function runClaimedMaintenancePreAction(env: Env, nowIso: string): Promise
       failure.step,
       failure.message
     );
+    await notifyPreActionFailure(env, claim, hostNames, failure.step, failure.message);
     console.error("Maintenance pre-action failed", {
       newsId: claim.news_id,
       step: failure.step,
       error: failure.message
+    });
+  }
+}
+
+function notificationContext(
+  announcement: ArknightsMaintenanceAnnouncementRow,
+  hostNames: string[]
+) {
+  return {
+    newsId: announcement.news_id,
+    title: announcement.title,
+    maintenanceStart: announcement.maintenance_start,
+    hostNames
+  };
+}
+
+async function notifyPreActionFailure(
+  env: Env,
+  announcement: ArknightsMaintenanceAnnouncementRow,
+  hostNames: string[],
+  failureStep: MaintenancePreActionFailureStep,
+  errorMessage: string
+): Promise<void> {
+  await notifyPreActionBestEffort(env, {
+    type: "pre_action_terminal",
+    ...notificationContext(announcement, hostNames),
+    outcome: "failed",
+    failureStep,
+    errorMessage
+  });
+}
+
+async function notifyPreActionBestEffort(
+  env: Env,
+  event: MaintenancePreActionNotification
+): Promise<void> {
+  try {
+    await notifyMaintenancePreAction(env, event);
+  } catch (error) {
+    console.error("Maintenance pre-action notification failed", {
+      newsId: event.newsId,
+      eventType: event.type,
+      outcome: event.type === "pre_action_terminal" ? event.outcome : null,
+      error: error instanceof Error ? error.message : "notification failed"
     });
   }
 }

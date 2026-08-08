@@ -152,9 +152,11 @@ workflow first verifies that enabled `arkhost` hosts exist, then logs in to
 Passport, disables game login over HTTPS, and restarts those hosts in
 parallel with `cd ~/ArkHost && ./arkhostctl.sh restart`. A task has one business
 attempt, while each SSH command retains the shared three-attempt reconnect
-behavior for connection failures. AI-only maintenance classifications never
-trigger this workflow, and the workflow does not re-enable login after the
-maintenance window.
+behavior for connection failures. QQ notifications report the start and terminal
+outcome of each claimed task, as well as missed or interrupted tasks; notification
+failures are logged without changing the maintenance result. AI-only maintenance
+classifications never trigger this workflow, and the workflow does not re-enable
+login after the maintenance window.
 
 Retention runs at `00:00 UTC` daily. Fixed schedules deliberately use natural
 UTC boundaries, so there are no minute-17 or `03:15` offsets to coordinate.

@@ -2,6 +2,7 @@ import { Miniflare } from "miniflare";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import * as v from "valibot";
 
+import { QQBOT_SEND_MSG_AUTO_URL } from "../src/constants/notifications/config";
 import { VpsHostRepository } from "../src/repositories/vps/vps-hosts";
 import { EnvSchema, type Env } from "../src/schemas/env";
 import { PassportLoginResponseSchema } from "../src/schemas/maintenance/pre-action";
@@ -13,6 +14,12 @@ import { applyD1Migrations } from "./helpers/migrations";
 
 const PASSWORD_KEY = btoa("m".repeat(32));
 const TEST_NOW = new Date("2026-08-01T00:00:00.000Z");
+const QqMessageBodySchema = v.object({
+  token: v.string(),
+  uid: v.number(),
+  msg: v.string()
+});
+const QqMessageBodyJsonSchema = v.pipe(v.string(), v.parseJson(), QqMessageBodySchema);
 
 function createEnv(
   db: D1Database,
@@ -32,7 +39,9 @@ function createEnv(
     OIDC_SUBJECT: "subject",
     PUBLIC_TOKEN_BEARER_SECRET: "public-secret",
     ARKHOST_PASSPORT_EMAIL: "admin@example.com",
-    ARKHOST_PASSPORT_PASSWORD: "passport-password"
+    ARKHOST_PASSPORT_PASSWORD: "passport-password",
+    QQBOT_TOKEN: "qq-token",
+    QQBOT_UID: "913468406"
   });
 }
 
@@ -65,9 +74,16 @@ async function insertAnnouncement(
     .run();
 }
 
-function installSuccessfulHttpAdapter(): ReturnType<typeof vi.fn<typeof fetch>> {
+function installSuccessfulHttpAdapter(
+  options: { qqStatus?: number } = {}
+): ReturnType<typeof vi.fn<typeof fetch>> {
   const fetcher = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
     const url = String(input);
+    if (url === QQBOT_SEND_MSG_AUTO_URL) {
+      const body = v.parse(QqMessageBodyJsonSchema, String(init?.body));
+      expect(body).toMatchObject({ token: "qq-token", uid: 913468406 });
+      return new Response(null, { status: options.qqStatus ?? 204 });
+    }
     if (url.includes("/api/v1/login")) {
       return new Response(
         JSON.stringify({
@@ -85,6 +101,14 @@ function installSuccessfulHttpAdapter(): ReturnType<typeof vi.fn<typeof fetch>> 
   });
   vi.stubGlobal("fetch", fetcher);
   return fetcher;
+}
+
+function qqMessages(fetcher: ReturnType<typeof vi.fn<typeof fetch>>): string[] {
+  return fetcher.mock.calls.flatMap(([input, init]) => {
+    if (String(input) !== QQBOT_SEND_MSG_AUTO_URL) return [];
+    const body = v.parse(QqMessageBodyJsonSchema, String(init?.body));
+    return [body.msg];
+  });
 }
 
 function successfulSshResult() {
@@ -152,6 +176,7 @@ describe("maintenance pre-action workflow", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   afterAll(async () => {
@@ -190,7 +215,11 @@ describe("maintenance pre-action workflow", () => {
 
     await runDueMaintenancePreActions(createEnv(db, executeCommand), TEST_NOW);
 
-    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher).toHaveBeenCalledTimes(4);
+    expect(qqMessages(fetcher)).toEqual([
+      expect.stringContaining("ArkHost 维护前置动作开始"),
+      expect.stringContaining("ArkHost 维护前置动作完成")
+    ]);
     expect(executeCommand).toHaveBeenCalledTimes(2);
     for (const request of executeCommand.mock.calls.map((call) => call[0])) {
       expect(request.command).toBe("cd ~/ArkHost && ./arkhostctl.sh restart");
@@ -222,7 +251,7 @@ describe("maintenance pre-action workflow", () => {
         encryptedPassword
       );
     }
-    installSuccessfulHttpAdapter();
+    const fetcher = installSuccessfulHttpAdapter();
     const executeCommand = vi.fn(async (request: ExecuteSshCommandRequest) =>
       request.hostname === "192.0.2.20"
         ? successfulSshResult()
@@ -232,6 +261,10 @@ describe("maintenance pre-action workflow", () => {
     await runDueMaintenancePreActions(createEnv(db, executeCommand), TEST_NOW);
 
     expect(executeCommand).toHaveBeenCalledTimes(2);
+    expect(qqMessages(fetcher)).toEqual([
+      expect.stringContaining("ArkHost 维护前置动作开始"),
+      expect.stringContaining("ArkHost 维护前置动作失败")
+    ]);
     expect(
       await db
         .prepare(
@@ -251,7 +284,8 @@ describe("maintenance pre-action workflow", () => {
 
     await runDueMaintenancePreActions(createEnv(db, vi.fn()), TEST_NOW);
 
-    expect(fetcher).not.toHaveBeenCalled();
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(qqMessages(fetcher)).toEqual([expect.stringContaining("ArkHost 维护前置动作失败")]);
     expect(
       await db
         .prepare(
@@ -265,9 +299,13 @@ describe("maintenance pre-action workflow", () => {
     await insertAnnouncement(db, "1462", "pending", "2026-07-31T19:00:00.000Z");
     await insertAnnouncement(db, "1463", "pending", "2026-07-31T20:00:00.000Z");
     await insertAnnouncement(db, "1464", "processing", "2026-07-31T18:00:00.000Z");
-    installSuccessfulHttpAdapter();
+    const fetcher = installSuccessfulHttpAdapter();
 
     await runDueMaintenancePreActions(createEnv(db, vi.fn()), TEST_NOW);
+
+    expect(qqMessages(fetcher)).toHaveLength(2);
+    expect(qqMessages(fetcher)[0]).toContain("维护前置动作被中断");
+    expect(qqMessages(fetcher)[1]).toContain("没有可用的 ArkHost");
 
     expect(
       (
@@ -289,7 +327,10 @@ describe("maintenance pre-action workflow", () => {
       maintenanceStartAt: "2026-07-31T23:00:00.000Z"
     });
 
+    const fetcher = installSuccessfulHttpAdapter();
     await runDueMaintenancePreActions(createEnv(db, vi.fn()), TEST_NOW);
+
+    expect(qqMessages(fetcher)).toEqual([expect.stringContaining("已错过维护前置时间")]);
 
     expect(
       (
@@ -300,5 +341,44 @@ describe("maintenance pre-action workflow", () => {
           .all()
       ).results
     ).toEqual([{ news_id: "1465", pre_action_state: "failed", pre_action_failed_step: "missed" }]);
+  });
+
+  it("keeps the maintenance result authoritative when QQ notifications fail", async () => {
+    await insertAnnouncement(db, "1466", "pending", "2026-07-31T20:00:00.000Z");
+    const encryptedPassword = await new PasswordCrypto(PASSWORD_KEY).encrypt("password");
+    await new VpsHostRepository(db).create(
+      {
+        name: "ArkHost",
+        address: "192.0.2.30",
+        port: 22,
+        username: "root",
+        password: "password",
+        role: "arkhost"
+      },
+      encryptedPassword
+    );
+    const fetcher = installSuccessfulHttpAdapter({ qqStatus: 500 });
+    const logger = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await runDueMaintenancePreActions(
+      createEnv(
+        db,
+        vi.fn(async () => successfulSshResult())
+      ),
+      TEST_NOW
+    );
+
+    expect(fetcher).toHaveBeenCalledTimes(4);
+    expect(logger).toHaveBeenCalledWith(
+      "Maintenance pre-action notification failed",
+      expect.objectContaining({ newsId: "1466" })
+    );
+    expect(
+      await db
+        .prepare(
+          "SELECT pre_action_state, pre_action_failed_step FROM arknights_maintenance_announcements WHERE news_id = '1466'"
+        )
+        .first()
+    ).toEqual({ pre_action_state: "completed", pre_action_failed_step: null });
   });
 });

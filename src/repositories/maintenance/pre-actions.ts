@@ -13,7 +13,7 @@ import type { VpsHostRecord } from "../vps/vps-hosts";
 export async function failInterruptedMaintenancePreActions(
   db: D1Database,
   now: string
-): Promise<void> {
+): Promise<ArknightsMaintenanceAnnouncementRow[]> {
   const interrupted = await createDatabase(db)
     .update(arknightsMaintenanceAnnouncements)
     .set({
@@ -23,11 +23,11 @@ export async function failInterruptedMaintenancePreActions(
       pre_action_error_message: "Maintenance pre-action was interrupted before completion."
     })
     .where(eq(arknightsMaintenanceAnnouncements.pre_action_state, "processing"))
-    .returning({ newsId: arknightsMaintenanceAnnouncements.news_id })
+    .returning()
     .all();
 
-  const newsIds = interrupted.map((row) => row.newsId);
-  if (newsIds.length === 0) return;
+  const newsIds = interrupted.map((row) => row.news_id);
+  if (newsIds.length === 0) return [];
   await createDatabase(db)
     .update(arknightsMaintenanceHostRuns)
     .set({
@@ -42,10 +42,14 @@ export async function failInterruptedMaintenancePreActions(
       )
     )
     .run();
+  return interrupted;
 }
 
-export async function failMissedMaintenancePreActions(db: D1Database, now: string): Promise<void> {
-  await createDatabase(db)
+export async function failMissedMaintenancePreActions(
+  db: D1Database,
+  now: string
+): Promise<ArknightsMaintenanceAnnouncementRow[]> {
+  return createDatabase(db)
     .update(arknightsMaintenanceAnnouncements)
     .set({
       pre_action_state: "failed",
@@ -62,7 +66,8 @@ export async function failMissedMaintenancePreActions(db: D1Database, now: strin
         lte(arknightsMaintenanceAnnouncements.maintenance_start_at, now)
       )
     )
-    .run();
+    .returning()
+    .all();
 }
 
 export async function claimDueMaintenancePreAction(
