@@ -7,6 +7,7 @@ import * as v from "valibot";
 import { PyHelperDownloadQuerySchema } from "../src/schemas/pyhelper/download";
 import {
   createPyHelperDownloadUrl,
+  PyHelperDownloadUrlError,
   verifyPyHelperDownloadRequest
 } from "../src/services/pyhelper/download-url";
 
@@ -34,6 +35,20 @@ describe("PyHelper download validation", () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({
       error: { code: API_ERROR_CODES.BAD_REQUEST }
+    });
+  });
+
+  it("reports a missing token without throwing a TypeError", async () => {
+    await expect(
+      createPyHelperDownloadUrl({
+        assetName: "Helper-arm64",
+        baseUrl: "https://control.example.com",
+        token: undefined
+      })
+    ).rejects.toMatchObject({
+      name: PyHelperDownloadUrlError.name,
+      status: 500,
+      message: "Missing Cloudflare secret: GITHUB_PYHELPER_TOKEN."
     });
   });
 

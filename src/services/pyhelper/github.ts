@@ -16,8 +16,8 @@ export class PyHelperGitHubError extends Error {
   }
 }
 
-function requireToken(token: string): string {
-  const trimmed = token.trim();
+function requireToken(token: string | undefined): string {
+  const trimmed = token?.trim();
   if (!trimmed) {
     throw new PyHelperGitHubError("Missing Cloudflare secret: GITHUB_PYHELPER_TOKEN.", 500);
   }
@@ -53,7 +53,7 @@ async function readGitHubRelease(
 
 export async function downloadLatestPyHelperAsset(input: {
   assetName: PyHelperAssetName;
-  token: string;
+  token: string | undefined;
   fetcher?: typeof fetch;
 }): Promise<Response> {
   const token = requireToken(input.token);

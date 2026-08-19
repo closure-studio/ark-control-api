@@ -12,8 +12,8 @@ export class PyHelperDownloadUrlError extends Error {
   }
 }
 
-function requireToken(token: string): string {
-  const trimmed = token.trim();
+function requireToken(token: string | undefined): string {
+  const trimmed = token?.trim();
   if (!trimmed) {
     throw new PyHelperDownloadUrlError("Missing Cloudflare secret: GITHUB_PYHELPER_TOKEN.", 500);
   }
@@ -49,7 +49,7 @@ function constantTimeEqual(left: string, right: string): boolean {
 export async function createPyHelperDownloadUrl(input: {
   assetName: PyHelperAssetName;
   baseUrl: string;
-  token: string;
+  token: string | undefined;
   now?: () => number;
   ttlSeconds?: number;
 }): Promise<URL> {
@@ -69,7 +69,7 @@ export async function verifyPyHelperDownloadRequest(input: {
   assetName: PyHelperAssetName;
   expires: number;
   signature: string;
-  token: string;
+  token: string | undefined;
   now?: () => number;
 }): Promise<void> {
   const token = requireToken(input.token);
