@@ -220,6 +220,26 @@ export const arknightsMaintenanceHostRuns = sqliteTable(
   ]
 );
 
+export const publicAnnouncements = sqliteTable("public_announcements", {
+  news_id: text("news_id").primaryKey(),
+  source_url: text("source_url").notNull(),
+  title: text("title").notNull(),
+  published_at: text("published_at"),
+  content_hash: text("content_hash").notNull(),
+  windows_json: text("windows_json").notNull(),
+  fetched_at: text("fetched_at").notNull(),
+  recheck_at: text("recheck_at").notNull()
+});
+
+export const publicAnnouncementCollection = sqliteTable("public_announcement_collection", {
+  source_id: text("source_id").primaryKey(),
+  last_attempt_at: text("last_attempt_at").notNull(),
+  last_success_at: text("last_success_at"),
+  status: text("status", { enum: ["ready", "partial", "failed"] }).notNull(),
+  error_code: text("error_code"),
+  retry_at: text("retry_at")
+});
+
 export type GcpAccountRow = typeof gcpAccounts.$inferSelect;
 export type VpsHostRow = typeof vpsHosts.$inferSelect;
 export type ArknightsApkReleaseRow = typeof arknightsApkReleases.$inferSelect;

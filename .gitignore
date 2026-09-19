@@ -5,3 +5,9 @@ dist/
 *.log
 .codegraph
 .codex
+
+# Local AI workspace configuration
+CLAUDE.md
+GEMINI.md
+AGENTS.md
+.omc/
