@@ -36,7 +36,7 @@ describe("ControlJobAlarm", () => {
     worker.scheduled(createScheduledController({ cron: "0 12 * * *" }), bindings, context);
     await waitOnExecutionContext(context);
 
-    for (const job of ["apk-delivery", "maintenance-monitor", "retention"]) {
+    for (const job of ["apk-delivery", "maintenance-monitor", "retention", "public-announcements"]) {
       expect(await alarmTime(bindings.CONTROL_JOB_ALARMS.getByName(job))).not.toBeNull();
     }
     expect(

@@ -10,12 +10,14 @@ const businessTables = [
   "arknights_maintenance_host_runs",
   "gcp_accounts",
   "gcp_operation_logs",
+  "public_announcement_collection",
+  "public_announcements",
   "vps_hosts"
 ];
 
 describe("control database baseline", () => {
-  it("contains one clean baseline migration", () => {
-    expect(migrationFiles).toHaveLength(1);
+  it("retains the baseline and adds the isolated public snapshot migration", () => {
+    expect(migrationFiles).toHaveLength(2);
     expect(migrationFiles[0]).toMatch(/^\d{14}_initial\.sql$/);
   });
 
@@ -38,7 +40,7 @@ describe("control database baseline", () => {
           .prepare(`PRAGMA table_info(${table})`)
           .all()
           .map((row) => String(row.name));
-      expect(tables.reduce((total, table) => total + columns(table).length, 0)).toBe(81);
+      expect(tables.reduce((total, table) => total + columns(table).length, 0)).toBe(95);
       expect(columns("arknights_maintenance_announcements")).toEqual([
         "news_id",
         "url",

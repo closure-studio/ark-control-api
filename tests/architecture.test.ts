@@ -5,7 +5,7 @@ import * as ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const sourceRoot = fileURLToPath(new URL("../src/", import.meta.url));
-const domains = ["apk-delivery", "gcp", "health", "oidc", "pyhelper", "scheduler", "vps"];
+const domains = ["apk-delivery", "gcp", "health", "oidc", "pyhelper", "scheduler", "vps", "public-announcements"];
 const sourceLayers = [
   "constants",
   "controller",
@@ -369,7 +369,7 @@ describe("router to controller architecture", () => {
   });
 
   it("keeps JSON envelope serialization in shared HTTP utilities", () => {
-    const protocolRouters = new Set(["health", "oidc"]);
+    const protocolRouters = new Set(["health", "oidc", "public-announcements"]);
     for (const domain of domains.filter((domain) => !protocolRouters.has(domain))) {
       for (const path of typescriptFiles(join(sourceRoot, "router", domain))) {
         const source = readFileSync(path, "utf8");

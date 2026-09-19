@@ -20,6 +20,7 @@ type NewsRequestOptions = {
   fetcher?: typeof fetch;
   timeoutMs?: number;
   userAgent?: string;
+  allowEmpty?: boolean;
 };
 
 export async function fetchMaintenanceNewsLinks(
@@ -57,7 +58,7 @@ export async function fetchMaintenanceNewsLinks(
     }
   }
 
-  if (links.length === 0) {
+  if (links.length === 0 && !options.allowEmpty) {
     throw new Error("Maintenance news API returned no announcements");
   }
   if (links.length < MAINTENANCE_NEWS_LIMIT && !reachedEnd) {

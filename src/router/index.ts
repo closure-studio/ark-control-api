@@ -9,11 +9,13 @@ import { createHealthRouter } from "./health";
 import { createVpsRouter } from "./vps";
 import { createApkDeliveryRouter } from "./apk-delivery";
 import { createSchedulerRouter } from "./scheduler";
+import { createPublicAnnouncementsRouter } from "./public-announcements";
 
 export function createRouter() {
   const app = new Hono<{ Bindings: Env }>();
 
   app.route("/", createHealthRouter());
+  app.route("/public", createPublicAnnouncementsRouter());
 
   app.use("/api/*", async (c, next) => {
     const path = new URL(c.req.url).pathname;
