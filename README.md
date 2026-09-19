@@ -71,7 +71,7 @@ Deploy `ark-ssh` before the first deployment of this Worker. Update
 `OIDC_ISSUER` and the Google WIF provider together when moving to a custom
 OIDC domain. GitHub Actions also requires an `ADMIN_TOKEN` repository secret
 whose value matches the Worker's `ADMIN_TOKEN`; the deployment workflow uses it
-to create or repair all five Durable Object Alarms after publishing.
+to create or repair all four Durable Object Alarms after publishing.
 
 The authenticated control surface is exposed under `/api/vps`, `/api/accounts`,
 `/api/operations`, `/api/releases`, `/api/host-runs`, and
@@ -109,8 +109,8 @@ under `src/schemas` and export types inferred with Valibot. Shared and
 domain-specific constants stay under `src/constants/<domain>`.
 
 Scheduled business work is owned by one SQLite-backed Durable Object class with
-five named instances: APK delivery, maintenance monitoring, maintenance
-pre-action, retention, and public announcements. Each instance has one Alarm and therefore one
+four named instances: APK delivery, maintenance monitoring, maintenance
+pre-action, and retention. Each instance has one Alarm and therefore one
 serialized job stream. D1 stores only business state and audit history; there
 is no scheduler or distributed-lock table. A deployment calls the authenticated
 scheduler endpoint immediately after the Worker is published. Successful Alarm
@@ -171,17 +171,6 @@ and non-exhaustive switches, Prettier owns source formatting, and the
 architecture tests reject explicit `any`, unchecked type assertions, direct
 unvalidated Hono request reads, and parallel declarations of Schema-derived
 contracts in production source.
-
-## 公开官网公告（独立只读链路）
-
-新增 `public-announcements` 小时 Alarm，只调用官网列表/详情 GET 并写入独立 `public_announcements`、`public_announcement_collection` 表，不调用旧维护监控、AI、QQ 通知、登录开关或 SSH。旧维护策略保持不变。
-
-- `GET /public/announcements`：匿名公开字段白名单，schemaVersion=1；仅读取快照，不即时采集。允许无凭据跨域 GET，缓存60秒；不提供写路由。`/api/*` 原鉴权不变。
-- 复用最新10条有界列表，额外复查未结束/待核实公告，每轮最多20篇详情，每个请求15秒/1MiB。达到列表窗口、复查或展示上限显式标记 partial，不保证全部历史覆盖。429遵守有效 Retry-After，至少推迟到下一整点。
-- 同ID以正文投影hash识别修订，不因缺席列表删除旧记录；失败下轮可重试。规则保留章节和 UTC+8 分钟精度，不推断不明确的跨年日期。`lastSuccessAt` 表示完整采集成功（解析待核实仍可成功），不是服务恢复时间。
-- 最多展示100篇且正文响应预算900KB，超过预算显示 limit_reached；已存活动/待核实公告优先于过期档案。读不到存储返回 unavailable，不公开内部异常。
-- 新迁移为 `migrations/20260919104531_public_announcements.sql`，原初始迁移不变。仅本地验证，未执行线上迁移或调度。发布前必须单独核查采集条款、域名/CORS、实际官网布局与网络。
-- 回滚顺序：关闭前端面板配置，再撤销新公开路由与 Alarm 注册；旧维护链不动，独立表保留，不自动删除线上数据。
 
 ## API responses
 
