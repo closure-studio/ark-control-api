@@ -80,7 +80,7 @@ export function parseAnnouncement(
       timestamp([...publishedAt.split("-").map(Number), 0, 0]);
     const year = validPublication && publishedAt ? Number(publishedAt.slice(0, 4)) : NaN;
     const first = dateParts(line, [year]);
-    const tail = line.split(/至|[~～—]/)[1];
+    const tail = line.split(/至|[-~～—]/)[1];
     const last = tail ? dateParts(tail, first ?? undefined) : null;
     const publicationMonth = publishedAt ? Number(publishedAt.slice(5, 7)) : NaN;
     const missingYearFarFromPublication =
