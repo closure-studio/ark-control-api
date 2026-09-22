@@ -13,6 +13,13 @@ describe("public announcement windows", () => {
       parseStatus: "parsed"
     });
   });
+  it("parses the official half-width hyphen date range format", () => {
+    expect(parse("活动公告", "活动时间：09月20日 16:00 - 09月30日 03:59")[0]).toMatchObject({
+      startAt: "2026-09-20T16:00:00+08:00",
+      endAt: "2026-09-30T03:59:00+08:00",
+      parseStatus: "parsed"
+    });
+  });
   it("keeps stage, shop and rewards separate from the activity window", () => {
     const windows = parse(
       "活动公告",
