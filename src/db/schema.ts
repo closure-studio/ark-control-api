@@ -220,6 +220,13 @@ export const arknightsMaintenanceHostRuns = sqliteTable(
   ]
 );
 
+export const publicAnnouncementSnapshot = sqliteTable("public_announcement_snapshot", {
+  source_id: text("source_id").primaryKey().notNull(),
+  source_url: text("source_url").notNull(),
+  collected_at: text("collected_at").notNull(),
+  events_json: text("events_json").notNull()
+});
+
 export type GcpAccountRow = typeof gcpAccounts.$inferSelect;
 export type VpsHostRow = typeof vpsHosts.$inferSelect;
 export type ArknightsApkReleaseRow = typeof arknightsApkReleases.$inferSelect;

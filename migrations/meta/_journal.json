@@ -8,6 +8,27 @@
       "when": 1785603549793,
       "tag": "20260801165909_initial",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789814731014,
+      "tag": "20260919104531_public_announcements",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790044095501,
+      "tag": "20260922022815_announcement_snapshot",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1790044106165,
+      "tag": "20260922022826_remove_announcement_collection",
+      "breakpoints": true
     }
   ]
 }
