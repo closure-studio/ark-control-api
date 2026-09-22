@@ -11,7 +11,10 @@ import { runMaintenanceMonitor } from "../maintenance/monitor";
 import { runDueMaintenancePreActions } from "../maintenance/pre-action";
 import { getNextMaintenancePreActionAt } from "../../repositories/maintenance/pre-actions";
 import { runRetentionCleanup } from "../retention";
-import { collectPublicAnnouncements, nextPublicAnnouncementAlarm } from "../public-announcements/collector";
+import {
+  collectPublicAnnouncements,
+  nextPublicAnnouncementAlarm
+} from "../public-announcements/collector";
 import { nextUtcHour, nextUtcMidnight } from "./time";
 
 const MAX_PLATFORM_RETRY_COUNT = 6;
@@ -123,7 +126,7 @@ export class ControlJobAlarm extends DurableObject<Env> {
   private async desiredAlarm(job: ControlJobName, now: Date): Promise<Date | null> {
     if (job === "apk-delivery") return getNextApkDeliveryAlarmAt(this.env.DB, now);
     if (job === "maintenance-monitor") return nextUtcHour(now);
-    if (job === "public-announcements") return nextPublicAnnouncementAlarm(this.env.DB, now);
+    if (job === "public-announcements") return nextPublicAnnouncementAlarm(now);
     if (job === "maintenance-pre-action") {
       return getNextMaintenancePreActionAt(this.env.DB, now);
     }
@@ -132,7 +135,8 @@ export class ControlJobAlarm extends DurableObject<Env> {
 
   private async runJob(job: ControlJobName, startedAt: Date): Promise<Date | null> {
     if (job === "apk-delivery") return runApkDeliveryCycle(this.env);
-    if (job === "public-announcements") return collectPublicAnnouncements(this.env.DB);
+    if (job === "public-announcements")
+      return collectPublicAnnouncements(this.env.DB, { ai: this.env });
     if (job === "maintenance-monitor") {
       await runMaintenanceMonitor(this.env);
       return nextUtcHour(new Date());

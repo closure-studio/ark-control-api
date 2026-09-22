@@ -4,7 +4,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { collectPublicAnnouncements } from "../../src/services/public-announcements/collector";
 import { getPublicAnnouncements } from "../../src/controller/public-announcements";
 import { api } from "../../src/index";
-import { saveAnnouncement, listAnnouncements } from "../../src/repositories/public-announcements";
+import { saveSnapshot } from "../../src/repositories/public-announcements";
 import type { Env } from "../../src/schemas/env";
 import type { ControlJobAlarm } from "../../src/services/scheduler/control-job-alarm";
 
@@ -16,8 +16,7 @@ beforeAll(async () => {
   await applyD1Migrations(bindings.DB, bindings.TEST_D1_MIGRATIONS);
 });
 beforeEach(async () => {
-  await bindings.DB.prepare("DELETE FROM public_announcements").run();
-  await bindings.DB.prepare("DELETE FROM public_announcement_collection").run();
+  await bindings.DB.prepare("DELETE FROM public_announcement_snapshot").run();
 });
 const now = new Date("2026-09-19T00:00:00Z");
 const html = (end: string) =>
@@ -55,14 +54,14 @@ describe("public collection and D1 projection", () => {
       now
     });
     expect(await getPublicAnnouncements(bindings.DB, now)).toMatchObject({
-      status: "stale",
-      errorCode: "source_failed",
+      status: "ready",
+      errorCode: null,
       events: [{ newsId: "001" }]
     });
     await collectPublicAnnouncements(bindings.DB, { fetcher: source(html("16:20")), now });
     expect((await getPublicAnnouncements(bindings.DB, now)).status).toBe("ready");
     expect(
-      (await getPublicAnnouncements(bindings.DB, new Date(now.getTime() + 7_200_001))).status
+      (await getPublicAnnouncements(bindings.DB, new Date(now.getTime() + 46_800_001))).status
     ).toBe("stale");
     const response = await api.request("/public/announcements", {}, bindings);
     expect(Object.keys((await response.json()) as object).sort()).toEqual([
@@ -93,7 +92,7 @@ describe("public collection and D1 projection", () => {
       }
     });
     expect(detailCalls).toBeLessThanOrEqual(20);
-    expect((await getPublicAnnouncements(bindings.DB, now)).status).toBe("partial");
+    expect((await getPublicAnnouncements(bindings.DB, now)).status).toBe("ready");
   });
   it("handles timeout, oversize details and partial failure without losing old records", async () => {
     await collectPublicAnnouncements(bindings.DB, { fetcher: source(html("16:10")), now });
@@ -105,15 +104,15 @@ describe("public collection and D1 projection", () => {
           init?.signal?.addEventListener("abort", () => reject(new Error("timeout")))
         )
     });
-    expect((await getPublicAnnouncements(bindings.DB, now)).status).toBe("stale");
+    expect((await getPublicAnnouncements(bindings.DB, now)).status).toBe("ready");
     await collectPublicAnnouncements(bindings.DB, {
       now,
       fetcher: source("x".repeat(1024 * 1024 + 1))
     });
-    expect((await getPublicAnnouncements(bindings.DB, now)).errorCode).toBe("source_failed");
+    expect((await getPublicAnnouncements(bindings.DB, now)).errorCode).toBeNull();
     expect((await getPublicAnnouncements(bindings.DB, now)).events.length).toBeGreaterThan(0);
   });
-  it("backs off 429 without further requests", async () => {
+  it("stops on 429 and allows the next independent collection", async () => {
     let calls = 0;
     const next = await collectPublicAnnouncements(bindings.DB, {
       now,
@@ -123,52 +122,107 @@ describe("public collection and D1 projection", () => {
       }
     });
     expect(calls).toBe(1);
-    expect(next.getTime()).toBe(now.getTime() + 10_800_000);
+    expect(next.toISOString()).toBe("2026-09-19T12:00:00.000Z");
+    expect((await getPublicAnnouncements(bindings.DB, now)).status).toBe("unavailable");
+    await collectPublicAnnouncements(bindings.DB, { now: next, fetcher: source(html("16:10")) });
+    expect((await getPublicAnnouncements(bindings.DB, next)).status).toBe("ready");
+  });
+  it("rechecks active events missing from the latest list and retains them on failure", async () => {
+    await collectPublicAnnouncements(bindings.DB, { now, fetcher: source(html("16:10")) });
+    let detailCalls = 0;
     await collectPublicAnnouncements(bindings.DB, {
       now,
-      fetcher: async () => {
-        throw new Error("must not request during backoff");
+      fetcher: async (input) => {
+        if (String(input).includes("/api/news"))
+          return Response.json({ code: 0, data: { list: [], end: true } });
+        detailCalls++;
+        return new Response(null, { status: 503 });
       }
     });
-    expect((await getPublicAnnouncements(bindings.DB, now)).errorCode).toBe("rate_limited");
+    expect(detailCalls).toBe(1);
+    expect((await getPublicAnnouncements(bindings.DB, now)).events[0]?.newsId).toBe("001");
   });
-  it("prioritizes active records over expired archives and limits projection bytes", async () => {
-    await collectPublicAnnouncements(bindings.DB, { now, fetcher: source("", []) });
-    const row = {
-      source_url: "https://ak.hypergryph.com/news/1",
-      title: "活动",
-      published_at: null,
-      content_hash: "hash",
-      fetched_at: now.toISOString(),
-      recheck_at: now.toISOString()
-    };
-    const window = {
-      kind: "activity",
-      sectionLabel: "活动",
-      startAt: null,
-      endAt: "2020-01-01T00:00:00Z",
-      timezone: "Asia/Shanghai",
-      rawTimeText: "证据".repeat(1000),
-      parseStatus: "pending"
-    };
-    for (let i = 0; i < 101; i++)
-      await saveAnnouncement(bindings.DB, {
-        ...row,
-        news_id: String(i + 2000),
-        windows_json: JSON.stringify(Array.from({ length: 2 }, () => window))
-      });
-    await saveAnnouncement(bindings.DB, {
-      ...row,
-      news_id: "9999",
-      windows_json: JSON.stringify([{ ...window, endAt: null }])
-    });
-    expect(
-      (await listAnnouncements(bindings.DB, now)).slice(0, 20).map((row) => row.news_id)
-    ).toContain("9999");
+  it("refuses oversized snapshots without replacing the previous data", async () => {
+    await collectPublicAnnouncements(bindings.DB, { now, fetcher: source(html("16:10")) });
     const snapshot = await getPublicAnnouncements(bindings.DB, now);
-    expect(new TextEncoder().encode(JSON.stringify(snapshot)).byteLength).toBeLessThan(1024 * 1024);
+    const event = snapshot.events[0]!;
+    await expect(
+      saveSnapshot(
+        bindings.DB,
+        Array.from({ length: 101 }, () => event),
+        now
+      )
+    ).rejects.toThrow();
+    expect((await getPublicAnnouncements(bindings.DB, now)).events).toEqual(snapshot.events);
+  });
+  it("does not present the migration sentinel as a real collection time", async () => {
+    await collectPublicAnnouncements(bindings.DB, { now, fetcher: source(html("16:10")) });
+    await bindings.DB.prepare(
+      "UPDATE public_announcement_snapshot SET collected_at = '1970-01-01T00:00:00.000Z'"
+    ).run();
+    expect(await getPublicAnnouncements(bindings.DB, now)).toMatchObject({
+      status: "stale",
+      lastSuccessAt: null,
+      events: [{ newsId: "001" }]
+    });
+  });
+  it("bounds legacy snapshot projection without discarding stored events", async () => {
+    await collectPublicAnnouncements(bindings.DB, { now, fetcher: source(html("16:10")) });
+    const event = (await getPublicAnnouncements(bindings.DB, now)).events[0]!;
+    const window = { ...event.windows[0]!, rawTimeText: "证据".repeat(1000) };
+    const events = Array.from({ length: 101 }, (_, index) => ({
+      ...event,
+      newsId: String(index),
+      windows: [window, window]
+    }));
+    await bindings.DB.prepare("UPDATE public_announcement_snapshot SET events_json = ?")
+      .bind(JSON.stringify(events))
+      .run();
+    const snapshot = await getPublicAnnouncements(bindings.DB, now);
     expect(snapshot.status).toBe("partial");
     expect(snapshot.errorCode).toBe("limit_reached");
+    expect(snapshot.events.length).toBeGreaterThan(0);
+    expect(new TextEncoder().encode(JSON.stringify(snapshot)).byteLength).toBeLessThan(1024 * 1024);
+    expect(
+      await bindings.DB.prepare(
+        "SELECT json_array_length(events_json) AS count FROM public_announcement_snapshot"
+      ).first("count")
+    ).toBe(101);
+  });
+  it("rechecks an uncertain deadline even when the old date is in the past", async () => {
+    const event = {
+      newsId: "001",
+      sourceUrl: "https://ak.hypergryph.com/news/001",
+      title: "活动",
+      publishedAt: null,
+      fetchedAt: now.toISOString(),
+      windows: [
+        {
+          kind: "activity" as const,
+          sectionLabel: "延期",
+          startAt: null,
+          endAt: "2026-09-18T00:00:00Z",
+          timezone: "Asia/Shanghai" as const,
+          rawTimeText: "延期待定",
+          parseStatus: "pending" as const
+        }
+      ]
+    };
+    await saveSnapshot(bindings.DB, [event], now);
+    let detailCalls = 0;
+    await collectPublicAnnouncements(bindings.DB, {
+      now,
+      fetcher: async (input) => {
+        if (String(input).includes("/api/news"))
+          return Response.json({ code: 0, data: { list: [], end: true } });
+        detailCalls++;
+        return new Response("<h1>活动延期</h1><article><p>时间另行通知</p></article>");
+      }
+    });
+    expect(detailCalls).toBe(1);
+    expect(
+      (await getPublicAnnouncements(bindings.DB, now)).events[0]?.windows[0]?.parseStatus
+    ).toBe("pending");
   });
   it("runs only public reads from its alarm and recovers scheduling on failure", async () => {
     const stub = bindings.CONTROL_JOB_ALARMS.getByName("public-announcements");
@@ -204,7 +258,7 @@ describe("public collection and D1 projection", () => {
       fetcher.mockRestore();
     }
   });
-  it("registers a separate alarm with hourly scheduling", async () => {
+  it("registers a separate alarm with half-day scheduling", async () => {
     const stub = bindings.CONTROL_JOB_ALARMS.getByName("public-announcements");
     expect((await stub.fetch("https://local/ensure", { method: "POST" })).status).toBe(204);
     expect(

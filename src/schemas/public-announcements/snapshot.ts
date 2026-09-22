@@ -32,6 +32,7 @@ export const AnnouncementSchema = v.object({
   fetchedAt: TimestampSchema,
   windows: WindowsSchema
 });
+export const EventsSchema = v.pipe(v.array(AnnouncementSchema), v.maxLength(100));
 export const ErrorCodeSchema = v.nullable(
   v.picklist(["source_failed", "rate_limited", "limit_reached", "parse_pending", "storage_failed"])
 );
@@ -42,7 +43,7 @@ export const SnapshotSchema = v.object({
   lastSuccessAt: v.nullable(TimestampSchema),
   status: v.picklist(["ready", "partial", "stale", "unavailable"]),
   errorCode: ErrorCodeSchema,
-  events: v.pipe(v.array(AnnouncementSchema), v.maxLength(100))
+  events: EventsSchema
 });
 export type Announcement = v.InferOutput<typeof AnnouncementSchema>;
 export type AnnouncementWindow = v.InferOutput<typeof WindowSchema>;

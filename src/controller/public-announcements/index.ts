@@ -1,49 +1,36 @@
 import * as v from "valibot";
-import {
-  listAnnouncements,
-  projectAnnouncement,
-  readCollection
-} from "../../repositories/public-announcements";
+import { readSnapshot } from "../../repositories/public-announcements";
 import { SnapshotSchema, type Snapshot } from "../../schemas/public-announcements/snapshot";
 
 export async function getPublicAnnouncements(db: D1Database, now = new Date()): Promise<Snapshot> {
   try {
-    const state = await readCollection(db);
-    const rows = await listAnnouncements(db, now);
+    const saved = await readSnapshot(db);
     const events: Snapshot["events"] = [];
     let bytes = 0;
-    let truncated = rows.length > 100;
-    for (const row of rows.slice(0, 100)) {
-      const event = projectAnnouncement(row);
-      if (!event.windows.length) continue;
-      const size = new TextEncoder().encode(JSON.stringify(event)).byteLength;
-      if (bytes + size > 900_000) {
+    let truncated = false;
+    for (const event of saved?.events ?? []) {
+      bytes += new TextEncoder().encode(JSON.stringify(event)).byteLength + 1;
+      if (events.length === 100 || bytes > 900_000) {
         truncated = true;
         break;
       }
-      bytes += size + 1;
       events.push(event);
     }
-    const reference = state?.last_success_at ?? state?.last_attempt_at;
-    const old = !reference || now.getTime() - Date.parse(reference) > 7_200_000;
-    const status = !state
-      ? "unavailable"
-      : state.status === "failed"
-        ? events.length
-          ? "stale"
-          : "unavailable"
-        : old
-          ? "stale"
-          : truncated
-            ? "partial"
-            : state.status;
+    // A half-day collection gets one hour of grace; a failed attempt never renews this clock.
+    const stale = saved && now.getTime() - Date.parse(saved.collectedAt) > 13 * 60 * 60 * 1000;
+    const pending = events.some((event) =>
+      event.windows.some((window) => window.parseStatus === "pending")
+    );
+    // Legacy incomplete collections use the epoch only as a stale marker, never as a success time.
+    const lastSuccessAt =
+      saved?.collectedAt === "1970-01-01T00:00:00.000Z" ? null : (saved?.collectedAt ?? null);
     return v.parse(SnapshotSchema, {
       schemaVersion: 1,
       generatedAt: now.toISOString(),
-      lastAttemptAt: state?.last_attempt_at ?? null,
-      lastSuccessAt: state?.last_success_at ?? null,
-      status,
-      errorCode: truncated ? "limit_reached" : (state?.error_code ?? null),
+      lastAttemptAt: null,
+      lastSuccessAt,
+      status: !saved ? "unavailable" : stale ? "stale" : pending || truncated ? "partial" : "ready",
+      errorCode: truncated ? "limit_reached" : pending ? "parse_pending" : null,
       events
     });
   } catch {
