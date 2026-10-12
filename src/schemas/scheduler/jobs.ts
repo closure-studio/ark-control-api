@@ -5,7 +5,8 @@ export const CONTROL_JOB_NAMES = [
   "maintenance-monitor",
   "maintenance-pre-action",
   "retention",
-  "public-announcements"
+  "public-announcements",
+  "gcp-instance-keepalive"
 ] as const;
 
 export const ControlJobNameSchema = v.picklist(CONTROL_JOB_NAMES);

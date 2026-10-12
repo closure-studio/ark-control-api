@@ -39,9 +39,10 @@ describe("control job alarm client", () => {
       "maintenance-monitor",
       "maintenance-pre-action",
       "retention",
-      "public-announcements"
+      "public-announcements",
+      "gcp-instance-keepalive"
     ]);
-    expect(fetch).toHaveBeenCalledTimes(5);
+    expect(fetch).toHaveBeenCalledTimes(6);
   });
 
   it("refreshes only the dynamic maintenance instance", async () => {
@@ -82,9 +83,10 @@ describe("control job alarm client", () => {
       "maintenance-monitor",
       "maintenance-pre-action",
       "retention",
-      "public-announcements"
+      "public-announcements",
+      "gcp-instance-keepalive"
     ]);
-    expect(getByName).toHaveBeenCalledTimes(5);
-    expect(fetch).toHaveBeenCalledTimes(5);
+    expect(getByName).toHaveBeenCalledTimes(6);
+    expect(fetch).toHaveBeenCalledTimes(6);
   });
 });

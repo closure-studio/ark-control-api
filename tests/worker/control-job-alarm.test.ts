@@ -40,13 +40,25 @@ describe("ControlJobAlarm", () => {
       "apk-delivery",
       "maintenance-monitor",
       "retention",
-      "public-announcements"
+      "public-announcements",
+      "gcp-instance-keepalive"
     ]) {
       expect(await alarmTime(bindings.CONTROL_JOB_ALARMS.getByName(job))).not.toBeNull();
     }
     expect(
       await alarmTime(bindings.CONTROL_JOB_ALARMS.getByName("maintenance-pre-action"))
     ).toBeNull();
+  });
+
+  it("runs the GCP keepalive alarm and schedules the next ten-minute boundary", async () => {
+    const keepalive = bindings.CONTROL_JOB_ALARMS.getByName("gcp-instance-keepalive");
+    await keepalive.fetch("https://control-job-alarm.internal/ensure", { method: "POST" });
+    expect(await runDurableObjectAlarm(keepalive)).toBe(true);
+    const next = await alarmTime(keepalive);
+    expect(next).not.toBeNull();
+    expect(new Date(next ?? 0).getUTCMinutes() % 10).toBe(0);
+    expect(new Date(next ?? 0).getUTCSeconds()).toBe(0);
+    expect(next).toBeGreaterThan(Date.now());
   });
 
   it("keeps fixed jobs isolated and schedules exact UTC boundaries", async () => {
