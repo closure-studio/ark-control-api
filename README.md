@@ -71,7 +71,7 @@ Deploy `ark-ssh` before the first deployment of this Worker. Update
 `OIDC_ISSUER` and the Google WIF provider together when moving to a custom
 OIDC domain. GitHub Actions also requires an `ADMIN_TOKEN` repository secret
 whose value matches the Worker's `ADMIN_TOKEN`; the deployment workflow uses it
-to create or repair all four Durable Object Alarms after publishing.
+to create or repair all six Durable Object Alarms after publishing.
 
 The authenticated control surface is exposed under `/api/vps`, `/api/accounts`,
 `/api/operations`, `/api/releases`, `/api/host-runs`, and
@@ -109,8 +109,8 @@ under `src/schemas` and export types inferred with Valibot. Shared and
 domain-specific constants stay under `src/constants/<domain>`.
 
 Scheduled business work is owned by one SQLite-backed Durable Object class with
-four named instances: APK delivery, maintenance monitoring, maintenance
-pre-action, and retention. Each instance has one Alarm and therefore one
+six named instances: APK delivery, maintenance monitoring, maintenance
+pre-action, retention, public announcement collection, and GCP instance keepalive. Each instance has one Alarm and therefore one
 serialized job stream. D1 stores only business state and audit history; there
 is no scheduler or distributed-lock table. A deployment calls the authenticated
 scheduler endpoint immediately after the Worker is published. Successful Alarm
@@ -157,6 +157,23 @@ outcome of each claimed task, as well as missed or interrupted tasks; notificati
 failures are logged without changing the maintenance result. AI-only maintenance
 classifications never trigger this workflow, and the workflow does not re-enable
 login after the maintenance window.
+
+GCP instance keepalive runs on exact UTC ten-minute boundaries. It uses enabled
+GCP accounts to discover instances across all zones and pages, then matches exact
+instance names against all registered VPS hosts. Names duplicated across projects
+or zones are skipped; incomplete discovery fails the cycle before any cloud or
+VPS mutation. A matched `TERMINATED` instance receives a start request without
+waiting for its operation. A later cycle synchronizes its current external IP
+once discovery reports it as `RUNNING`; missing IPs never clear stored addresses.
+Address updates require the VPS name to still match, so a concurrent rename
+cannot receive the old instance's IP. Individual GCP start-request failures,
+including capacity shortages, are logged and retried on the next cycle without
+blocking other matched hosts. Database failures propagate to the Alarm's existing
+retry and recovery handling.
+There is no new table, secret, switch, notification, or automatic recreation.
+The business watcher switch does not control keepalive. Manually stopped matched
+instances are also restarted; rename/remove the VPS registration or disable the
+GCP account to exclude it. VPS names must remain identical to GCP instance names.
 
 Retention runs at `00:00 UTC` daily. Fixed schedules deliberately use natural
 UTC boundaries, so there are no minute-17 or `03:15` offsets to coordinate.

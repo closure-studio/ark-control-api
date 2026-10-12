@@ -99,6 +99,16 @@ export class VpsHostRepository {
     return this.findById(id);
   }
 
+  async updateAddressIfNameMatches(id: number, name: string, address: string): Promise<boolean> {
+    const updated = await this.db
+      .update(vpsHosts)
+      .set({ address, updated_at: new Date().toISOString() })
+      .where(and(eq(vpsHosts.id, id), eq(vpsHosts.name, name)))
+      .returning({ id: vpsHosts.id })
+      .get();
+    return updated !== undefined;
+  }
+
   async delete(id: number): Promise<void> {
     await this.db.delete(vpsHosts).where(eq(vpsHosts.id, id)).run();
   }

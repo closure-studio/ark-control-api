@@ -15,7 +15,8 @@ import {
   collectPublicAnnouncements,
   nextPublicAnnouncementAlarm
 } from "../public-announcements/collector";
-import { nextUtcHour, nextUtcMidnight } from "./time";
+import { runGcpInstanceKeepalive } from "../gcp/instance-keepalive";
+import { nextUtcHour, nextUtcMidnight, nextUtcTenMinutes } from "./time";
 
 const MAX_PLATFORM_RETRY_COUNT = 6;
 const ALARM_RECOVERY_DELAY_MS = 5 * 60 * 1000;
@@ -125,6 +126,7 @@ export class ControlJobAlarm extends DurableObject<Env> {
 
   private async desiredAlarm(job: ControlJobName, now: Date): Promise<Date | null> {
     if (job === "apk-delivery") return getNextApkDeliveryAlarmAt(this.env.DB, now);
+    if (job === "gcp-instance-keepalive") return nextUtcTenMinutes(now);
     if (job === "maintenance-monitor") return nextUtcHour(now);
     if (job === "public-announcements") return nextPublicAnnouncementAlarm(now);
     if (job === "maintenance-pre-action") {
@@ -134,6 +136,10 @@ export class ControlJobAlarm extends DurableObject<Env> {
   }
 
   private async runJob(job: ControlJobName, startedAt: Date): Promise<Date | null> {
+    if (job === "gcp-instance-keepalive") {
+      await runGcpInstanceKeepalive(this.env);
+      return nextUtcTenMinutes(new Date());
+    }
     if (job === "apk-delivery") return runApkDeliveryCycle(this.env);
     if (job === "public-announcements")
       return collectPublicAnnouncements(this.env.DB, { ai: this.env });
