@@ -4,7 +4,10 @@ import * as v from "valibot";
 
 const base = process.env.DEPLOYMENT_URL;
 const admin = process.env.ADMIN_TOKEN;
-if (!base || !admin) throw new Error("DEPLOYMENT_URL and ADMIN_TOKEN are required.");
+const upload = process.env.ARKHOOK_UPLOAD_TOKEN;
+if (!base || !admin || !upload) {
+  throw new Error("DEPLOYMENT_URL, ADMIN_TOKEN and ARKHOOK_UPLOAD_TOKEN are required.");
+}
 const path = "/api/arkhook/task-failures";
 
 /**
@@ -65,6 +68,19 @@ const denied = await request("", {
   body: "{}"
 });
 assert.equal(denied.status, 401, "Admin credentials must not grant archive upload access.");
+const uploadAuth = await request("", {
+  method: "POST",
+  headers: { authorization: "Bearer " + upload, "content-type": "application/json" },
+  body: "{}"
+});
+assert.equal(uploadAuth.status, 400, "Upload secret must authenticate before JSON validation.");
+const uploadError = v.parse(
+  v.object({ error: v.object({ code: v.literal("bad_request") }) }),
+  await uploadAuth.json()
+);
+assert.equal(uploadError.error.code, "bad_request");
+const uploadRead = await request("", { headers: { authorization: "Bearer " + upload } });
+assert.equal(uploadRead.status, 401, "Upload credentials must not grant archive read access.");
 console.log(
-  "ArkHook archive deployed: remote D1 list/detail queries and authorization checks passed."
+  "ArkHook archive deployed: remote D1 queries, upload secret and authorization checks passed."
 );
