@@ -92,8 +92,10 @@ low-star Completed results, defeat, timeout, cancellation, startup/cleanup error
 and task-server protocol errors remain archivable. Invalid battle inputs are
 preserved so they can be reproduced.
 
-Configure an independent Worker secret with
-`npx wrangler secret put ARKHOOK_UPLOAD_TOKEN` before connecting an uploader.
+Configure `ARKHOOK_UPLOAD_TOKEN` in the repository's GitHub Actions secrets.
+CI/CD requires it and synchronizes it to the Worker using wrangler-action's
+`secrets` input on every deployment. No separate dashboard configuration is
+needed. For manual deployments, use `npx wrangler secret put ARKHOOK_UPLOAD_TOKEN`.
 The upload endpoint fails closed while this secret is absent. It does not accept
 `ADMIN_TOKEN`; the upload token cannot read archives or call management APIs.
 Existing deployment secrets and public routes are unchanged.
@@ -142,7 +144,9 @@ isolation. On merge to main, CI/CD applies remote D1 migrations, deploys the Wor
 bootstraps existing alarms, then runs `scripts/verify-arkhook-deployment.mjs`.
 That read-only smoke check queries list and detail routes against remote D1 and
 verifies unauthorized access, without creating synthetic production records.
-It does not provision the separate upload secret or verify a production upload.
+The deployment also synchronizes the upload secret and verifies that it reaches
+JSON validation (HTTP 400 for an intentionally incomplete body) while remaining
+unable to read archives. It creates no production archive records.
 
 ## Architecture
 
