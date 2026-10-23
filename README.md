@@ -73,7 +73,7 @@ OIDC domain. GitHub Actions also requires an `ADMIN_TOKEN` repository secret
 whose value matches the Worker's `ADMIN_TOKEN`; the deployment workflow uses it
 to create or repair all six Durable Object Alarms after publishing.
 
-The authenticated control surface is exposed under `/api/vps`, `/api/accounts`,
+The authenticated control surface is exposed under `/api/arkhook/task-failures`, `/api/vps`, `/api/accounts`,
 `/api/operations`, `/api/releases`, `/api/host-runs`, and
 `/api/scheduler/ensure`. A release's Host Runs are available under
 `/api/releases/:id/host-runs`. The scheduler endpoint is idempotent and exists
@@ -82,6 +82,67 @@ the seven-table schema, including `arknights_apk_host_runs` for per-VPS Helper
 execution history, `arknights_maintenance_announcements` for the scheduled
 Arknights maintenance monitor, and `arknights_maintenance_host_runs` for
 per-ArkHost maintenance restart auditing.
+
+## ArkHook failure archives
+
+The API accepts the existing version-1 ArkHook non-three-star record as plain JSON
+text with `Content-Type: application/json`. The full task, completion, node identity and unknown
+extension fields are preserved. Normally completed three-star tasks are rejected;
+low-star Completed results, defeat, timeout, cancellation, startup/cleanup errors,
+and task-server protocol errors remain archivable. Invalid battle inputs are
+preserved so they can be reproduced.
+
+Configure an independent Worker secret with
+`npx wrangler secret put ARKHOOK_UPLOAD_TOKEN` before connecting an uploader.
+The upload endpoint fails closed while this secret is absent. It does not accept
+`ADMIN_TOKEN`; the upload token cannot read archives or call management APIs.
+Existing deployment secrets and public routes are unchanged.
+
+- `POST /api/arkhook/task-failures`: upload the complete record with
+  `Authorization: Bearer <ARKHOOK_UPLOAD_TOKEN>`. Returns
+  `{ "data": { "task_id": "<uuid>" } }` after D1 confirms the write.
+- `GET /api/arkhook/task-failures`: admin-only summary list. Supports `limit`
+  (default 50, maximum 100), `offset` (default 0), `stage_id`, `battle_rank`
+  (0–3), and inclusive `recorded_from`/`recorded_to` UTC millisecond timestamps.
+  Returns `{ "data": { "records": [...], "pagination": { "limit", "offset", "count", "total" } } }`.
+  Summaries contain only the four indexed metadata fields. Results sort by
+  `recorded_at DESC, task_id DESC`.
+- `GET /api/arkhook/task-failures/:task_id`: admin-only complete record under
+  `data`, automatically decompressed, or 404 if missing.
+
+The additive migration creates exactly five columns: `task_id` (globally unique
+UUID primary key), nullable `stage_id`, nullable `battle_rank`, integer
+`recorded_at`, and binary `record_json`. The API derives every metadata column
+from the body; callers do not submit separate summaries. `record_json` is a BLOB
+containing the four-byte ASCII header `AKF1` followed by Brotli-compressed UTF-8
+JSON. Compression always uses maximum quality 11, text mode and window 24;
+there is no lower-quality fallback, Base64 encoding or extra codec column.
+The header versions the storage format independently of the record's JSON version.
+The Worker enables `nodejs_compat` for native `node:zlib` support.
+
+Requests are limited to 8,500,000 bytes and validated JSON to 8,000,000 UTF-8 bytes.
+The compressed BLOB must fit within 1,900,000 bytes, leaving space below D1's
+2 MB row limit. Oversized records return HTTP 413 with error code
+`payload_too_large` and never replace an existing row. Highly compressible JSON
+larger than 2 MB is accepted. Decoding also bounds decompressed output.
+Brotli quality 11 consumes CPU: three production failure records of 117–243 KB
+compressed to 8.7–9.1% of their original size in approximately 0.22–0.43 seconds
+locally, smaller than gzip 9 and zstd 22 on all three samples.
+Production uploads need a Worker CPU budget that accommodates this work.
+
+A successful re-upload upserts the same `task_id`; the last accepted snapshot
+wins and retries never create additional rows. Uploaders must serialize uploads
+per task and submit the final local snapshot after task-server conflict handling.
+There is no server-side revision or historical attempt table. No retention job
+automatically removes failure archives. Responses use `Cache-Control: no-store`.
+
+CI checks the additive migration and runs HTTP-to-D1 tests in the Workers runtime,
+including lossless Brotli BLOB storage, >2 MB raw JSON, size limits and credential
+isolation. On merge to main, CI/CD applies remote D1 migrations, deploys the Worker,
+bootstraps existing alarms, then runs `scripts/verify-arkhook-deployment.mjs`.
+That read-only smoke check queries list and detail routes against remote D1 and
+verifies unauthorized access, without creating synthetic production records.
+It does not provision the separate upload secret or verify a production upload.
 
 ## Architecture
 
@@ -103,7 +164,7 @@ src/
 
 The HTTP dependency direction is `router -> controller -> service/repository`.
 The current router and controller domains are `apk-delivery`, `gcp`, `health`,
-`oidc`, `pyhelper`, `scheduler`, and `vps`. Cross-cutting HTTP helpers stay in
+`oidc`, `pyhelper`, `scheduler`, `arkhook`, `public-announcements`, and `vps`. Cross-cutting HTTP helpers stay in
 `src/utils/http`; request, response, environment, and domain data contracts stay
 under `src/schemas` and export types inferred with Valibot. Shared and
 domain-specific constants stay under `src/constants/<domain>`.

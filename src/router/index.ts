@@ -1,5 +1,7 @@
 import { Hono } from "hono";
 import { API_ERROR_CODES } from "../constants/api/error-codes";
+import { TASK_FAILURES_PATH } from "../constants/arkhook/config";
+import { createArkhookRouter } from "./arkhook";
 import type { Env } from "../schemas/env";
 import { ControlApiError } from "../errors/control-api";
 import { jsonError } from "../utils/http";
@@ -22,12 +24,17 @@ export function createRouter() {
     if (path.startsWith("/api/pyhelper/assets/")) {
       return next();
     }
-    if (!c.env.ADMIN_TOKEN || c.req.header("authorization") !== `Bearer ${c.env.ADMIN_TOKEN}`) {
+    const token =
+      c.req.method === "POST" && path === TASK_FAILURES_PATH
+        ? c.env.ARKHOOK_UPLOAD_TOKEN
+        : c.env.ADMIN_TOKEN;
+    if (!token || c.req.header("authorization") !== `Bearer ${token}`) {
       return jsonError(c, API_ERROR_CODES.UNAUTHORIZED, "Unauthorized", 401);
     }
     return next();
   });
 
+  app.route("/api", createArkhookRouter());
   app.route("/api", createGcpRouter());
   app.route("/api", createVpsRouter());
   app.route("/api", createApkDeliveryRouter());

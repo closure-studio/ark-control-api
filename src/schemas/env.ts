@@ -39,6 +39,7 @@ export const EnvSchema = v.object({
   ARK_SSH: ArkSshBindingSchema,
   CONTROL_JOB_ALARMS: ControlJobAlarmNamespaceSchema,
   ADMIN_TOKEN: v.string(),
+  ARKHOOK_UPLOAD_TOKEN: v.exactOptional(v.string()),
   VPS_PASSWORD_KEY: v.string(),
   GITHUB_PYHELPER_TOKEN: v.string(),
   OIDC_ISSUER: v.string(),

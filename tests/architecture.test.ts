@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 const sourceRoot = fileURLToPath(new URL("../src/", import.meta.url));
 const domains = [
   "apk-delivery",
+  "arkhook",
   "gcp",
   "health",
   "oidc",
@@ -136,6 +137,10 @@ describe("router to controller architecture", () => {
       "constants/vps",
       "constants/apk-delivery",
       "errors",
+      "utils/arkhook",
+      "repositories/arkhook",
+      "schemas/arkhook",
+      "constants/arkhook",
       "repositories/vps",
       "repositories/apk-delivery",
       "repositories/maintenance",
