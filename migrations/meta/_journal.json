@@ -29,6 +29,13 @@
       "when": 1790044106165,
       "tag": "20260922022826_remove_announcement_collection",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792715073379,
+      "tag": "20261023002433_arkhook_task_failures",
+      "breakpoints": true
     }
   ]
 }

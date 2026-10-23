@@ -1,5 +1,6 @@
 export const API_ERROR_CODES = {
   BAD_REQUEST: "bad_request",
+  PAYLOAD_TOO_LARGE: "payload_too_large",
   INTERNAL_ERROR: "internal_error",
   NOT_FOUND: "not_found",
   REQUEST_FAILED: "request_failed",

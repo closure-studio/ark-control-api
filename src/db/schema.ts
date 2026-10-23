@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
+import { blob, check, index, integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
 
 const isoTimestampDefault = sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`;
 
@@ -226,6 +226,30 @@ export const publicAnnouncementSnapshot = sqliteTable("public_announcement_snaps
   collected_at: text("collected_at").notNull(),
   events_json: text("events_json").notNull()
 });
+
+export const arkhookTaskFailures = sqliteTable(
+  "arkhook_task_failures",
+  {
+    task_id: text("task_id").primaryKey().notNull(),
+    stage_id: text("stage_id"),
+    battle_rank: integer("battle_rank"),
+    recorded_at: integer("recorded_at").notNull(),
+    record_json: blob("record_json", { mode: "buffer" }).notNull()
+  },
+  (table) => [
+    check(
+      "arkhook_task_failures_rank_check",
+      sql`${table.battle_rank} IS NULL OR ${table.battle_rank} BETWEEN 0 AND 3`
+    ),
+    check("arkhook_task_failures_recorded_check", sql`${table.recorded_at} >= 0`),
+    check(
+      "arkhook_task_failures_blob_check",
+      sql`typeof(${table.record_json}) = 'blob' AND length(${table.record_json}) <= 1900000`
+    ),
+    index("idx_arkhook_task_failures_recorded").on(table.recorded_at),
+    index("idx_arkhook_task_failures_stage_recorded").on(table.stage_id, table.recorded_at)
+  ]
+);
 
 export type GcpAccountRow = typeof gcpAccounts.$inferSelect;
 export type VpsHostRow = typeof vpsHosts.$inferSelect;

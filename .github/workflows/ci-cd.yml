@@ -96,3 +96,9 @@ jobs:
             --request POST \
             --header "Authorization: Bearer ${ADMIN_TOKEN}" \
             "${DEPLOYMENT_URL}/api/scheduler/ensure"
+
+      - name: Verify ArkHook archive against remote D1
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: node scripts/verify-arkhook-deployment.mjs
