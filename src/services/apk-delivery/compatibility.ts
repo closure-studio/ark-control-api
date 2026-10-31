@@ -36,7 +36,7 @@ async function github<T extends v.GenericSchema>(
   if (!env.COMPATIBILITY_GITHUB_TOKEN) throw new Error("GitHub compatibility credentials missing");
   const response = await (runtime.fetcher ?? fetch)(API + path, {
     method: body ? "POST" : "GET",
-    redirect: "error",
+    redirect: "manual",
     signal: AbortSignal.timeout(10_000),
     headers: {
       Authorization: `Bearer ${env.COMPATIBILITY_GITHUB_TOKEN}`,
@@ -221,14 +221,13 @@ async function pollRun(
           : (error ?? "兼容性工作流未通过")
       );
     }
-  } catch {
-    await recordCompatibilityError(
-      env.DB,
-      row,
-      "GitHub compatibility API unavailable or response invalid",
-      now
-    );
-    (runtime.logger ?? console).error("GitHub compatibility check failed", { jobId: row.id });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown compatibility error";
+    await recordCompatibilityError(env.DB, row, message, now);
+    (runtime.logger ?? console).error("GitHub compatibility check failed", {
+      jobId: row.id,
+      error: message
+    });
   }
 }
 
@@ -259,10 +258,10 @@ export async function startApkCompatibility(
     const row = await getCompatibilityRun(env.DB, id);
     if (!row) throw new Error("Compatibility record missing");
     if (row.status === "queued" || row.status === "running") await pollRun(env, runtime, row, now);
-  } catch {
+  } catch (error) {
     (runtime.logger ?? console).error(
       "GitHub compatibility submission failed; installation remains independent",
-      { apkFilename }
+      { apkFilename, error: error instanceof Error ? error.message : "Unknown compatibility error" }
     );
   }
 }
