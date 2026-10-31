@@ -89,6 +89,36 @@ export const arknightsApkReleases = sqliteTable(
   (table) => [index("idx_arknights_apk_releases_detected").on(table.detected_at)]
 );
 
+export const arknightsApkCompatibilityRuns = sqliteTable(
+  "arknights_apk_compatibility_runs",
+  {
+    id: text("id").primaryKey(),
+    apk_filename: text("apk_filename").notNull(),
+    final_url: text("final_url").notNull(),
+    hook_commit: text("hook_commit").notNull(),
+    github_run_id: text("github_run_id"),
+    github_run_attempt: integer("github_run_attempt"),
+    github_url: text("github_url"),
+    dispatch_attempted_at: text("dispatch_attempted_at"),
+    status: text("status", {
+      enum: ["queued", "running", "passed", "failed", "cancelled", "timed_out"]
+    }).notNull(),
+    report_json: text("report_json"),
+    error_message: text("error_message"),
+    next_check_at: text("next_check_at"),
+    deadline_at: text("deadline_at").notNull(),
+    created_at: text("created_at").notNull(),
+    updated_at: text("updated_at").notNull()
+  },
+  (table) => [
+    check(
+      "apk_compatibility_status_check",
+      sql`${table.status} IN ('queued', 'running', 'passed', 'failed', 'cancelled', 'timed_out')`
+    ),
+    index("idx_apk_compatibility_next_check").on(table.status, table.next_check_at)
+  ]
+);
+
 export const arknightsApkHostRuns = sqliteTable(
   "arknights_apk_host_runs",
   {
@@ -253,6 +283,7 @@ export const arkhookTaskFailures = sqliteTable(
 
 export type GcpAccountRow = typeof gcpAccounts.$inferSelect;
 export type VpsHostRow = typeof vpsHosts.$inferSelect;
+export type ArknightsApkCompatibilityRunRow = typeof arknightsApkCompatibilityRuns.$inferSelect;
 export type ArknightsApkReleaseRow = typeof arknightsApkReleases.$inferSelect;
 export type ArknightsApkHostRunRow = typeof arknightsApkHostRuns.$inferSelect;
 export type ArknightsMaintenanceAnnouncementRow =

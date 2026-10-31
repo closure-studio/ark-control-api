@@ -5,6 +5,7 @@ import { extractApkFilename } from "../../utils/apk-delivery/apk";
 export async function fetchLatestApkMetadata(fetcher: typeof fetch = fetch): Promise<ApkMetadata> {
   const response = await fetcher(MONITORED_APK_URL, { redirect: "follow" });
   const finalUrl = response.url;
+  await response.body?.cancel();
 
   if (!response.ok) {
     throw new Error(`bad status ${response.status} from monitored APK URL`);

@@ -3,7 +3,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import * as v from "valibot";
 
 import { VpsHostRepository } from "../src/repositories/vps/vps-hosts";
-import { listHostRuns } from "../src/repositories/apk-delivery/host-runs";
+import { getOrCreateHostRun, listHostRuns } from "../src/repositories/apk-delivery/host-runs";
+import { getOrCreateRelease } from "../src/repositories/apk-delivery/releases";
+import { GitHubRunSchema } from "../src/schemas/apk-delivery/compatibility";
 import { EnvSchema, type Env } from "../src/schemas/env";
 import type { ExecuteSshCommandRequest } from "../src/schemas/vps/ssh-command";
 import { PasswordCrypto } from "../src/services/vps/password-crypto";
@@ -12,6 +14,7 @@ import {
   runApkDeliveryCycle
 } from "../src/services/apk-delivery/deployment-lifecycle";
 import { HOST_PROCESS_META_MARKER } from "../src/utils/apk-delivery/shell";
+import { compatibilityFetcher, GITHUB_API } from "./helpers/compatibility";
 import { applyD1Migrations } from "./helpers/migrations";
 
 const PASSWORD_KEY = btoa("k".repeat(32));
@@ -29,6 +32,8 @@ function createEnv(
     ARK_SSH: { executeCommand },
     CONTROL_JOB_ALARMS: { getByName: vi.fn() },
     ADMIN_TOKEN: "admin",
+    COMPATIBILITY_GITHUB_REF: "greenfield",
+    COMPATIBILITY_GITHUB_TOKEN: "github-compatibility-test",
     VPS_PASSWORD_KEY: PASSWORD_KEY,
     GITHUB_PYHELPER_TOKEN: "github",
     OIDC_ISSUER: "https://control.example.com",
@@ -66,6 +71,7 @@ describe("APK delivery lifecycle", () => {
 
   beforeEach(async () => {
     await db.exec(`
+      DELETE FROM arknights_apk_compatibility_runs;
       DELETE FROM arknights_apk_host_runs;
       DELETE FROM arknights_apk_releases;
       DELETE FROM vps_hosts;
@@ -125,10 +131,10 @@ describe("APK delivery lifecycle", () => {
     });
     const env = createEnv(db, executeCommand);
     let apkFetchCount = 0;
-    const fetcher: typeof fetch = async () => {
+    const fetcher = compatibilityFetcher(async () => {
       apkFetchCount += 1;
       return apkResponse();
-    };
+    });
 
     await runApkDeliveryCycle(env, {
       now: () => NOW,
@@ -152,7 +158,7 @@ describe("APK delivery lifecycle", () => {
       fetcher,
       logger: { error: vi.fn() }
     });
-    expect(apkFetchCount).toBe(1);
+    expect(apkFetchCount).toBe(2);
   });
 
   it("advances a running Host Run through log review to its terminal result", async () => {
@@ -181,7 +187,7 @@ describe("APK delivery lifecycle", () => {
       timedOut: false
     }));
     const env = createEnv(db, executeCommand);
-    const fetcher: typeof fetch = async () => apkResponse();
+    const fetcher = compatibilityFetcher(async () => apkResponse());
     const logger = { error: vi.fn() };
 
     await runApkDeliveryCycle(env, { now: () => NOW, fetcher, logger });
@@ -213,6 +219,238 @@ describe("APK delivery lifecycle", () => {
     await expect(getNextApkDeliveryAlarmAt(db, NOW)).resolves.toEqual(
       new Date("2026-07-20T12:01:00.000Z")
     );
+  });
+
+  async function seedHost() {
+    const password = await new PasswordCrypto(PASSWORD_KEY).encrypt("password");
+    const host = await new VpsHostRepository(db).create(
+      {
+        name: "Gate Host",
+        address: "192.0.2.50",
+        port: 22,
+        username: "root",
+        password: "password",
+        role: "redroid"
+      },
+      password
+    );
+    if (!host) throw new Error("Test host was not created");
+    return host;
+  }
+
+  const startedSsh = {
+    connected: true,
+    stdout: "started:123",
+    stderr: "",
+    exitCode: 0,
+    signal: null,
+    success: true,
+    timedOut: false
+  };
+
+  it("starts installation while the GitHub request is still pending", async () => {
+    await seedHost();
+    let started: () => void = () => undefined;
+    const installationStarted = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const execute = vi.fn(async () => {
+      started();
+      return startedSsh;
+    });
+    const upstream = compatibilityFetcher(
+      async () => apkResponse(),
+      () => "in_progress"
+    );
+    const fetcher: typeof fetch = async (input, init) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      if (url.includes("/commits/")) await installationStarted;
+      return upstream(input, init);
+    };
+    await runApkDeliveryCycle(createEnv(db, execute), { now: () => NOW, fetcher });
+    expect(execute).toHaveBeenCalledOnce();
+    expect(await listHostRuns(db, undefined, 10, 0)).toMatchObject([{ status: "running" }]);
+    expect(
+      (await db.prepare("SELECT status FROM arknights_apk_compatibility_runs").all()).results
+    ).toEqual([{ status: "running" }]);
+  });
+
+  it("recovers pending installation without GitHub credentials", async () => {
+    const host = await seedHost();
+    const release = await getOrCreateRelease(
+      db,
+      "arknights-hg-1.0.0.apk",
+      "https://downloads.example.com/arknights-hg-1.0.0.apk",
+      NOW.toISOString()
+    );
+    await getOrCreateHostRun(db, release.id, host, NOW.toISOString());
+    const execute = vi.fn(async () => startedSsh);
+    const env = createEnv(db, execute);
+    delete env.COMPATIBILITY_GITHUB_TOKEN;
+    await runApkDeliveryCycle(env, { now: () => NOW, fetcher: async () => apkResponse() });
+    expect(await listHostRuns(db, undefined, 10, 0)).toMatchObject([{ status: "running" }]);
+    expect(execute).toHaveBeenCalledOnce();
+  });
+
+  it.each(["failed", "offline", "invalid", "unconfigured"])(
+    "keeps installation independent when GitHub compatibility is %s",
+    async (failure) => {
+      await seedHost();
+      const execute = vi.fn(async () => startedSsh);
+      const env = createEnv(db, execute);
+      if (failure === "unconfigured") delete env.COMPATIBILITY_GITHUB_TOKEN;
+      const upstream = compatibilityFetcher(
+        async () => apkResponse(),
+        () => "completed",
+        () => (failure === "failed" ? "failure" : "success")
+      );
+      const fetcher: typeof fetch = async (input, init) => {
+        const url = input instanceof Request ? input.url : input.toString();
+        if (failure === "offline" && url.includes("/actions/")) throw new Error("offline");
+        const response = await upstream(input, init);
+        if (failure === "invalid" && url.includes("/actions/runs/")) {
+          const run = v.parse(GitHubRunSchema, await response.json());
+          run.display_title = "another business job";
+          return Response.json(run);
+        }
+        return response;
+      };
+      await runApkDeliveryCycle(env, { now: () => NOW, fetcher, logger: { error: vi.fn() } });
+      expect(await listHostRuns(db, undefined, 10, 0)).toMatchObject([{ status: "running" }]);
+      expect(execute).toHaveBeenCalledOnce();
+      const rows = (await db.prepare("SELECT status FROM arknights_apk_compatibility_runs").all())
+        .results;
+      expect(rows).toEqual(
+        failure === "unconfigured" ? [] : [{ status: failure === "failed" ? "failed" : "queued" }]
+      );
+    }
+  );
+
+  it.each(["queued", "in_progress"] as const)(
+    "expires stale %s checks independently",
+    async (status) => {
+      await seedHost();
+      const execute = vi.fn(async () => startedSsh);
+      const env = createEnv(db, execute);
+      const fetcher = compatibilityFetcher(
+        async () => apkResponse(),
+        () => status
+      );
+      await runApkDeliveryCycle(env, { now: () => NOW, fetcher });
+      const expired = new Date(NOW.getTime() + (status === "queued" ? 25 : 7) * 60 * 60 * 1000);
+      await runApkDeliveryCycle(env, { now: () => expired, fetcher });
+      expect(
+        (
+          await db
+            .prepare("SELECT status, next_check_at FROM arknights_apk_compatibility_runs")
+            .all()
+        ).results
+      ).toEqual([{ status: "timed_out", next_check_at: null }]);
+      expect(execute).toHaveBeenCalledOnce();
+    }
+  );
+
+  it("submits one workflow for repeated discovery of the same APK and commit", async () => {
+    let dispatches = 0;
+    const upstream = compatibilityFetcher(async () => apkResponse());
+    const fetcher: typeof fetch = async (input, init) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      if (url.endsWith("/dispatches")) dispatches += 1;
+      if (url.startsWith(GITHUB_API))
+        expect(new Headers(init?.headers).get("Authorization")).toBe(
+          "Bearer github-compatibility-test"
+        );
+      return upstream(input, init);
+    };
+    const env = createEnv(db, vi.fn());
+    await runApkDeliveryCycle(env, { now: () => NOW, fetcher });
+    await runApkDeliveryCycle(env, { now: () => new Date(NOW.getTime() + 600_000), fetcher });
+    expect(dispatches).toBe(1);
+    expect(
+      (await db.prepare("SELECT status, github_run_id FROM arknights_apk_compatibility_runs").all())
+        .results
+    ).toEqual([{ status: "passed", github_run_id: "1000" }]);
+  });
+
+  it("recovers an accepted dispatch after its response was lost without re-submission", async () => {
+    await seedHost();
+    const execute = vi.fn(async () => startedSsh);
+    const upstream = compatibilityFetcher(async () => apkResponse());
+    let dispatches = 0;
+    const fetcher: typeof fetch = async (input, init) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      const response = await upstream(input, init);
+      if (url.endsWith("/dispatches")) {
+        dispatches += 1;
+        throw new Error("response lost");
+      }
+      return response;
+    };
+    const env = createEnv(db, execute);
+    await runApkDeliveryCycle(env, { now: () => NOW, fetcher, logger: { error: vi.fn() } });
+    await runApkDeliveryCycle(env, { now: () => new Date(NOW.getTime() + 60_000), fetcher });
+    expect(dispatches).toBe(1);
+    expect(
+      (await db.prepare("SELECT status, github_run_id FROM arknights_apk_compatibility_runs").all())
+        .results
+    ).toEqual([{ status: "passed", github_run_id: "1000" }]);
+  });
+
+  it.each(["cancelled", "timed_out"])(
+    "records GitHub %s without changing installation",
+    async (conclusion) => {
+      await seedHost();
+      const execute = vi.fn(async () => startedSsh);
+      await runApkDeliveryCycle(createEnv(db, execute), {
+        now: () => NOW,
+        fetcher: compatibilityFetcher(
+          async () => apkResponse(),
+          () => "completed",
+          () => conclusion
+        )
+      });
+      expect(
+        (await db.prepare("SELECT status FROM arknights_apk_compatibility_runs").all()).results
+      ).toEqual([{ status: conclusion }]);
+      expect(await listHostRuns(db, undefined, 10, 0)).toMatchObject([{ status: "running" }]);
+    }
+  );
+
+  it("excludes the dedicated ARM test host from deployment", async () => {
+    const host = await seedHost();
+    const execute = vi.fn();
+    const env = createEnv(db, execute);
+    env.COMPATIBILITY_TEST_HOST_ADDRESS = host.address;
+    await runApkDeliveryCycle(env, {
+      now: () => NOW,
+      fetcher: compatibilityFetcher(async () => apkResponse())
+    });
+    expect(await listHostRuns(db, undefined, 10, 0)).toEqual([]);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("does not deploy a superseded pending Release", async () => {
+    const host = await seedHost();
+    const release = await getOrCreateRelease(
+      db,
+      "old.apk",
+      "https://downloads.example.com/old.apk",
+      NOW.toISOString()
+    );
+    await getOrCreateHostRun(db, release.id, host, NOW.toISOString());
+    const execute = vi.fn(async () => startedSsh);
+    await runApkDeliveryCycle(createEnv(db, execute), {
+      now: () => NOW,
+      fetcher: compatibilityFetcher(
+        async () => apkResponse(),
+        () => "in_progress"
+      )
+    });
+    expect(await listHostRuns(db, undefined, 10, 0)).toMatchObject([
+      { status: "running" },
+      { status: "failed", error_message: "APK superseded before deployment" }
+    ]);
+    expect(execute).toHaveBeenCalledOnce();
   });
 
   it("fills a missing Host Run for an already persisted latest Release", async () => {
@@ -251,7 +489,7 @@ describe("APK delivery lifecycle", () => {
 
     await runApkDeliveryCycle(createEnv(db, executeCommand), {
       now: () => NOW,
-      fetcher: async () => apkResponse(),
+      fetcher: compatibilityFetcher(async () => apkResponse()),
       logger: { error: vi.fn() }
     });
 

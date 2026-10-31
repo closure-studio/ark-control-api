@@ -5,6 +5,7 @@ import { applySqliteMigrations, migrationFiles } from "./helpers/migrations";
 
 const businessTables = [
   "arkhook_task_failures",
+  "arknights_apk_compatibility_runs",
   "arknights_apk_host_runs",
   "arknights_apk_releases",
   "arknights_maintenance_announcements",
@@ -17,19 +18,23 @@ const businessTables = [
 
 describe("control database baseline", () => {
   it("retains the baseline and adds isolated domain migrations", () => {
-    expect(migrationFiles).toHaveLength(5);
+    expect(migrationFiles).toHaveLength(6);
     expect(migrationFiles[0]).toMatch(/^\d{14}_initial\.sql$/);
   });
 
   it("adds the archive without modifying existing business data and enforces binary storage", () => {
     const db = new DatabaseSync(":memory:");
     try {
-      applySqliteMigrations(db, migrationFiles.slice(0, -1));
+      const archiveIndex = migrationFiles.findIndex((file) =>
+        file.endsWith("_arkhook_task_failures.sql")
+      );
+      expect(archiveIndex).toBeGreaterThan(0);
+      applySqliteMigrations(db, migrationFiles.slice(0, archiveIndex));
       db.exec(
         "INSERT INTO public_announcement_snapshot VALUES ('official-cn', 'https://ak.hypergryph.com/news', '2026-10-22T00:00:00Z', '[]')"
       );
       const before = db.prepare("SELECT * FROM public_announcement_snapshot").all();
-      applySqliteMigrations(db, migrationFiles.slice(-1));
+      applySqliteMigrations(db, migrationFiles.slice(archiveIndex));
       expect(db.prepare("SELECT * FROM public_announcement_snapshot").all()).toEqual(before);
       const insert = db.prepare("INSERT INTO arkhook_task_failures VALUES (?, ?, ?, ?, ?)");
       expect(() => insert.run("task", null, null, 0, "plaintext")).toThrow();
@@ -62,7 +67,24 @@ describe("control database baseline", () => {
           .prepare(`PRAGMA table_info(${table})`)
           .all()
           .map((row) => String(row.name));
-      expect(tables.reduce((total, table) => total + columns(table).length, 0)).toBe(90);
+      expect(tables.reduce((total, table) => total + columns(table).length, 0)).toBe(105);
+      expect(columns("arknights_apk_compatibility_runs")).toEqual([
+        "id",
+        "apk_filename",
+        "final_url",
+        "hook_commit",
+        "github_run_id",
+        "github_run_attempt",
+        "github_url",
+        "dispatch_attempted_at",
+        "status",
+        "report_json",
+        "error_message",
+        "next_check_at",
+        "deadline_at",
+        "created_at",
+        "updated_at"
+      ]);
       expect(columns("arkhook_task_failures")).toEqual([
         "task_id",
         "stage_id",
@@ -128,6 +150,7 @@ describe("control database baseline", () => {
         .map((row) => String(row.name));
       expect(indexes).toEqual(
         expect.arrayContaining([
+          "idx_apk_compatibility_next_check",
           "idx_arkhook_task_failures_recorded",
           "idx_arkhook_task_failures_stage_recorded",
           "idx_gcp_operation_logs_created",

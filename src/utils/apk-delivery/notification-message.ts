@@ -12,10 +12,15 @@ const TERMINAL_STATUS_MESSAGES: Record<TerminalHostRunStatus, { title: string; l
 
 export function buildNotificationMessage(event: NotificationEvent): NotificationMessage {
   switch (event.type) {
+    case "compatibility":
+      return {
+        eventType: event.type,
+        message: `🧪 APK 兼容性验证\n\nAPK：${event.apkFilename}\n任务：${event.jobId}\n状态：${event.status}\n结果：${event.reason}`
+      };
     case "deployment_started":
       return {
         eventType: event.type,
-        message: `📦 检测到新版本\n\nAPK：${event.apkFilename}\n状态：开始部署`
+        message: `📦 检测到新版本／开始部署\n\nAPK：${event.apkFilename}\n状态：开始部署（兼容性检查独立执行）`
       };
     case "helper_deploy_terminal": {
       const statusMessage = TERMINAL_STATUS_MESSAGES[event.status];
