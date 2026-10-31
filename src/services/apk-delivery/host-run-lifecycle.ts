@@ -10,7 +10,7 @@ import {
   updateHostRunReview,
   updateHostRunStatus
 } from "../../repositories/apk-delivery/host-runs";
-import { getReleaseApkFilename } from "../../repositories/apk-delivery/releases";
+import { getRelease, getReleaseApkFilename } from "../../repositories/apk-delivery/releases";
 import type { AiReviewStatus } from "../../schemas/apk-delivery/ai";
 import type { NotificationEventType } from "../../schemas/apk-delivery/notifications";
 import type { HostRunStatus } from "../../schemas/apk-delivery/status";
@@ -18,6 +18,7 @@ import type { Env } from "../../schemas/env";
 import type { ExecuteHostCommandResult } from "../../schemas/vps/ssh-command";
 import { parseHostLogSnapshot } from "../../utils/apk-delivery/log";
 import { buildLogTailCommand, buildStartCommand } from "../../utils/apk-delivery/shell";
+import { fetchLatestApkMetadata } from "./apk";
 import { reviewLogWithAi } from "./ai-review";
 import { notifyHelperDeployTerminal } from "./notification";
 import { executeHostCommand } from "./vps";
@@ -293,6 +294,17 @@ async function startHostRun(
   }
 
   const activeRun = { ...run, host_id: run.host_id };
+  if (run.host_address_snapshot === env.COMPATIBILITY_TEST_HOST_ADDRESS) {
+    await failHostRunStart(
+      env,
+      runtime,
+      activeRun,
+      apkFilename,
+      now,
+      "Dedicated ARM test host is excluded from APK deployment"
+    );
+    return;
+  }
   let result: ExecuteHostCommandResult;
   try {
     result = await executeHostCommand(env, activeRun.host_id, buildStartCommand(apkFilename));
@@ -336,5 +348,28 @@ export async function startPendingHostRuns(
   apkFilename: string,
   nowDate: Date
 ): Promise<void> {
-  await Promise.all(runs.map((run) => startHostRun(env, runtime, run, apkFilename, nowDate)));
+  const pending = runs.filter((run) => run.status === "pending");
+  if (pending.length === 0) return;
+  const releaseId = pending[0]?.release_id;
+  if (releaseId === undefined || pending.some((run) => run.release_id !== releaseId)) {
+    throw new Error("Host Run batch must belong to one Release");
+  }
+  const release = await getRelease(env.DB, releaseId);
+  if (release?.apk_filename !== apkFilename) throw new Error("Host Run Release identity mismatch");
+  const latest = await fetchLatestApkMetadata(runtime.fetcher ?? fetch);
+  if (latest.apkFilename !== apkFilename || latest.finalUrl !== release.final_url) {
+    await Promise.all(
+      pending.map((run) =>
+        updateHostRunStatus(
+          env.DB,
+          run.id,
+          "failed",
+          nowDate.toISOString(),
+          "APK superseded before deployment"
+        )
+      )
+    );
+    return;
+  }
+  await Promise.all(pending.map((run) => startHostRun(env, runtime, run, apkFilename, nowDate)));
 }

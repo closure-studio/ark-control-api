@@ -36,6 +36,13 @@
       "when": 1792715073379,
       "tag": "20261023002433_arkhook_task_failures",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1793459624637,
+      "tag": "20261031151344_apk_compatibility_actions",
+      "breakpoints": true
     }
   ]
 }

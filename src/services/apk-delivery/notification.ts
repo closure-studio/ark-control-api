@@ -1,5 +1,6 @@
 import type { Env } from "../../schemas/env";
 import type {
+  CompatibilityNotification,
   NotificationEvent,
   NotifyDeploymentStartedInput,
   NotifyHelperDeployTerminalInput
@@ -20,6 +21,14 @@ async function notifyEvent(
   await sendQqBotAutoMessage(env, notification.message, {
     ...(runtime.fetcher !== undefined ? { fetcher: runtime.fetcher } : {})
   });
+}
+
+export async function notifyCompatibility(
+  env: Env,
+  event: CompatibilityNotification,
+  runtime: NotificationRuntime = {}
+): Promise<void> {
+  await notifyEvent(env, event, runtime);
 }
 
 export async function notifyDeploymentStarted(

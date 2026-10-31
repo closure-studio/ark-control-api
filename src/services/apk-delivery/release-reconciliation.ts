@@ -7,8 +7,10 @@ import {
   getLatestReleaseApkFilename,
   getOrCreateRelease
 } from "../../repositories/apk-delivery/releases";
+import type { ApkMetadata } from "../../schemas/apk-delivery/apk";
 import type { Env } from "../../schemas/env";
 import { fetchLatestApkMetadata } from "./apk";
+import { startApkCompatibility } from "./compatibility";
 import { startPendingHostRuns } from "./host-run-lifecycle";
 import { notifyDeploymentStarted } from "./notification";
 import { listVpsHosts } from "./vps";
@@ -33,7 +35,6 @@ export async function reconcileLatestApkRelease(
   runtime: ReleaseRuntime,
   nowDate: Date
 ): Promise<void> {
-  const now = nowDate.toISOString();
   const logger = runtime.logger ?? console;
   let metadata;
   try {
@@ -48,6 +49,20 @@ export async function reconcileLatestApkRelease(
     return;
   }
 
+  await Promise.all([
+    startApkCompatibility(env, runtime, metadata.apkFilename, metadata.finalUrl, nowDate),
+    reconcileInstallation(env, runtime, nowDate, metadata)
+  ]);
+}
+
+async function reconcileInstallation(
+  env: Env,
+  runtime: ReleaseRuntime,
+  nowDate: Date,
+  metadata: ApkMetadata
+): Promise<void> {
+  const now = nowDate.toISOString();
+  const logger = runtime.logger ?? console;
   const isNewRelease = (await getLatestReleaseApkFilename(env.DB)) !== metadata.apkFilename;
 
   let hosts;

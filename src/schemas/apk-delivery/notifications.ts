@@ -1,5 +1,6 @@
 import * as v from "valibot";
 
+import { CompatibilityStatusSchema } from "./compatibility";
 import { TerminalHostRunStatusSchema } from "./status";
 
 const NotifyDeploymentStartedInputEntries = {
@@ -16,7 +17,8 @@ const NotifyHelperDeployTerminalInputEntries = {
 
 export const NotificationEventTypeSchema = v.picklist([
   "deployment_started",
-  "helper_deploy_terminal"
+  "helper_deploy_terminal",
+  "compatibility"
 ]);
 
 export const NotifyDeploymentStartedInputSchema = v.object(NotifyDeploymentStartedInputEntries);
@@ -35,9 +37,18 @@ export const HelperDeployTerminalNotificationSchema = v.object({
   ...NotifyHelperDeployTerminalInputEntries
 });
 
+export const CompatibilityNotificationSchema = v.object({
+  type: v.literal("compatibility"),
+  apkFilename: v.string(),
+  jobId: v.string(),
+  status: CompatibilityStatusSchema,
+  reason: v.string()
+});
+
 export const NotificationEventSchema = v.variant("type", [
   DeploymentStartedNotificationSchema,
-  HelperDeployTerminalNotificationSchema
+  HelperDeployTerminalNotificationSchema,
+  CompatibilityNotificationSchema
 ]);
 
 export const NotificationMessageSchema = v.object({
@@ -56,5 +67,6 @@ export type DeploymentStartedNotification = v.InferOutput<
 export type HelperDeployTerminalNotification = v.InferOutput<
   typeof HelperDeployTerminalNotificationSchema
 >;
+export type CompatibilityNotification = v.InferOutput<typeof CompatibilityNotificationSchema>;
 export type NotificationEvent = v.InferOutput<typeof NotificationEventSchema>;
 export type NotificationMessage = v.InferOutput<typeof NotificationMessageSchema>;

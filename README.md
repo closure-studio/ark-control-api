@@ -43,6 +43,7 @@ OIDC_PRIVATE_KEY_PEM
 PUBLIC_TOKEN_BEARER_SECRET
 GITHUB_PYHELPER_TOKEN
 QQBOT_TOKEN
+COMPATIBILITY_GITHUB_TOKEN
 ARKHOST_PASSPORT_EMAIL
 ARKHOST_PASSPORT_PASSWORD
 ```
@@ -82,6 +83,43 @@ the seven-table schema, including `arknights_apk_host_runs` for per-VPS Helper
 execution history, `arknights_maintenance_announcements` for the scheduled
 Arknights maintenance monitor, and `arknights_maintenance_host_runs` for
 per-ArkHost maintenance restart auditing.
+
+## APK compatibility checks
+
+APK detection starts VPS installation and an ArkHook GitHub Actions workflow in
+parallel. Compatibility results never gate Release creation, pending Host Run
+recovery or SSH installation. Failures, cancellations and timeouts are recorded
+independently and do not roll back installed machines.
+
+Configure `COMPATIBILITY_GITHUB_TOKEN` as a repository-scoped fine-grained token
+with Contents read and Actions write for `ArkLikeDev/ArkHook`. CI/CD synchronizes
+it to the Worker. `COMPATIBILITY_GITHUB_REF` selects `greenfield`. The workflow
+must also be registered on the GitHub default branch.
+
+The Worker resolves the tested commit, dispatches `compatibility.yml` using
+`return_run_details: true`, saves the run ID, and polls GitHub every minute through
+the APK Alarm. A claimed dispatch is not blindly repeated after an ambiguous
+response: its business run-name recovers the matching GitHub run. Each APK
+URL/filename/commit combination has one business record. Terminal notifications
+include the result and run link.
+
+The workflow uses a GitHub-hosted Ubuntu runner and one
+`sub2api-openai/gpt-6.1-sol` / `high` session in its checked-out repository. It
+validates dump outputs, installed APK identity, source/input hashes and all raw
+three-star fast results before exiting successfully. ARM and provider credentials
+are supplied by the ArkHook Actions secret `COMPATIBILITY_ENV`, using its `.env.example`.
+
+`COMPATIBILITY_TEST_HOST_ADDRESS` excludes the ARM test device from new Host Runs
+and pending installation recovery. Use the same canonical address as Actions
+`SERVER_SSH_HOST` in the job `.env`; do not register aliases for this device. The additive
+`apk_compatibility_actions` migration creates its table without resetting
+production data. Queue observation has a 24-hour budget; execution has six hours
+plus ten minutes for final observation. The workflow job timeout is six hours.
+
+`Helper -g` still downloads the latest APK. Pending Runs recheck the official
+latest version before starting; exact APK hash pinning requires Helper support.
+Configuration is documented in the ArkHook repository at `.env.example`;
+copy the filled file into its Actions secret `COMPATIBILITY_ENV`.
 
 ## ArkHook failure archives
 
