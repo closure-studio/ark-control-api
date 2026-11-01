@@ -104,19 +104,20 @@ URL/filename/commit combination has one business record. Terminal notifications
 include the result and run link.
 
 The workflow uses a GitHub-hosted Ubuntu runner and one
-`sub2api-openai/gpt-6.1-sol` / `high` session in its checked-out repository. It
-validates dump outputs, installed APK identity, source/input hashes and all raw
-three-star fast results before exiting successfully. ARM and provider credentials
+`sub2api-openai/gpt-6.1-sol` / `high` session in its checked-out repository. Pi
+prepares dump tools and dependencies in the job directory, analyzes the current
+client metadata layout, and verifies exported types, methods and runtime fields.
+The outer validator checks output files, installed APK identity, source/input
+hashes and all raw three-star fast results before exiting successfully. ARM and provider credentials
 are supplied by the ArkHook Actions secret `COMPATIBILITY_ENV`, using its `.env.example`.
 
 `COMPATIBILITY_TEST_HOST_ADDRESS` excludes the ARM test device from new Host Runs
 and pending installation recovery. Use the same canonical address as Actions
-`SERVER_SSH_HOST` in the job `.env`; do not register aliases for this device. The additive
-`apk_compatibility_actions` migration creates its table without resetting
-production data. Queue observation has a 24-hour budget; execution has six hours
+`SERVER_SSH_HOST` in the job `.env`; do not register aliases for this device. Compatibility records are stored in `arknights_apk_compatibility_runs`.
+Queue observation has a 24-hour budget; execution has six hours
 plus ten minutes for final observation. The workflow job timeout is six hours.
 
-`Helper -g` still downloads the latest APK. Pending Runs recheck the official
+`Helper -g` downloads the latest APK. Pending Runs recheck the official
 latest version before starting; exact APK hash pinning requires Helper support.
 Configuration is documented in the ArkHook repository at `.env.example`;
 copy the filled file into its Actions secret `COMPATIBILITY_ENV`.
