@@ -1,17 +1,16 @@
 import * as v from "valibot";
 
 import type { ArknightsApkCompatibilityRunRow } from "../../db/schema";
+import { GitHubApiError } from "../../errors/apk-delivery";
 import {
   attachCompatibilityRun,
   claimCompatibilityDispatch,
   createCompatibilityRun,
   dueCompatibilityRuns,
-  getCompatibilityRun,
   recordCompatibilityError,
   saveCompatibilityRun
 } from "../../repositories/apk-delivery/compatibility";
 import {
-  GitHubCommitSchema,
   GitHubDispatchSchema,
   GitHubRunListSchema,
   GitHubRunSchema,
@@ -47,7 +46,7 @@ async function github<T extends v.GenericSchema>(
     },
     ...(body ? { body: JSON.stringify(body) } : {})
   });
-  if (!response.ok) throw new Error(`GitHub compatibility API returned HTTP ${response.status}`);
+  if (!response.ok) throw new GitHubApiError(response.status);
   return v.parse(schema, await response.json());
 }
 
@@ -95,13 +94,13 @@ async function pollRun(
   now: Date
 ): Promise<void> {
   let row = initial;
+  let dispatching = false;
   try {
     if (Date.parse(row.deadline_at) <= now.getTime()) {
       await saveCompatibilityRun(
         env.DB,
         row,
         "timed_out",
-        null,
         "Compatibility observation deadline exceeded",
         now
       );
@@ -113,6 +112,7 @@ async function pollRun(
       (await claimCompatibilityDispatch(env.DB, row.id, now))
     ) {
       // Claim before POST: an ambiguous response is recovered by run-name, never blindly re-dispatched.
+      dispatching = true;
       const dispatched = await github(
         env,
         runtime,
@@ -124,11 +124,11 @@ async function pollRun(
           inputs: {
             job_id: row.id,
             apk_filename: row.apk_filename,
-            apk_url: row.final_url,
-            hook_sha: row.hook_commit
+            apk_url: row.final_url
           }
         }
       );
+      dispatching = false;
       if (
         dispatched.run_url !== `${API}/actions/runs/${dispatched.workflow_run_id}` ||
         dispatched.html_url !==
@@ -136,14 +136,13 @@ async function pollRun(
       ) {
         throw new Error("Unexpected dispatched run identity");
       }
-      await attachCompatibilityRun(
+      row = await attachCompatibilityRun(
         env.DB,
         row.id,
         dispatched.workflow_run_id,
         dispatched.html_url,
         now
       );
-      row = (await getCompatibilityRun(env.DB, row.id)) ?? row;
       await notifyChange(
         env,
         runtime,
@@ -173,7 +172,6 @@ async function pollRun(
             env.DB,
             row,
             "failed",
-            null,
             "Workflow dispatch could not be confirmed; inspect GitHub before retrying",
             now
           );
@@ -190,8 +188,7 @@ async function pollRun(
         return;
       }
       validateRun(env, row, match);
-      await attachCompatibilityRun(env.DB, row.id, match.id, match.html_url, now);
-      row = (await getCompatibilityRun(env.DB, row.id)) ?? row;
+      row = await attachCompatibilityRun(env.DB, row.id, match.id, match.html_url, now);
     }
     if (row.github_run_id === null) return;
     const run = await github(env, runtime, `/actions/runs/${row.github_run_id}`, GitHubRunSchema);
@@ -209,21 +206,35 @@ async function pollRun(
               : "failed";
       if (status !== "passed") error = `GitHub workflow conclusion: ${run.conclusion ?? "unknown"}`;
     }
-    await saveCompatibilityRun(env.DB, row, status, run, error, now);
+    await saveCompatibilityRun(env.DB, row, status, error, now);
     if (status !== row.status && status !== "queued" && status !== "running") {
       await notifyChange(
         env,
         runtime,
         row,
         status,
-        status === "passed"
-          ? "Dump、启动热身与完整 fast 三星回放已通过"
-          : (error ?? "兼容性工作流未通过")
+        status === "passed" ? "GitHub 兼容性工作流已通过" : (error ?? "兼容性工作流未通过")
       );
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown compatibility error";
-    await recordCompatibilityError(env.DB, row, message, now);
+    if (
+      dispatching &&
+      error instanceof GitHubApiError &&
+      error.status < 500 &&
+      error.status !== 408
+    ) {
+      await saveCompatibilityRun(env.DB, row, "failed", message, now);
+      await notifyChange(
+        env,
+        runtime,
+        row,
+        "failed",
+        `GitHub 拒绝兼容性调度：HTTP ${error.status}`
+      );
+    } else {
+      await recordCompatibilityError(env.DB, row, message, now);
+    }
     (runtime.logger ?? console).error("GitHub compatibility check failed", {
       jobId: row.id,
       error: message
@@ -239,25 +250,18 @@ export async function startApkCompatibility(
   now: Date
 ): Promise<void> {
   try {
-    const commit = await github(
-      env,
-      runtime,
-      `/commits/${encodeURIComponent(ref(env))}`,
-      GitHubCommitSchema
-    );
-    const input = { apk_filename: apkFilename, apk_url: finalUrl, hook_sha: commit.sha };
+    if (!env.COMPATIBILITY_GITHUB_TOKEN)
+      throw new Error("GitHub compatibility credentials missing");
+    const input = { apk_filename: apkFilename, apk_url: finalUrl };
     const bytes = await crypto.subtle.digest(
       "SHA-256",
-      new TextEncoder().encode(JSON.stringify([apkFilename, finalUrl, commit.sha]))
+      new TextEncoder().encode(JSON.stringify([apkFilename, finalUrl]))
     );
     const id = Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join(
       ""
     );
-    const created = await createCompatibilityRun(env.DB, id, input, now);
-    if (!created) return;
-    const row = await getCompatibilityRun(env.DB, id);
-    if (!row) throw new Error("Compatibility record missing");
-    if (row.status === "queued" || row.status === "running") await pollRun(env, runtime, row, now);
+    const row = await createCompatibilityRun(env.DB, id, input, now);
+    if (row) await pollRun(env, runtime, row, now);
   } catch (error) {
     (runtime.logger ?? console).error(
       "GitHub compatibility submission failed; installation remains independent",

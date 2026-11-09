@@ -95,15 +95,12 @@ export const arknightsApkCompatibilityRuns = sqliteTable(
     id: text("id").primaryKey(),
     apk_filename: text("apk_filename").notNull(),
     final_url: text("final_url").notNull(),
-    hook_commit: text("hook_commit").notNull(),
     github_run_id: text("github_run_id"),
-    github_run_attempt: integer("github_run_attempt"),
     github_url: text("github_url"),
     dispatch_attempted_at: text("dispatch_attempted_at"),
     status: text("status", {
       enum: ["queued", "running", "passed", "failed", "cancelled", "timed_out"]
     }).notNull(),
-    report_json: text("report_json"),
     error_message: text("error_message"),
     next_check_at: text("next_check_at"),
     deadline_at: text("deadline_at").notNull(),

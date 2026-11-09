@@ -140,7 +140,15 @@ export class ControlJobAlarm extends DurableObject<Env> {
       await runGcpInstanceKeepalive(this.env);
       return nextUtcTenMinutes(new Date());
     }
-    if (job === "apk-delivery") return runApkDeliveryCycle(this.env);
+    if (job === "apk-delivery") {
+      const due = (await this.ctx.storage.get<number>("apk-release-check-at")) ?? 0;
+      const checkRelease = startedAt.getTime() >= due;
+      const next = await runApkDeliveryCycle(this.env, { checkRelease });
+      if (checkRelease) {
+        await this.ctx.storage.put("apk-release-check-at", nextUtcTenMinutes(new Date()).getTime());
+      }
+      return next;
+    }
     if (job === "public-announcements")
       return collectPublicAnnouncements(this.env.DB, { ai: this.env });
     if (job === "maintenance-monitor") {

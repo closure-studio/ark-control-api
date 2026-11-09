@@ -8,7 +8,7 @@ import {
   runInDurableObject,
   waitOnExecutionContext
 } from "cloudflare:test";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { ControlJobAlarm } from "../../src/services/scheduler/control-job-alarm";
 import worker from "../../src/index";
@@ -31,6 +31,33 @@ beforeAll(async () => {
 });
 
 describe("ControlJobAlarm", () => {
+  it("persists the APK detection schedule across minute alarms and eviction", async () => {
+    const apk = bindings.CONTROL_JOB_ALARMS.getByName("apk-delivery");
+    const fetcher = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 503 }));
+    try {
+      await runInDurableObject(apk, async (instance, state) => {
+        await state.storage.delete("apk-release-check-at");
+        await instance.alarm();
+        const due = await state.storage.get<number>("apk-release-check-at");
+        expect(due).toBeGreaterThan(Date.now());
+        expect(new Date(due ?? 0).getUTCMinutes() % 10).toBe(0);
+        await state.storage.put("apk-release-check-at", Date.now() + 600_000);
+      });
+      expect(fetcher).toHaveBeenCalledOnce();
+      await evictDurableObject(apk);
+      await runInDurableObject(apk, async (instance) => instance.alarm());
+      expect(fetcher).toHaveBeenCalledOnce();
+    } finally {
+      fetcher.mockRestore();
+      await runInDurableObject(apk, async (_instance, state) => {
+        await state.storage.delete("apk-release-check-at");
+        await state.storage.deleteAlarm();
+      });
+      await evictDurableObject(apk);
+    }
+  });
   it("initializes all fixed jobs through the scheduled watchdog entrypoint", async () => {
     const context = createExecutionContext();
     worker.scheduled(createScheduledController({ cron: "0 12 * * *" }), bindings, context);

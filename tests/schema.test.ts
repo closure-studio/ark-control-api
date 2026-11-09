@@ -18,7 +18,7 @@ const businessTables = [
 
 describe("control database baseline", () => {
   it("retains the baseline and adds isolated domain migrations", () => {
-    expect(migrationFiles).toHaveLength(6);
+    expect(migrationFiles).toHaveLength(7);
     expect(migrationFiles[0]).toMatch(/^\d{14}_initial\.sql$/);
   });
 
@@ -48,6 +48,33 @@ describe("control database baseline", () => {
     }
   });
 
+  it("preserves compatibility results while removing unused run metadata", () => {
+    const db = new DatabaseSync(":memory:");
+    try {
+      const index = migrationFiles.findIndex((file) =>
+        file.endsWith("_compatibility_latest_release.sql")
+      );
+      expect(index).toBeGreaterThan(0);
+      applySqliteMigrations(db, migrationFiles.slice(0, index));
+      db.exec(`INSERT INTO arknights_apk_compatibility_runs
+        (id, apk_filename, final_url, hook_commit, github_run_id, github_run_attempt, github_url, dispatch_attempted_at, status, report_json, error_message, next_check_at, deadline_at, created_at, updated_at)
+        VALUES ('old', 'game.apk', 'https://example.com/game.apk', 'old-commit', '1000', 1, 'https://github.com/ArkLikeDev/ArkHook/actions/runs/1000', 'attempted', 'failed', '{}', 'failure', NULL, 'later', 'before', 'before')`);
+      const query =
+        "SELECT id, apk_filename, final_url, github_run_id, github_url, dispatch_attempted_at, status, error_message, next_check_at, deadline_at, created_at, updated_at FROM arknights_apk_compatibility_runs";
+      const before = db.prepare(query).all();
+      applySqliteMigrations(db, migrationFiles.slice(index));
+      expect(db.prepare(query).all()).toEqual(before);
+      db.exec(`INSERT INTO arknights_apk_compatibility_runs
+        (id, apk_filename, final_url, status, deadline_at, created_at, updated_at)
+        VALUES ('new', 'game.apk', 'https://example.com/game.apk', 'queued', 'later', 'now', 'now')`);
+      expect(
+        db.prepare("SELECT status FROM arknights_apk_compatibility_runs WHERE id = 'new'").get()
+      ).toEqual({ status: "queued" });
+    } finally {
+      db.close();
+    }
+  });
+
   it("creates the current tables, columns, and indexes", () => {
     const db = new DatabaseSync(":memory:");
     try {
@@ -67,18 +94,15 @@ describe("control database baseline", () => {
           .prepare(`PRAGMA table_info(${table})`)
           .all()
           .map((row) => String(row.name));
-      expect(tables.reduce((total, table) => total + columns(table).length, 0)).toBe(105);
+      expect(tables.reduce((total, table) => total + columns(table).length, 0)).toBe(102);
       expect(columns("arknights_apk_compatibility_runs")).toEqual([
         "id",
         "apk_filename",
         "final_url",
-        "hook_commit",
         "github_run_id",
-        "github_run_attempt",
         "github_url",
         "dispatch_attempted_at",
         "status",
-        "report_json",
         "error_message",
         "next_check_at",
         "deadline_at",

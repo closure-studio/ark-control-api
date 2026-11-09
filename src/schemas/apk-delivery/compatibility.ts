@@ -1,6 +1,5 @@
 import * as v from "valibot";
 
-const CommitSchema = v.pipe(v.string(), v.regex(/^[0-9a-f]{40}$/));
 const RunIdSchema = v.pipe(
   v.number(),
   v.integer(),
@@ -19,11 +18,9 @@ export const CompatibilityStatusSchema = v.picklist([
 
 export const CompatibilityRequestSchema = v.object({
   apk_filename: v.string(),
-  apk_url: v.pipe(v.string(), v.url()),
-  hook_sha: CommitSchema
+  apk_url: v.pipe(v.string(), v.url())
 });
 
-export const GitHubCommitSchema = v.object({ sha: CommitSchema });
 export const GitHubDispatchSchema = v.object({
   workflow_run_id: RunIdSchema,
   run_url: v.pipe(v.string(), v.url()),
@@ -31,7 +28,6 @@ export const GitHubDispatchSchema = v.object({
 });
 export const GitHubRunSchema = v.object({
   id: RunIdSchema,
-  run_attempt: v.pipe(v.number(), v.integer(), v.minValue(1)),
   display_title: v.string(),
   path: v.string(),
   event: v.literal("workflow_dispatch"),
@@ -48,8 +44,7 @@ export const GitHubDispatchRequestSchema = v.object({
   inputs: v.object({
     job_id: v.string(),
     apk_filename: v.string(),
-    apk_url: v.string(),
-    hook_sha: CommitSchema
+    apk_url: v.string()
   })
 });
 

@@ -96,31 +96,27 @@ with Contents read and Actions write for `ArkLikeDev/ArkHook`. CI/CD synchronize
 it to the Worker. `COMPATIBILITY_GITHUB_REF` selects `greenfield`. The workflow
 must also be registered on the GitHub default branch.
 
-The Worker resolves the tested commit, dispatches `compatibility.yml` using
-`return_run_details: true`, saves the run ID, and polls GitHub every minute through
-the APK Alarm. A claimed dispatch is not blindly repeated after an ambiguous
-response: its business run-name recovers the matching GitHub run. Each APK
-URL/filename/commit combination has one business record. Terminal notifications
-include the result and run link.
+The Worker dispatches `compatibility.yml` using `return_run_details: true`, saves
+the run ID, and polls GitHub every ten minutes through the APK Alarm. Inputs are
+`job_id`, `apk_filename` and `apk_url`.
+Each APK URL/filename combination has one business record. A claimed dispatch is
+not blindly repeated after an ambiguous response: its business run-name recovers
+the matching GitHub run. Explicit dispatch rejections fail immediately and report
+the HTTP status. Terminal notifications include the result and run link.
 
-The workflow uses a GitHub-hosted Ubuntu runner and one
-`sub2api-openai/gpt-6.1-sol` / `high` session in its checked-out repository. Pi
-prepares dump tools and dependencies in the job directory, analyzes the current
-client metadata layout, and verifies exported types, methods and runtime fields.
-The outer validator checks output files, installed APK identity, source/input
-hashes and all raw three-star fast results before exiting successfully. ARM and provider credentials
-are supplied by the ArkHook Actions secret `COMPATIBILITY_ENV`, using its `.env.example`.
+The Worker maps the final GitHub workflow conclusion to the compatibility result.
+Test steps, runner setup, workflow credentials and artifacts are documented in
+[ArkHook tools/README.md](https://github.com/ArkLikeDev/ArkHook/blob/greenfield/tools/README.md).
 
-`COMPATIBILITY_TEST_HOST_ADDRESS` excludes the ARM test device from new Host Runs
-and pending installation recovery. Use the same canonical address as Actions
-`SERVER_SSH_HOST` in the job `.env`; do not register aliases for this device. Compatibility records are stored in `arknights_apk_compatibility_runs`.
-Queue observation has a 24-hour budget; execution has six hours
-plus ten minutes for final observation. The workflow job timeout is six hours.
+Compatibility records are stored in `arknights_apk_compatibility_runs`.
+`COMPATIBILITY_TEST_HOST_ADDRESS` optionally excludes a host from business
+installation and pending Host Run recovery.
+Queue observation has a 24-hour budget; execution has six hours plus ten minutes
+for finalization. Compatibility polling does not advance the ten-minute APK
+detection schedule; its next check time persists in the APK Durable Object.
 
 `Helper -g` downloads the latest APK. Pending Runs recheck the official
 latest version before starting; exact APK hash pinning requires Helper support.
-Configuration is documented in the ArkHook repository at `.env.example`;
-copy the filled file into its Actions secret `COMPATIBILITY_ENV`.
 
 ## ArkHook failure archives
 

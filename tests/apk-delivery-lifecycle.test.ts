@@ -264,7 +264,7 @@ describe("APK delivery lifecycle", () => {
     );
     const fetcher: typeof fetch = async (input, init) => {
       const url = input instanceof Request ? input.url : input.toString();
-      if (url.includes("/commits/")) await installationStarted;
+      if (url.endsWith("/dispatches")) await installationStarted;
       return upstream(input, init);
     };
     await runApkDeliveryCycle(createEnv(db, execute), { now: () => NOW, fetcher });
@@ -350,7 +350,48 @@ describe("APK delivery lifecycle", () => {
     }
   );
 
-  it("submits one workflow for repeated discovery of the same APK and commit", async () => {
+  it("polls compatibility and checks the APK only when their ten-minute schedules are due", async () => {
+    const env = createEnv(db, vi.fn());
+    const fetchApk = vi.fn(async () => apkResponse());
+    const fetcher = compatibilityFetcher(fetchApk, () => "in_progress");
+    await runApkDeliveryCycle(env, { now: () => NOW, fetcher });
+    for (let minute = 1; minute < 10; minute += 1) {
+      await runApkDeliveryCycle(env, {
+        now: () => new Date(NOW.getTime() + minute * 60_000),
+        fetcher,
+        checkRelease: false
+      });
+    }
+    expect(fetchApk).toHaveBeenCalledOnce();
+    expect(
+      (await db.prepare("SELECT status, updated_at FROM arknights_apk_compatibility_runs").all())
+        .results
+    ).toEqual([
+      {
+        status: "running",
+        updated_at: NOW.toISOString()
+      }
+    ]);
+    await expect(
+      getNextApkDeliveryAlarmAt(db, new Date("2026-07-20T12:09:30.000Z"))
+    ).resolves.toEqual(new Date("2026-07-20T12:10:00.000Z"));
+    await runApkDeliveryCycle(env, { now: () => new Date("2026-07-20T12:10:00.000Z"), fetcher });
+    expect(fetchApk).toHaveBeenCalledTimes(2);
+    expect(
+      (
+        await db
+          .prepare("SELECT updated_at, next_check_at FROM arknights_apk_compatibility_runs")
+          .all()
+      ).results
+    ).toEqual([
+      {
+        updated_at: "2026-07-20T12:10:00.000Z",
+        next_check_at: "2026-07-20T12:20:00.000Z"
+      }
+    ]);
+  });
+
+  it("submits one workflow for repeated discovery of the same APK", async () => {
     let dispatches = 0;
     const upstream = compatibilityFetcher(async () => apkResponse());
     const fetcher: typeof fetch = async (input, init) => {
@@ -388,7 +429,7 @@ describe("APK delivery lifecycle", () => {
     };
     const env = createEnv(db, execute);
     await runApkDeliveryCycle(env, { now: () => NOW, fetcher, logger: { error: vi.fn() } });
-    await runApkDeliveryCycle(env, { now: () => new Date(NOW.getTime() + 60_000), fetcher });
+    await runApkDeliveryCycle(env, { now: () => new Date(NOW.getTime() + 10 * 60_000), fetcher });
     expect(dispatches).toBe(1);
     expect(
       (await db.prepare("SELECT status, github_run_id FROM arknights_apk_compatibility_runs").all())

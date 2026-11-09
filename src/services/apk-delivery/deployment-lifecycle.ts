@@ -16,6 +16,7 @@ import { reconcileLatestApkRelease } from "./release-reconciliation";
 
 type ApkDeliveryRuntime = {
   now?: () => Date;
+  checkRelease?: boolean;
   fetcher?: typeof fetch;
   logger?: Pick<Console, "error">;
 };
@@ -61,7 +62,7 @@ async function advanceInstallations(
     );
   }
 
-  if ((await listRunningHostRuns(env.DB)).length === 0) {
+  if (runtime.checkRelease !== false && (await listRunningHostRuns(env.DB)).length === 0) {
     await reconcileLatestApkRelease(env, runtime, nowDate);
   }
 }
@@ -92,6 +93,10 @@ export async function getNextApkDeliveryAlarmAt(db: D1Database, now: Date): Prom
   const running = await listRunningHostRuns(db);
   const compatibilityAt = await nextCompatibilityCheck(db);
   let earliest = Math.min(
+    running.length === 0
+      ? (Math.floor(now.getTime() / APK_RELEASE_CHECK_INTERVAL_MS) + 1) *
+          APK_RELEASE_CHECK_INTERVAL_MS
+      : Number.POSITIVE_INFINITY,
     pendingAt,
     compatibilityAt === null ? Number.POSITIVE_INFINITY : Date.parse(compatibilityAt)
   );
@@ -101,10 +106,5 @@ export async function getNextApkDeliveryAlarmAt(db: D1Database, now: Date): Prom
     if (!Number.isFinite(nextCheckAt) || !Number.isFinite(deadlineAt)) return now;
     earliest = Math.min(earliest, nextCheckAt, deadlineAt);
   }
-  if (Number.isFinite(earliest)) return new Date(Math.max(now.getTime(), earliest));
-
-  const timestamp = now.getTime();
-  return new Date(
-    (Math.floor(timestamp / APK_RELEASE_CHECK_INTERVAL_MS) + 1) * APK_RELEASE_CHECK_INTERVAL_MS
-  );
+  return new Date(Math.max(now.getTime(), earliest));
 }
