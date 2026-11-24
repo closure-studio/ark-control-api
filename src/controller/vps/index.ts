@@ -1,5 +1,6 @@
 import { API_ERROR_CODES } from "../../constants/api/error-codes";
 import type { Env } from "../../schemas/env";
+import type { ProvisionGcpVpsRequest } from "../../schemas/gcp/compute";
 import type {
   CreateVpsRequest,
   PatchVpsRequest,
@@ -132,10 +133,11 @@ export async function provisionGcpVps(
   env: Env,
   accountId: number,
   workerBaseUrl: string,
+  spec: ProvisionGcpVpsRequest,
   options: VpsServiceOptions = {}
 ): Promise<VpsProvisionResponse> {
   const fetcher = options.fetcher ?? fetch;
-  const operation = await createDefaultVps(env, accountId, {
+  const operation = await createDefaultVps(env, accountId, spec, {
     fetch: fetcher,
     ...(options.operationPollDelayMs !== undefined
       ? { operationPollDelayMs: options.operationPollDelayMs }

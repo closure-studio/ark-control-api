@@ -15,6 +15,7 @@ import {
   RegisterGcpAccountRequestSchema,
   UpdateGcpAccountRequestSchema
 } from "../../schemas/gcp/accounts";
+import { ProvisionGcpVpsRequestSchema } from "../../schemas/gcp/compute";
 import { IdParamSchema } from "../../schemas/params";
 import { PaginationQuerySchema } from "../../schemas/pagination";
 import type { Env } from "../../schemas/env";
@@ -92,12 +93,15 @@ export function createGcpRouter() {
   router.post(
     "/accounts/:id/vps",
     sValidator("param", IdParamSchema, validationErrorHook),
+    sValidator("json", ProvisionGcpVpsRequestSchema, validationErrorHook),
     async (c) => {
       const { id } = c.req.valid("param");
+      const spec = c.req.valid("json");
       const response: VpsProvisionResponse = await provisionGcpVps(
         c.env,
         id,
-        new URL(c.req.url).origin
+        new URL(c.req.url).origin,
+        spec
       );
       return jsonData(c, response, 201);
     }

@@ -54,6 +54,57 @@ export const ComputeOperationResponseSchema = v.object({
   error: v.exactOptional(ComputeOperationErrorSchema)
 });
 
+const VPS_SPEC_LIMITS = {
+  cpu: { min: 1, max: 64, default: 6 },
+  memoryGbPerCpu: { min: 2, max: 8 },
+  defaultMemoryGb: 16,
+  diskSizeGb: { min: 10, max: 4096, default: 100 }
+} as const;
+
+export const ProvisionGcpVpsRequestSchema = v.pipe(
+  v.object({
+    cpuCount: v.optional(
+      v.pipe(
+        v.number(),
+        v.integer("CPU count must be a whole number."),
+        v.minValue(
+          VPS_SPEC_LIMITS.cpu.min,
+          `CPU count must be at least ${VPS_SPEC_LIMITS.cpu.min}.`
+        ),
+        v.maxValue(VPS_SPEC_LIMITS.cpu.max, `CPU count must be at most ${VPS_SPEC_LIMITS.cpu.max}.`)
+      ),
+      VPS_SPEC_LIMITS.cpu.default
+    ),
+    memoryGb: v.optional(
+      v.pipe(v.number(), v.integer("Memory size must be a whole number of GB.")),
+      VPS_SPEC_LIMITS.defaultMemoryGb
+    ),
+    provisioningModel: v.optional(v.picklist(["SPOT", "STANDARD"]), "SPOT"),
+    diskSizeGb: v.optional(
+      v.pipe(
+        v.number(),
+        v.integer("Disk size must be a whole number of GB."),
+        v.minValue(
+          VPS_SPEC_LIMITS.diskSizeGb.min,
+          `Disk size must be at least ${VPS_SPEC_LIMITS.diskSizeGb.min} GB.`
+        ),
+        v.maxValue(
+          VPS_SPEC_LIMITS.diskSizeGb.max,
+          `Disk size must be at most ${VPS_SPEC_LIMITS.diskSizeGb.max} GB.`
+        )
+      ),
+      VPS_SPEC_LIMITS.diskSizeGb.default
+    )
+  }),
+  v.check(
+    ({ cpuCount, memoryGb }) =>
+      memoryGb >= cpuCount * VPS_SPEC_LIMITS.memoryGbPerCpu.min &&
+      memoryGb <= cpuCount * VPS_SPEC_LIMITS.memoryGbPerCpu.max,
+    `Memory must be between ${VPS_SPEC_LIMITS.memoryGbPerCpu.min} GB and ${VPS_SPEC_LIMITS.memoryGbPerCpu.max} GB per vCPU for n4a-custom.`
+  )
+);
+
 export type ComputeInstance = v.InferOutput<typeof ComputeInstanceSchema>;
 export type ComputeOperationResponse = v.InferOutput<typeof ComputeOperationResponseSchema>;
 export type GcpInstance = v.InferOutput<typeof GcpInstanceSchema>;
+export type ProvisionGcpVpsRequest = v.InferOutput<typeof ProvisionGcpVpsRequestSchema>;
