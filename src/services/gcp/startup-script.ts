@@ -1,17 +1,3 @@
-export const DEFAULT_VPS_MACHINE_TYPE = "n4a-custom-8-16384";
-
-export const DEFAULT_VPS_BOOT_IMAGE =
-  "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts-arm64";
-
-export const DEFAULT_VPS_BOOT_DISK = {
-  sizeGb: "60",
-  type: "hyperdisk-balanced",
-  provisionedIops: "3360",
-  provisionedThroughput: "230"
-} as const;
-
-export const DEFAULT_VPS_NETWORK_TAGS = ["http-server", "https-server", "lb-health-check"] as const;
-
 export const DEFAULT_VPS_SSH_USERNAME = "root";
 export const DEFAULT_VPS_SSH_PASSWORD = "GCP@2020.";
 

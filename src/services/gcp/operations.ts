@@ -2,6 +2,7 @@ import { count, desc } from "drizzle-orm";
 
 import { createDatabase } from "../../db/client";
 import { gcpOperationLogs } from "../../db/schema";
+import type { ProvisionGcpVpsRequest } from "../../schemas/gcp/compute";
 import type {
   GcpInstanceLifecycleTarget,
   GcpInstanceLifecycleAction,
@@ -247,6 +248,7 @@ async function buildPyHelperStartupScript(input: {
 export async function createDefaultVps(
   env: Env,
   accountId: number,
+  spec: ProvisionGcpVpsRequest,
   options: {
     fetch?: typeof fetch;
     now?: () => number;
@@ -284,7 +286,8 @@ export async function createDefaultVps(
       projectId: account.project_id,
       zone: account.default_zone,
       instanceName,
-      startupScript
+      startupScript,
+      spec
     });
     if (operationName) {
       await waitForZoneOperation({

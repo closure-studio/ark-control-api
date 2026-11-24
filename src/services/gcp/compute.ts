@@ -4,17 +4,33 @@ import {
   ComputeOperationResponseSchema,
   type ComputeInstance,
   type ComputeOperationResponse,
-  type GcpInstance
+  type GcpInstance,
+  type ProvisionGcpVpsRequest
 } from "../../schemas/gcp/compute";
 import type { GcpInstanceLifecycleAction } from "../../schemas/gcp/operations";
-import {
-  DEFAULT_VPS_BOOT_DISK,
-  DEFAULT_VPS_BOOT_IMAGE,
-  DEFAULT_VPS_MACHINE_TYPE,
-  DEFAULT_VPS_NETWORK_TAGS,
-  DEFAULT_VPS_STARTUP_SCRIPT
-} from "./startup-script";
+import { DEFAULT_VPS_STARTUP_SCRIPT } from "./startup-script";
 import { requestGoogleJson } from "./google-http";
+
+const MIB_PER_GB = 1024;
+export const DEFAULT_VPS_BOOT_IMAGE =
+  "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts-arm64";
+const DEFAULT_VPS_BOOT_DISK_TYPE = "hyperdisk-balanced";
+const DEFAULT_VPS_NETWORK_TAGS = ["http-server", "https-server"] as const;
+
+const SCHEDULING_BY_MODEL = {
+  SPOT: {
+    automaticRestart: false,
+    onHostMaintenance: "TERMINATE",
+    provisioningModel: "SPOT",
+    instanceTerminationAction: "STOP",
+    preemptionNoticeDuration: { seconds: "0" }
+  },
+  STANDARD: {
+    automaticRestart: true,
+    onHostMaintenance: "MIGRATE",
+    provisioningModel: "STANDARD"
+  }
+} as const;
 
 export type CreateDefaultInstanceInput = {
   fetcher: typeof fetch;
@@ -23,52 +39,7 @@ export type CreateDefaultInstanceInput = {
   zone: string;
   instanceName: string;
   startupScript?: string;
-};
-
-type ComputeInstanceInsertRequest = {
-  name: string;
-  machineType: string;
-  disks: Array<{
-    boot: boolean;
-    autoDelete: boolean;
-    mode: "READ_WRITE";
-    type: "PERSISTENT";
-    deviceName: string;
-    initializeParams: {
-      diskSizeGb: string;
-      sourceImage: string;
-      diskType: string;
-      provisionedIops: string;
-      provisionedThroughput: string;
-    };
-  }>;
-  networkInterfaces: Array<{
-    subnetwork: string;
-    stackType: "IPV4_ONLY";
-    accessConfigs: Array<{
-      name: "External NAT";
-      type: "ONE_TO_ONE_NAT";
-      networkTier: "PREMIUM";
-    }>;
-  }>;
-  scheduling: {
-    automaticRestart: false;
-    onHostMaintenance: "TERMINATE";
-    provisioningModel: "SPOT";
-    instanceTerminationAction: "STOP";
-    preemptionNoticeDuration: { seconds: "0" };
-  };
-  tags: { items: string[] };
-  metadata: {
-    items: Array<{ key: "startup-script"; value: string }>;
-  };
-  shieldedInstanceConfig: {
-    enableSecureBoot: false;
-    enableVtpm: true;
-    enableIntegrityMonitoring: true;
-  };
-  labels: { "goog-ec-src": "vm_add-gcloud" };
-  reservationAffinity: { consumeReservationType: "NO_RESERVATION" };
+  spec: ProvisionGcpVpsRequest;
 };
 
 function tail(value: string | undefined): string {
@@ -87,11 +58,13 @@ export function buildDefaultInstanceInsertRequest(input: {
   zone: string;
   instanceName: string;
   startupScript?: string;
-}): ComputeInstanceInsertRequest {
+  spec: ProvisionGcpVpsRequest;
+}) {
   const region = regionFromZone(input.zone);
+  const machineType = `n4a-custom-${input.spec.cpuCount}-${input.spec.memoryGb * MIB_PER_GB}`;
   return {
     name: input.instanceName,
-    machineType: `zones/${input.zone}/machineTypes/${DEFAULT_VPS_MACHINE_TYPE}`,
+    machineType: `zones/${input.zone}/machineTypes/${machineType}`,
     disks: [
       {
         boot: true,
@@ -100,11 +73,9 @@ export function buildDefaultInstanceInsertRequest(input: {
         type: "PERSISTENT",
         deviceName: input.instanceName,
         initializeParams: {
-          diskSizeGb: DEFAULT_VPS_BOOT_DISK.sizeGb,
+          diskSizeGb: String(input.spec.diskSizeGb),
           sourceImage: DEFAULT_VPS_BOOT_IMAGE,
-          diskType: `zones/${input.zone}/diskTypes/${DEFAULT_VPS_BOOT_DISK.type}`,
-          provisionedIops: DEFAULT_VPS_BOOT_DISK.provisionedIops,
-          provisionedThroughput: DEFAULT_VPS_BOOT_DISK.provisionedThroughput
+          diskType: `zones/${input.zone}/diskTypes/${DEFAULT_VPS_BOOT_DISK_TYPE}`
         }
       }
     ],
@@ -115,13 +86,7 @@ export function buildDefaultInstanceInsertRequest(input: {
         accessConfigs: [{ name: "External NAT", type: "ONE_TO_ONE_NAT", networkTier: "PREMIUM" }]
       }
     ],
-    scheduling: {
-      automaticRestart: false,
-      onHostMaintenance: "TERMINATE",
-      provisioningModel: "SPOT",
-      instanceTerminationAction: "STOP",
-      preemptionNoticeDuration: { seconds: "0" }
-    },
+    scheduling: SCHEDULING_BY_MODEL[input.spec.provisioningModel],
     tags: { items: [...DEFAULT_VPS_NETWORK_TAGS] },
     metadata: {
       items: [{ key: "startup-script", value: input.startupScript ?? DEFAULT_VPS_STARTUP_SCRIPT }]
@@ -131,7 +96,6 @@ export function buildDefaultInstanceInsertRequest(input: {
       enableVtpm: true,
       enableIntegrityMonitoring: true
     },
-    labels: { "goog-ec-src": "vm_add-gcloud" },
     reservationAffinity: { consumeReservationType: "NO_RESERVATION" }
   };
 }
@@ -294,7 +258,8 @@ export async function createDefaultInstance(
         buildDefaultInstanceInsertRequest({
           zone: input.zone,
           instanceName: input.instanceName,
-          ...(input.startupScript !== undefined ? { startupScript: input.startupScript } : {})
+          ...(input.startupScript !== undefined ? { startupScript: input.startupScript } : {}),
+          spec: input.spec
         })
       )
     }
