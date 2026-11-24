@@ -258,22 +258,18 @@ failures are logged without changing the maintenance result. AI-only maintenance
 classifications never trigger this workflow, and the workflow does not re-enable
 login after the maintenance window.
 
-GCP instance keepalive runs on exact UTC ten-minute boundaries. It uses enabled
-GCP accounts to discover instances across all zones and pages, then matches exact
-instance names against all registered VPS hosts. Names duplicated across projects
-or zones are skipped; incomplete discovery fails the cycle before any cloud or
-VPS mutation. A matched `TERMINATED` instance receives a start request without
-waiting for its operation. A later cycle synchronizes its current external IP
-once discovery reports it as `RUNNING`; missing IPs never clear stored addresses.
-Address updates require the VPS name to still match, so a concurrent rename
-cannot receive the old instance's IP. Individual GCP start-request failures,
-including capacity shortages, are logged and retried on the next cycle without
-blocking other matched hosts. Database failures propagate to the Alarm's existing
-retry and recovery handling.
-There is no new table, secret, switch, notification, or automatic recreation.
-The business watcher switch does not control keepalive. Manually stopped matched
-instances are also restarted; rename/remove the VPS registration or disable the
-GCP account to exclude it. VPS names must remain identical to GCP instance names.
+GCP instance keepalive runs on exact UTC ten-minute boundaries. It discovers
+`ark-vps-*` instances across all enabled GCP accounts (all zones and pages) and
+treats them as the source of truth for `role = 'redroid'` rows in `vps_hosts`,
+leaving `role = 'arkhost'` rows and non-`ark-vps-*` GCP instances untouched.
+When no enabled GCP accounts exist, the cycle is a no-op; incomplete discovery
+fails before any DB or cloud mutation. Absent `redroid` rows are deleted first
+so reused external IPs do not collide. Any `TERMINATED` `ark-vps-*` instance
+receives a start request without waiting for its operation (per-instance start
+failures are logged and retried next cycle). Any `RUNNING` `ark-vps-*` instance
+with an external IP updates the existing `redroid` address or registers a new
+`redroid` row with the default SSH credentials. Database failures propagate to
+the Alarm's existing retry and recovery handling.
 
 Retention runs at `00:00 UTC` daily. Fixed schedules deliberately use natural
 UTC boundaries, so there are no minute-17 or `03:15` offsets to coordinate.

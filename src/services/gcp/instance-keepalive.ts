@@ -1,61 +1,58 @@
+import { MANAGED_GCP_VPS_NAME_PREFIX, VPS_HOST_FIELD_LIMITS } from "../../constants/vps/fields";
 import { VpsHostRepository } from "../../repositories/vps/vps-hosts";
 import type { Env } from "../../schemas/env";
 import type { GcpInstance } from "../../schemas/gcp/compute";
+import { PasswordCrypto } from "../vps/password-crypto";
 import { listEnabledAccountRows } from "./accounts";
 import { fetchGoogleAccessToken } from "./auth";
 import { listProjectInstances, submitInstanceAction } from "./compute";
-
-type KeepaliveOptions = {
-  fetcher?: typeof fetch;
-};
+import { DEFAULT_VPS_SSH_PASSWORD, DEFAULT_VPS_SSH_USERNAME } from "./startup-script";
 
 export async function runGcpInstanceKeepalive(
   env: Env,
-  options: KeepaliveOptions = {}
+  options: { fetcher?: typeof fetch } = {}
 ): Promise<void> {
-  const repository = new VpsHostRepository(env.DB);
-  const hosts = await repository.listAll();
-  if (hosts.length === 0) return;
+  const accounts = await listEnabledAccountRows(env);
+  if (accounts.length === 0) return;
 
   const fetcher = options.fetcher ?? fetch;
-  const instances: GcpInstance[] = [];
-  const tokens = new Map<number, string>();
-  // Complete discovery before acting: names can collide across projects/zones.
-  for (const account of await listEnabledAccountRows(env)) {
+  const gcpInstances = new Map<string, { instance: GcpInstance; accessToken: string }>();
+  // Complete discovery across all enabled accounts before mutating DB or starting VMs.
+  for (const account of accounts) {
     const accessToken = await fetchGoogleAccessToken(env, account, { fetch: fetcher });
-    instances.push(
-      ...(await listProjectInstances({
-        fetcher,
-        accessToken,
-        accountId: account.id,
-        accountName: account.name,
-        projectId: account.project_id
-      }))
-    );
-    tokens.set(account.id, accessToken);
+    const list = await listProjectInstances({
+      fetcher,
+      accessToken,
+      accountId: account.id,
+      accountName: account.name,
+      projectId: account.project_id
+    });
+    for (const instance of list) {
+      if (instance.name.startsWith(MANAGED_GCP_VPS_NAME_PREFIX)) {
+        gcpInstances.set(instance.name, { instance, accessToken });
+      }
+    }
   }
 
-  for (const host of hosts) {
-    const matches = instances.filter((instance) => instance.name === host.name);
-    const [instance] = matches;
-    if (matches.length > 1) {
-      console.warn("GCP keepalive skipped ambiguous VPS name", {
-        hostId: host.id,
-        name: host.name
-      });
-      continue;
+  const repository = new VpsHostRepository(env.DB);
+  const redroidHosts = new Map(
+    (await repository.listAll())
+      .filter((host) => host.role === "redroid")
+      .map((host) => [host.name, host])
+  );
+
+  // Delete absent redroid rows first so reused external IPs do not hit unique constraints.
+  for (const [name, host] of redroidHosts) {
+    if (!gcpInstances.has(name)) {
+      await repository.delete(host.id);
     }
-    if (!instance) continue;
-    const accessToken = tokens.get(instance.accountId);
-    if (!accessToken) continue;
+  }
 
-    // A VPS removed or renamed during discovery is no longer managed by this match.
-    const current = await repository.findById(host.id);
-    if (current?.name !== instance.name) continue;
-
+  const passwordCrypto = new PasswordCrypto(env.VPS_PASSWORD_KEY);
+  for (const { instance, accessToken } of gcpInstances.values()) {
     if (instance.status === "TERMINATED") {
       try {
-        const operationName = await submitInstanceAction({
+        await submitInstanceAction({
           fetcher,
           accessToken,
           projectId: instance.projectId,
@@ -63,18 +60,9 @@ export async function runGcpInstanceKeepalive(
           instanceName: instance.name,
           action: "start"
         });
-        if (!operationName)
-          throw new Error("GCP start response did not include an operation name.");
-        console.info("GCP keepalive start submitted", {
-          hostId: host.id,
-          name: host.name,
-          operationName
-        });
       } catch (error) {
-        // Individual GCP failures wait for the next ten-minute cycle.
-        console.error("GCP keepalive instance failed", {
-          hostId: host.id,
-          name: host.name,
+        console.error("GCP keepalive start failed", {
+          name: instance.name,
           projectId: instance.projectId,
           zone: instance.zone,
           error: error instanceof Error ? error.message : "Unknown GCP keepalive failure"
@@ -84,15 +72,25 @@ export async function runGcpInstanceKeepalive(
     }
 
     const address = instance.externalIps[0];
-    if (instance.status === "RUNNING" && address && address !== current.address) {
-      const updated = await repository.updateAddressIfNameMatches(host.id, instance.name, address);
-      if (updated) {
-        console.info("GCP keepalive updated VPS address", {
-          hostId: host.id,
-          name: host.name,
-          address
-        });
+    if (instance.status !== "RUNNING" || !address) continue;
+
+    const existing = redroidHosts.get(instance.name);
+    if (existing) {
+      if (existing.address !== address) {
+        await repository.patch(existing.id, { address });
       }
+    } else {
+      await repository.create(
+        {
+          name: instance.name,
+          address,
+          port: VPS_HOST_FIELD_LIMITS.defaultPort,
+          username: DEFAULT_VPS_SSH_USERNAME,
+          password: DEFAULT_VPS_SSH_PASSWORD,
+          role: "redroid"
+        },
+        await passwordCrypto.encrypt(DEFAULT_VPS_SSH_PASSWORD)
+      );
     }
   }
 }

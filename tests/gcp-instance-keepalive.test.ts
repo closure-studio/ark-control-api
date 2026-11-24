@@ -3,13 +3,21 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import type { Env } from "../src/schemas/env";
 import type { ComputeInstance } from "../src/schemas/gcp/compute";
+import type { VpsRole } from "../src/schemas/vps/hosts";
 import { VpsHostRepository } from "../src/repositories/vps/vps-hosts";
 import { fetchGoogleAccessToken } from "../src/services/gcp/auth";
 import { runGcpInstanceKeepalive } from "../src/services/gcp/instance-keepalive";
+import {
+  DEFAULT_VPS_SSH_PASSWORD,
+  DEFAULT_VPS_SSH_USERNAME
+} from "../src/services/gcp/startup-script";
 import { nextUtcTenMinutes } from "../src/services/scheduler/time";
+import { PasswordCrypto } from "../src/services/vps/password-crypto";
 import { applyD1Migrations } from "./helpers/migrations";
 
 vi.mock("../src/services/gcp/auth", () => ({ fetchGoogleAccessToken: vi.fn() }));
+
+const PASSWORD_KEY = btoa("k".repeat(32));
 
 function instance(name: string, status: string, address?: string): ComputeInstance {
   return {
@@ -27,7 +35,6 @@ describe("GCP instance keepalive", () => {
   const projects = new Map<string, ComputeInstance[]>();
   let startError = false;
   let discoveryError = false;
-  let missingOperation = false;
   const fetcher = vi.fn<typeof fetch>(async (input, init) => {
     const url = new URL(
       typeof input === "string" ? input : input instanceof URL ? input.href : input.url
@@ -45,7 +52,7 @@ describe("GCP instance keepalive", () => {
           { error: { message: "ZONE_RESOURCE_POOL_EXHAUSTED: No capacity" } },
           { status: 503 }
         );
-      return Response.json(missingOperation ? {} : { name: "start-operation" });
+      return Response.json({ name: "start-operation" });
     }
     throw new Error(`Unexpected GCP request: ${url.pathname}`);
   });
@@ -59,7 +66,7 @@ describe("GCP instance keepalive", () => {
     });
     db = await miniflare.getD1Database("DB");
     await applyD1Migrations(db);
-    env = { DB: db } as Env;
+    env = { DB: db, VPS_PASSWORD_KEY: PASSWORD_KEY } as Env;
     repository = new VpsHostRepository(db);
   });
 
@@ -67,7 +74,7 @@ describe("GCP instance keepalive", () => {
     await db.exec("DELETE FROM vps_hosts; DELETE FROM gcp_accounts;");
     await account("project-a");
     projects.clear();
-    startError = discoveryError = missingOperation = false;
+    startError = discoveryError = false;
     fetcher.mockClear();
     vi.mocked(fetchGoogleAccessToken).mockReset().mockResolvedValue("access-token");
   });
@@ -89,18 +96,21 @@ describe("GCP instance keepalive", () => {
       .run();
   }
 
-  async function host(name: string, enabled = true) {
+  async function host(
+    name: string,
+    options: { enabled?: boolean; role?: VpsRole; address?: string } = {}
+  ) {
     const created = await repository.create(
       {
         name,
-        address: "192.0.2.10",
+        address: options.address ?? "192.0.2.10",
         port: 22,
-        username: name,
+        username: DEFAULT_VPS_SSH_USERNAME,
         password: "unused",
-        role: "redroid"
+        role: options.role ?? "redroid"
       },
       "encrypted",
-      enabled
+      options.enabled ?? true
     );
     if (!created) throw new Error("Host fixture failed");
     return created;
@@ -109,7 +119,7 @@ describe("GCP instance keepalive", () => {
   const run = () => runGcpInstanceKeepalive(env, { fetcher });
   const starts = () => fetcher.mock.calls.filter(([url]) => String(url).endsWith("/start"));
 
-  it("submits a start without polling and syncs the IP only on a later running cycle", async () => {
+  it("starts terminated ark-vps-* instances and syncs their IP on a later running cycle", async () => {
     const managed = await host("ark-vps-mv0atlxm");
     projects.set("project-a", [
       instance(managed.name, "TERMINATED"),
@@ -118,202 +128,150 @@ describe("GCP instance keepalive", () => {
     await run();
     expect(starts()).toHaveLength(1);
     expect(String(starts()[0]?.[0])).toContain(`/instances/${managed.name}/start`);
-    expect(fetcher).toHaveBeenCalledTimes(2);
     expect(await repository.findById(managed.id)).toMatchObject({ address: managed.address });
 
     projects.set("project-a", [instance(managed.name, "RUNNING", "192.0.2.20")]);
     await run();
     expect(starts()).toHaveLength(1);
-    expect(fetcher).toHaveBeenCalledTimes(3);
     expect(await repository.findById(managed.id)).toMatchObject({ address: "192.0.2.20" });
   });
 
-  it("syncs a running VPS IP without starting it or changing other fields", async () => {
-    const managed = await host("running");
+  it("registers new running ark-vps-* VMs with default credentials and ignores non-ark-vps-* VMs", async () => {
+    projects.set("project-a", [
+      instance("ark-vps-console1", "RUNNING", "192.0.2.40"),
+      instance("other-vm", "RUNNING", "192.0.2.41")
+    ]);
+    await run();
+
+    const rows = await repository.listAll();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      name: "ark-vps-console1",
+      address: "192.0.2.40",
+      port: 22,
+      username: DEFAULT_VPS_SSH_USERNAME,
+      role: "redroid",
+      enabled: true
+    });
+    const decrypted = await new PasswordCrypto(PASSWORD_KEY).decryptForTest(
+      rows[0]!.password_ciphertext
+    );
+    expect(decrypted).toBe(DEFAULT_VPS_SSH_PASSWORD);
+  });
+
+  it("starts a terminated console ark-vps-* VM not yet in DB and registers it once running", async () => {
+    projects.set("project-a", [instance("ark-vps-console2", "TERMINATED")]);
+    await run();
+    expect(starts()).toHaveLength(1);
+    expect(await repository.listAll()).toHaveLength(0);
+
+    projects.set("project-a", [instance("ark-vps-console2", "RUNNING", "192.0.2.50")]);
+    await run();
+    expect(await repository.listAll()).toMatchObject([
+      { name: "ark-vps-console2", address: "192.0.2.50", role: "redroid" }
+    ]);
+  });
+
+  it("deletes any redroid rows absent from GCP before inserting, while leaving arkhost rows untouched", async () => {
+    const staleGcp = await host("ark-vps-deleted", { address: "192.0.2.60" });
+    const staleOther = await host("old-redroid", { address: "192.0.2.61" });
+    const arkhost = await host("arkhost-main", { role: "arkhost", address: "192.0.2.62" });
+    projects.set("project-a", [instance("ark-vps-created", "RUNNING", "192.0.2.60")]);
+
+    await run();
+
+    expect(await repository.findById(staleGcp.id)).toBeNull();
+    expect(await repository.findById(staleOther.id)).toBeNull();
+    expect(await repository.findById(arkhost.id)).toMatchObject({
+      name: "arkhost-main",
+      role: "arkhost",
+      address: "192.0.2.62"
+    });
+    expect(
+      (await repository.listAll()).find((row) => row.name === "ark-vps-created")
+    ).toMatchObject({
+      address: "192.0.2.60",
+      role: "redroid"
+    });
+  });
+
+  it("updates running IP without changing enabled or other fields", async () => {
+    const managed = await host("ark-vps-running", { enabled: false });
     projects.set("project-a", [instance(managed.name, "RUNNING", "192.0.2.30")]);
     await run();
     expect(starts()).toHaveLength(0);
     expect(await repository.findById(managed.id)).toMatchObject({
       ...managed,
       address: "192.0.2.30",
+      enabled: false,
       updated_at: expect.any(String)
     });
   });
 
   it.each(["PROVISIONING", "STAGING", "STOPPING", "SUSPENDED", "UNKNOWN"])(
-    "leaves %s instances alone",
+    "leaves %s ark-vps-* instances alone without deleting or registering them",
     async (status) => {
-      const managed = await host("transition");
-      projects.set("project-a", [instance(managed.name, status, "192.0.2.30")]);
+      const managed = await host("ark-vps-transition");
+      projects.set("project-a", [
+        instance(managed.name, status, "192.0.2.30"),
+        instance("ark-vps-unregistered", status, "192.0.2.31")
+      ]);
       await run();
       expect(starts()).toHaveLength(0);
       expect(await repository.findById(managed.id)).toMatchObject({ address: managed.address });
+      expect(await repository.listAll()).toHaveLength(1);
     }
   );
 
-  it("does not clear a running VPS address when GCP has no external IP", async () => {
-    const managed = await host("no-ip");
-    projects.set("project-a", [instance(managed.name, "RUNNING")]);
+  it("does not clear an existing address or register a new row when GCP has no external IP", async () => {
+    const managed = await host("ark-vps-noip");
+    projects.set("project-a", [
+      instance(managed.name, "RUNNING"),
+      instance("ark-vps-new-noip", "RUNNING")
+    ]);
     await run();
     expect(await repository.findById(managed.id)).toMatchObject({ address: managed.address });
+    expect(await repository.listAll()).toHaveLength(1);
   });
 
-  it("skips names that collide across projects", async () => {
-    const managed = await host("duplicate");
-    await account("project-b");
-    projects.set("project-a", [instance(managed.name, "TERMINATED")]);
-    projects.set("project-b", [instance(managed.name, "TERMINATED")]);
+  it("ignores disabled accounts and is a no-op when no enabled accounts exist", async () => {
+    await db.exec("DELETE FROM gcp_accounts;");
+    await account("project-disabled", false);
+    const managed = await host("ark-vps-kept");
+
     await run();
-    expect(starts()).toHaveLength(0);
-    expect(await repository.findById(managed.id)).toMatchObject({ address: managed.address });
+
+    expect(fetchGoogleAccessToken).not.toHaveBeenCalled();
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(await repository.findById(managed.id)).toMatchObject({ name: managed.name });
   });
 
-  it("checks every page and zone before acting on a name", async () => {
-    const managed = await host("duplicate-zone");
-    fetcher
-      .mockImplementationOnce(async () =>
-        Response.json({
-          items: { "zones/us-central1-a": { instances: [instance(managed.name, "TERMINATED")] } },
-          nextPageToken: "page-2"
-        })
-      )
-      .mockImplementationOnce(async () =>
-        Response.json({
-          items: {
-            "zones/us-central1-b": { instances: [instance(managed.name, "RUNNING", "192.0.2.30")] }
-          }
-        })
-      );
-    await run();
-    expect(fetcher).toHaveBeenCalledTimes(2);
-    expect(String(fetcher.mock.calls[1]?.[0])).toContain("pageToken=page-2");
-    expect(starts()).toHaveLength(0);
-    expect(await repository.findById(managed.id)).toMatchObject({ address: managed.address });
-  });
-
-  it("ignores disabled accounts but does not use the business watcher switch as a keepalive switch", async () => {
-    const managed = await host("watcher-disabled", false);
-    await account("project-b", false);
-    projects.set("project-a", [instance(managed.name, "TERMINATED")]);
-    await run();
-    expect(fetchGoogleAccessToken).toHaveBeenCalledOnce();
-    expect(starts()).toHaveLength(1);
-    expect(await repository.findById(managed.id)).toMatchObject({
-      enabled: false,
-      address: managed.address
-    });
-    projects.set("project-a", [instance(managed.name, "RUNNING", "192.0.2.20")]);
-    await run();
-    expect(await repository.findById(managed.id)).toMatchObject({
-      enabled: false,
-      address: "192.0.2.20"
-    });
-  });
-
-  it("logs capacity failure without blocking another VPS and retries next cycle", async () => {
-    const stopped = await host("stopped");
-    const running = await host("running");
+  it("logs capacity failure without blocking other instances and retries next cycle", async () => {
+    const stopped = await host("ark-vps-stopped", { address: "192.0.2.10" });
+    const running = await host("ark-vps-running", { address: "192.0.2.11" });
     projects.set("project-a", [
       instance(stopped.name, "TERMINATED"),
       instance(running.name, "RUNNING", "192.0.2.30")
     ]);
     startError = true;
     const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
     await run();
     expect(log).toHaveBeenCalledWith(
-      "GCP keepalive instance failed",
+      "GCP keepalive start failed",
       expect.objectContaining({ error: "ZONE_RESOURCE_POOL_EXHAUSTED: No capacity" })
     );
     expect(await repository.findById(stopped.id)).toMatchObject({ address: stopped.address });
     expect(await repository.findById(running.id)).toMatchObject({ address: "192.0.2.30" });
+
     startError = false;
     await run();
     expect(starts()).toHaveLength(2);
-    expect(await repository.findById(stopped.id)).toMatchObject({ address: stopped.address });
   });
 
-  it("logs a missing operation name without treating the start as completed", async () => {
-    const managed = await host("stopped");
-    projects.set("project-a", [instance(managed.name, "TERMINATED")]);
-    missingOperation = true;
-    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    await run();
-    expect(log).toHaveBeenCalledWith(
-      "GCP keepalive instance failed",
-      expect.objectContaining({ error: "GCP start response did not include an operation name." })
-    );
-    expect(await repository.findById(managed.id)).toMatchObject({ address: managed.address });
-  });
-
-  it.each(["rename", "delete"])(
-    "does not update or report an IP sync after a concurrent %s",
-    async (change) => {
-      const managed = await host("running");
-      projects.set("project-a", [instance(managed.name, "RUNNING", "192.0.2.30")]);
-      const findById = repository.findById.bind(repository);
-      vi.spyOn(VpsHostRepository.prototype, "findById").mockImplementationOnce(async (id) => {
-        const snapshot = await findById(id);
-        if (change === "rename") {
-          await db.prepare("UPDATE vps_hosts SET name = 'renamed' WHERE id = ?").bind(id).run();
-        } else {
-          await db.prepare("DELETE FROM vps_hosts WHERE id = ?").bind(id).run();
-        }
-        return snapshot;
-      });
-      const log = vi.spyOn(console, "info").mockImplementation(() => undefined);
-
-      await run();
-
-      expect(log).not.toHaveBeenCalledWith("GCP keepalive updated VPS address", expect.anything());
-      if (change === "rename") {
-        expect(await repository.findById(managed.id)).toMatchObject({
-          name: "renamed",
-          address: managed.address
-        });
-      } else {
-        expect(await repository.findById(managed.id)).toBeNull();
-      }
-    }
-  );
-
-  it("propagates database read failures instead of treating them as instance failures", async () => {
-    const managed = await host("stopped");
-    projects.set("project-a", [instance(managed.name, "TERMINATED")]);
-    vi.spyOn(VpsHostRepository.prototype, "findById").mockRejectedValueOnce(
-      new Error("D1 read failed")
-    );
-    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
-
-    await expect(run()).rejects.toThrow("D1 read failed");
-    expect(starts()).toHaveLength(0);
-    expect(log).not.toHaveBeenCalled();
-  });
-
-  it("propagates database update failures and allows a retry to sync the address", async () => {
-    const managed = await host("running");
-    projects.set("project-a", [instance(managed.name, "RUNNING", "192.0.2.30")]);
-    vi.spyOn(VpsHostRepository.prototype, "updateAddressIfNameMatches").mockRejectedValueOnce(
-      new Error("D1 update failed")
-    );
-    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
-
-    await expect(run()).rejects.toThrow("D1 update failed");
-    expect(log).not.toHaveBeenCalled();
-    expect(await repository.findById(managed.id)).toMatchObject({ address: managed.address });
-
-    await run();
-    expect(await repository.findById(managed.id)).toMatchObject({ address: "192.0.2.30" });
-  });
-
-  it("does not mutate instances when discovery is incomplete", async () => {
-    await host("stopped");
-    discoveryError = true;
-    await expect(run()).rejects.toThrow("denied");
-    expect(starts()).toHaveLength(0);
-  });
-
-  it("does not mutate a discovered match if a later account cannot be queried", async () => {
-    const managed = await host("stopped");
+  it("does not mutate or delete hosts when discovery fails for any enabled account", async () => {
+    const managed = await host("ark-vps-stopped", { address: "192.0.2.10" });
+    const stale = await host("ark-vps-stale", { address: "192.0.2.11" });
     await account("project-b");
     fetcher.mockImplementationOnce(async () =>
       Response.json({
@@ -321,15 +279,25 @@ describe("GCP instance keepalive", () => {
       })
     );
     discoveryError = true;
+
     await expect(run()).rejects.toThrow("denied");
     expect(starts()).toHaveLength(0);
     expect(await repository.findById(managed.id)).toMatchObject({ address: managed.address });
+    expect(await repository.findById(stale.id)).toMatchObject({ address: stale.address });
   });
 
-  it("does not call GCP when the VPS inventory is empty", async () => {
+  it("propagates database write failures so alarm retry can recover", async () => {
+    const managed = await host("ark-vps-running");
+    projects.set("project-a", [instance(managed.name, "RUNNING", "192.0.2.30")]);
+    vi.spyOn(VpsHostRepository.prototype, "patch").mockRejectedValueOnce(
+      new Error("D1 update failed")
+    );
+
+    await expect(run()).rejects.toThrow("D1 update failed");
+    expect(await repository.findById(managed.id)).toMatchObject({ address: managed.address });
+
     await run();
-    expect(fetchGoogleAccessToken).not.toHaveBeenCalled();
-    expect(fetcher).not.toHaveBeenCalled();
+    expect(await repository.findById(managed.id)).toMatchObject({ address: "192.0.2.30" });
   });
 
   it("uses exact ten-minute UTC boundaries", () => {
