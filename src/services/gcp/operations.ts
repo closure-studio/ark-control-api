@@ -1,5 +1,6 @@
 import { count, desc } from "drizzle-orm";
 
+import { MANAGED_GCP_VPS_NAME_PREFIX } from "../../constants/vps/fields";
 import { createDatabase } from "../../db/client";
 import { gcpOperationLogs } from "../../db/schema";
 import type { ProvisionGcpVpsRequest } from "../../schemas/gcp/compute";
@@ -211,7 +212,7 @@ export async function submitBatchInstanceAction(
 }
 
 function defaultInstanceName(now = Date.now()): string {
-  return `ark-vps-${now.toString(36)}`;
+  return `${MANAGED_GCP_VPS_NAME_PREFIX}${now.toString(36)}`;
 }
 
 async function buildPyHelperStartupScript(input: {
